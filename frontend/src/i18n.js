@@ -129,7 +129,39 @@ export const translations = {
     admin_tab_orders: "बहीखाते व ग्राहक ऑर्डर्स (Orders Book)",
     admin_search_placeholder: "सामान शोधा...",
     admin_save_btn: "सेव्ह करा",
-    admin_mark_paid: "नगद मिळाले (Mark Paid)"
+    admin_mark_paid: "नगद मिळाले (Mark Paid)",
+
+    // Trust Pillars
+    pillar_scale_title: "सरकारी प्रमाणित काटा",
+    pillar_scale_desc: "१००% अचूक डिजिटल वजन, कोणतीही तूट किंवा घट नाही.",
+    pillar_rates_title: "थेट मंडीचे घाऊक भाव",
+    pillar_rates_desc: "दलालांशिवाय थेट शेतकरी व एपीएमसी दर, थेट बचत.",
+    pillar_khata_title: "मासिक बहीखाता (उधारी)",
+    pillar_khata_desc: "घरगुती व छोट्या दुकानदारांसाठी मासिक पावती सुविधा.",
+    pillar_speed_title: "३० मिनिट एक्सप्रेस डिलिव्हरी",
+    pillar_speed_desc: "स्थानिक रायडर्सद्वारे वेगाने घरपोच ताजा माल.",
+
+    // Quick View
+    quick_view_title: "सामानाचा तपशील (Quick View)",
+    quick_view_guarantee: "१००% शुद्धता व स्वच्छतेची हमी",
+    quick_view_mandi_badge: "थेट घाऊक मंडी पुरवठा",
+    quick_view_close: "बंद करा",
+    view_details_btn: "तपशील पहा",
+
+    // Notices & Parcha
+    cod_notice_title: "नगद पेमेंट (Cash on Delivery)",
+    cod_notice_desc: "माल हातात आल्यावर डिलिव्हरी बॉयकडून खात्री करून रोख रक्कम द्या.",
+    khata_notice_title: "मासिक किराणा खाते (Pay Later)",
+    khata_notice_desc: "हा ऑर्डर तुमच्या चालू मासिक खात्यात जोडला जाईल. स्थिती बाकी उधारी दिसेल.",
+    upi_qr_title: "दुकानाचे अधिकृत UPI QR कोड",
+    upi_scan_confirm: "होय, मी QR कोड स्कॅन करून ऑनलाईन पेमेंट पूर्ण केले आहे (Mark as Paid)",
+    order_savings_text: "या ऑर्डरवर तुमची एकूण बचत",
+    parcha_generated_title: "पावती तयार झाली",
+    parcha_invoice_title: "दुकानाची अधिकृत पावती (INVOICE)",
+    parcha_send_whatsapp: "व्हॉट्सॲपवर पावती पाठवा",
+    parcha_print_btn: "प्रिंट (Print)",
+    parcha_close_btn: "बंद करा",
+    parcha_visit_again: "पुन्हा भेट द्या! धन्यवाद!"
   },
 
   hi: {
@@ -257,7 +289,39 @@ export const translations = {
     admin_tab_orders: "बहीखाता व ग्राहक ऑर्डर (Orders Book)",
     admin_search_placeholder: "सामान खोजें...",
     admin_save_btn: "सेव करें",
-    admin_mark_paid: "नकद मिला (Mark Paid)"
+    admin_mark_paid: "नकद मिला (Mark Paid)",
+
+    // Trust Pillars
+    pillar_scale_title: "सरकारी प्रमाणित काँटा",
+    pillar_scale_desc: "100% सही डिजिटल तोल, कोई घटत नहीं।",
+    pillar_rates_title: "सीधे मंडी के थोक भाव",
+    pillar_rates_desc: "बिना बिचौलियों के सीधा एपीएमसी रेट, अधिक बचत।",
+    pillar_khata_title: "मासिक बहीखाता (उधारी)",
+    pillar_khata_desc: "घरेलू व छोटे दुकानदारों के लिए पर्चा सुविधा।",
+    pillar_speed_title: "30 मिनट एक्सप्रेस डिलीवरी",
+    pillar_speed_desc: "स्थानीय राइडर्स द्वारा तेज़ी से घर तक ताज़ा सामान।",
+
+    // Quick View
+    quick_view_title: "सामान का विवरण (Quick View)",
+    quick_view_guarantee: "100% शुद्धता एवं स्वच्छता की गारंटी",
+    quick_view_mandi_badge: "डायरेक्ट थोक मंडी सप्लाई",
+    quick_view_close: "बंद करें",
+    view_details_btn: "विवरण देखें",
+
+    // Notices & Parcha
+    cod_notice_title: "नकद भुगतान (Cash on Delivery)",
+    cod_notice_desc: "सामान घर पहुँचने पर डिलीवरी वाले को नकद भुगतान करें।",
+    khata_notice_title: "मासिक किराना खाता (Pay Later)",
+    khata_notice_desc: "यह ऑर्डर आपके मासिक खाते में लिख लिया जाएगा। स्थिति बाकी उधारी रहेगी।",
+    upi_qr_title: "दुकान का ऑफिशियल UPI QR कोड",
+    upi_scan_confirm: "हाँ, मैंने QR कोड स्कैन करके ऑनलाइन भुगतान पूरा कर लिया है (Mark as Paid)",
+    order_savings_text: "इस ऑर्डर पर आपकी कुल बचत",
+    parcha_generated_title: "बिल जनरेट हुआ",
+    parcha_invoice_title: "दुकान का पक्का बिल (INVOICE)",
+    parcha_send_whatsapp: "व्हाट्सएप पर पर्चा भेजें",
+    parcha_print_btn: "प्रिंट (Print)",
+    parcha_close_btn: "बंद करें",
+    parcha_visit_again: "फिर पधारें! धन्यवाद!"
   },
 
   en: {
@@ -385,7 +449,39 @@ export const translations = {
     admin_tab_orders: "Customer Orders & Khata Book",
     admin_search_placeholder: "Filter products...",
     admin_save_btn: "Save",
-    admin_mark_paid: "Mark Paid (Received)"
+    admin_mark_paid: "Mark Paid (Received)",
+
+    // Trust Pillars
+    pillar_scale_title: "Govt Certified Scales",
+    pillar_scale_desc: "100% precise digital measurement, zero shortage.",
+    pillar_rates_title: "Direct Mandi Rates",
+    pillar_rates_desc: "APMC wholesale prices without middlemen markups.",
+    pillar_khata_title: "Monthly Khata Ledger",
+    pillar_khata_desc: "Convenient monthly ledger credit for local families.",
+    pillar_speed_title: "30-Min Fast Delivery",
+    pillar_speed_desc: "Prompt hyperlocal doorstep dispatch for fresh staples.",
+
+    // Quick View
+    quick_view_title: "Product Details (Quick View)",
+    quick_view_guarantee: "100% Purity & Hygiene Guarantee",
+    quick_view_mandi_badge: "Direct APMC Wholesale Supply",
+    quick_view_close: "Close",
+    view_details_btn: "Quick View",
+
+    // Notices & Parcha
+    cod_notice_title: "Cash on Delivery (COD)",
+    cod_notice_desc: "Pay in cash when your goods are verified and handed over at your doorstep.",
+    khata_notice_title: "Monthly Khata (Pay Later)",
+    khata_notice_desc: "This order will be added to your monthly ledger. Balance will show as Unpaid.",
+    upi_qr_title: "Official Store UPI QR Code",
+    upi_scan_confirm: "Yes, I have scanned the QR code and completed online payment (Mark as Paid)",
+    order_savings_text: "Your total savings on this order",
+    parcha_generated_title: "Bill Generated",
+    parcha_invoice_title: "Store Invoice & Bill Receipt",
+    parcha_send_whatsapp: "Share Bill on WhatsApp",
+    parcha_print_btn: "Print Receipt",
+    parcha_close_btn: "Close",
+    parcha_visit_again: "Thank you! Please visit again!"
   }
 };
 

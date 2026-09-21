@@ -190,31 +190,100 @@
     <main class="main-layout" v-if="!isAdminLoggedIn">
       <!-- Desi Kirana Hero Promotional Banner -->
       <section class="hero-promo-banner">
-        <div class="hero-text">
-          <h2>🌾 {{ t('hero_title') }}</h2>
-          <p>{{ t('hero_desc') }}</p>
-          <div class="hero-perks">
-            <div class="hero-perk-item">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
-              <span>{{ t('hero_perk_weight') }}</span>
+        <div class="hero-content-grid">
+          <div class="hero-text">
+            <h2>🌾 {{ t('hero_title') }}</h2>
+            <p>{{ t('hero_desc') }}</p>
+            <div class="hero-perks">
+              <div class="hero-perk-item">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+                <span>{{ t('hero_perk_weight') }}</span>
+              </div>
+              <div class="hero-perk-item">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>{{ t('hero_perk_delivery') }}</span>
+              </div>
+              <div class="hero-perk-item">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+                <span>{{ t('hero_perk_khata') }}</span>
+              </div>
+              <div class="hero-perk-item">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                <span>{{ t('hero_perk_brands') }}</span>
+              </div>
             </div>
-            <div class="hero-perk-item">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span>{{ t('hero_perk_delivery') }}</span>
-            </div>
-            <div class="hero-perk-item">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
-              <span>{{ t('hero_perk_khata') }}</span>
-            </div>
-            <div class="hero-perk-item">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-              <span>{{ t('hero_perk_brands') }}</span>
+            <div class="hero-action-row">
+              <button class="hero-cta-btn" @click="openMonthlyParchaModal">
+                📝 {{ t('hero_cta') }}
+              </button>
             </div>
           </div>
-          <div class="hero-action-row">
-            <button class="hero-cta-btn" @click="openMonthlyParchaModal">
-              📝 {{ t('hero_cta') }}
-            </button>
+
+          <!-- Hero Right-Side Visual Showcase Card -->
+          <div class="hero-showcase-card">
+            <div class="hero-showcase-header">
+              <span class="hero-showcase-badge">🌾 {{ currentLang === 'mr' ? 'थेट घाऊक मंडी भाव' : (currentLang === 'hi' ? 'सीधा थोक मंडी रेट' : 'Direct Wholesale Mandi') }}</span>
+              <span class="hero-showcase-sub">✓ {{ currentLang === 'mr' ? '१००% शुद्धता' : (currentLang === 'hi' ? '100% शुद्धता' : '100% Pure') }}</span>
+            </div>
+            <div class="hero-showcase-imgs">
+              <div class="hero-showcase-item">
+                <img src="/products/chakki-atta.jpg" alt="Chakki Atta" class="hero-showcase-thumb" />
+                <span class="hero-showcase-title">{{ currentLang === 'mr' ? 'चक्कीचे गव्हाचे पीठ' : (currentLang === 'hi' ? 'चक्की का ताज़ा आटा' : 'Fresh Chakki Atta') }}</span>
+                <span class="hero-showcase-rate">₹32/kg</span>
+              </div>
+              <div class="hero-showcase-item">
+                <img src="/products/toor-dal.jpg" alt="Toor Dal" class="hero-showcase-thumb" />
+                <span class="hero-showcase-title">{{ currentLang === 'mr' ? 'गावरान तूर डाळ' : (currentLang === 'hi' ? 'देसी अरहर / तूर दाल' : 'Desi Toor Dal') }}</span>
+                <span class="hero-showcase-rate">₹148/kg</span>
+              </div>
+            </div>
+            <div class="hero-showcase-badge-bar">
+              <span>⚖️ {{ currentLang === 'mr' ? 'सरकारी वजन प्रमाणित' : (currentLang === 'hi' ? 'सरकारी काँटा प्रमाणित' : 'Govt Scale Certified') }}</span>
+              <span>⚡ 30 Min Express</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 Trust & Value Pillars Section -->
+      <section class="trust-pillars-section">
+        <div class="pillar-card">
+          <div class="pillar-icon-wrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+          </div>
+          <div class="pillar-content">
+            <h4 class="pillar-title">{{ t('pillar_scale_title') }}</h4>
+            <p class="pillar-desc">{{ t('pillar_scale_desc') }}</p>
+          </div>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon-wrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="pillar-content">
+            <h4 class="pillar-title">{{ t('pillar_rates_title') }}</h4>
+            <p class="pillar-desc">{{ t('pillar_rates_desc') }}</p>
+          </div>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon-wrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+          </div>
+          <div class="pillar-content">
+            <h4 class="pillar-title">{{ t('pillar_khata_title') }}</h4>
+            <p class="pillar-desc">{{ t('pillar_khata_desc') }}</p>
+          </div>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon-wrap">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="pillar-content">
+            <h4 class="pillar-title">{{ t('pillar_speed_title') }}</h4>
+            <p class="pillar-desc">{{ t('pillar_speed_desc') }}</p>
           </div>
         </div>
       </section>
@@ -288,7 +357,7 @@
       <div v-else class="products-grid">
         <div v-for="prod in products" :key="prod.id" class="product-card">
           <!-- Product Photo (Verified Local Images) -->
-          <div class="product-thumb-wrap">
+          <div class="product-thumb-wrap" @click="openQuickView(prod)">
             <img
               :src="prod.image_url"
               :alt="prod.name"
@@ -299,11 +368,14 @@
             <span v-if="prod.is_loose" class="loose-badge">🌾 {{ t('badge_loose') }}</span>
             <span v-else class="packed-badge">📦 {{ t('badge_packed') }}</span>
             <span class="brand-badge" v-if="prod.brand && prod.brand !== 'Loose / Desi Mandi' && prod.brand !== 'Local / Mandi' && prod.brand !== 'Loose / Local'">{{ prod.brand }}</span>
+            <div class="quick-view-overlay">
+              <span>👁️ {{ t('view_details_btn') }}</span>
+            </div>
           </div>
 
           <!-- Product Details -->
           <div class="product-info">
-            <h3 class="product-title">{{ getLocalizedProductName(prod, currentLang) }}</h3>
+            <h3 class="product-title" @click="openQuickView(prod)">{{ getLocalizedProductName(prod, currentLang) }}</h3>
             <div class="product-sub-title">{{ currentLang === 'en' ? (prod.name_hi || '') : prod.name }}</div>
             <p class="product-desc">{{ prod.description }}</p>
 
@@ -1027,7 +1099,7 @@
       <div class="cart-drawer">
         <div class="cart-header">
           <h2 style="font-size: 1.2rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
-            🛒 आपका थैला (Cart)
+            🛒 {{ t('cart_title') }}
           </h2>
           <button class="close-btn" @click="isCartOpen = false">✕</button>
         </div>
@@ -1036,10 +1108,10 @@
         <div class="free-delivery-meter" v-if="cart.length > 0">
           <div class="meter-text-row">
             <span v-if="Number(cartTotalAmount) < 300">
-              🛵 बस <strong>₹{{ (300 - Number(cartTotalAmount)).toFixed(2) }}</strong> और जोड़ें <strong>मुफ़्त डिलीवरी</strong> हेतु!
+              🛵 {{ t('free_delivery_need') }} <strong>₹{{ (300 - Number(cartTotalAmount)).toFixed(2) }}</strong> {{ t('free_delivery_reach') }} <strong>{{ t('free_delivery_text') }}</strong>
             </span>
             <span v-else style="color: #064e3b; font-weight: 800;">
-              🎉 बधाई! आपके ऑर्डर पर <strong>मुफ़्त डिलीवरी</strong> लागू है!
+              🎉 {{ t('free_delivery_success') }}
             </span>
             <span class="meter-pct-badge">{{ Math.min(100, Math.round((Number(cartTotalAmount) / 300) * 100)) }}%</span>
           </div>
@@ -1055,15 +1127,15 @@
         <!-- Empty Cart -->
         <div v-if="cart.length === 0" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
           <div style="font-size: 3.5rem; margin-bottom: 12px;">🧺</div>
-          <h4 style="font-size: 1.15rem; font-weight: 800;">आपका थैला खाली है</h4>
+          <h4 style="font-size: 1.15rem; font-weight: 800;">{{ t('cart_empty_title') }}</h4>
           <p style="color: var(--text-subtle); font-size: 0.9rem; margin-top: 4px;">
-            दालें, चावल, आटा और रोज़मर्रा का सामान जोड़ें।
+            {{ t('cart_empty_desc') }}
           </p>
           <button
             @click="isCartOpen = false"
             style="margin-top: 18px; padding: 10px 22px; background: #047857; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer;"
           >
-            खरीदारी शुरू करें
+            {{ t('start_shopping') }}
           </button>
         </div>
 
@@ -1078,7 +1150,7 @@
                   🌾 {{ item.custom_unit_size }} @ ₹{{ item.unit_price }}/kg
                 </div>
                 <div style="font-size: 0.9rem; font-weight: 800; color: #047857; margin-top: 4px;">
-                  कुल: <strong>₹{{ item.subtotal.toFixed(2) }}</strong>
+                  {{ t('custom_total_label') }} <strong>₹{{ item.subtotal.toFixed(2) }}</strong>
                   <span v-if="item.quantity > 1" style="font-size: 0.78rem; color: var(--text-muted);">
                     ({{ item.quantity }}x)
                   </span>
@@ -1114,21 +1186,21 @@
         <div class="cart-footer" v-if="cart.length > 0">
           <div class="bill-summary">
             <div class="bill-row">
-              <span>सामान का कुल मूल्य (MRP Total)</span>
+              <span>{{ t('mrp_total') }}</span>
               <span>₹{{ cartTotalMrp }}</span>
             </div>
             <div class="bill-row savings">
-              <span>किराना बचत (Savings / Discount)</span>
+              <span>{{ t('kirana_savings') }}</span>
               <span>- ₹{{ cartTotalSavings }}</span>
             </div>
             <div class="bill-row total">
-              <span>कुल देय राशि (Payable Amount)</span>
+              <span>{{ t('payable_amount') }}</span>
               <span>₹{{ cartTotalAmount }}</span>
             </div>
           </div>
 
           <button class="checkout-btn" @click="openCheckoutModal">
-            📝 बिल / पर्चा बनाएं (Proceed to Bill)
+            📝 {{ t('proceed_checkout') }}
           </button>
         </div>
       </div>
@@ -1141,30 +1213,30 @@
       <div class="modal-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b;">
-            📝 डिलीवरी व बिल विवरण (Order Details)
+            📝 {{ t('checkout_title') }}
           </h3>
           <button class="close-btn" @click="showCheckoutModal = false">✕</button>
         </div>
 
         <form @submit.prevent="submitOrder">
           <div class="form-group">
-            <label class="form-label">ग्राहक का नाम (Customer Name) *</label>
+            <label class="form-label">{{ t('cust_name_label') }}</label>
             <input type="text" v-model="customerForm.name" required class="form-input" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">मोबाइल नंबर (Phone Number) *</label>
+            <label class="form-label">{{ t('cust_phone_label') }}</label>
             <input type="tel" v-model="customerForm.phone" required pattern="[0-9]{10}" class="form-input" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">डिलीवरी का पता / लैंडमार्क (Address) *</label>
+            <label class="form-label">{{ t('cust_address_label') }}</label>
             <textarea v-model="customerForm.address" required rows="2" class="form-input" placeholder="मकान नं, गली, मोहल्ला / लैंडमार्क"></textarea>
           </div>
 
           <!-- Delivery Slot Selector -->
           <div class="form-group">
-            <label class="form-label">⏰ डिलीवरी का समय चुनें (Delivery Slot) *</label>
+            <label class="form-label">⏰ {{ t('delivery_slot_title') }}</label>
             <div class="delivery-slots-grid">
               <div
                 v-for="slot in deliverySlotOptions"
@@ -1184,31 +1256,31 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">भुगतान का तरीका (Payment Option)</label>
+            <label class="form-label">{{ t('payment_method_label') }}</label>
             <select v-model="customerForm.paymentMethod" class="form-input">
-              <option value="Cash on Delivery (COD)">💵 नकद डिलीवरी पर (Cash on Delivery)</option>
-              <option value="UPI / QR Code">📱 तुरंत UPI / QR कोड (PhonePe / GPay / Paytm)</option>
-              <option value="Kirana Khata (Pay Later)">📖 किराना खाता (उधारी / बाद में भुगतान)</option>
+              <option value="Cash on Delivery (COD)">💵 {{ t('pay_cod') }}</option>
+              <option value="UPI / QR Code">📱 {{ t('pay_upi') }}</option>
+              <option value="Kirana Khata (Pay Later)">📖 {{ t('pay_khata') }}</option>
             </select>
           </div>
 
           <!-- COD Notice -->
           <div v-if="customerForm.paymentMethod === 'Cash on Delivery (COD)'" class="payment-notice-banner cod-banner">
             <div style="font-weight: 800; color: #92400e; font-size: 0.88rem; margin-bottom: 2px;">
-              💵 नकद भुगतान (Cash on Delivery)
+              💵 {{ t('cod_notice_title') }}
             </div>
             <div style="font-size: 0.8rem; color: #78350f;">
-              सामान घर पहुँचने पर डिलीवरी वाले को नकद भुगतान करें। ऑर्डर बिल पर स्थिति <strong>🔴 बाकी / उधारी (Unpaid)</strong> दिखेगी।
+              {{ t('cod_notice_desc') }}
             </div>
           </div>
 
           <!-- Khata Notice -->
           <div v-if="customerForm.paymentMethod === 'Kirana Khata (Pay Later)'" class="payment-notice-banner khata-banner">
             <div style="font-weight: 800; color: #1e3a8a; font-size: 0.88rem; margin-bottom: 2px;">
-              📖 मासिक किराना खाता (Pay Later)
+              📖 {{ t('khata_notice_title') }}
             </div>
             <div style="font-size: 0.8rem; color: #1e40af;">
-              यह ऑर्डर आपके मासिक खाते में लिख लिया जाएगा। स्थिति <strong>🔴 बाकी उधारी (Unpaid)</strong> रहेगी जिसे आप कभी भी चुका सकते हैं।
+              {{ t('khata_notice_desc') }}
             </div>
           </div>
 
@@ -1216,7 +1288,7 @@
           <div v-if="customerForm.paymentMethod === 'UPI / QR Code'" class="upi-qr-card">
             <div class="upi-header">
               <span class="upi-badge">BHIM UPI • PhonePe • Google Pay • Paytm</span>
-              <h4>दुकान का ऑफिशियल UPI QR कोड</h4>
+              <h4>{{ t('upi_qr_title') }}</h4>
             </div>
 
             <div class="upi-qr-frame">
@@ -1246,10 +1318,10 @@
                 </svg>
               </div>
               <div class="upi-details">
-                <div class="upi-shop-name">अपना देसी किराना स्टोर</div>
+                <div class="upi-shop-name">{{ t('store_name_full') }}</div>
                 <div class="upi-id-row"><span>UPI ID:</span> <code>apnakirana@upi</code></div>
                 <div class="upi-amount-row">
-                  <span>भुगतान राशि:</span>
+                  <span>{{ t('payable_amount') }}:</span>
                   <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ cartTotalAmount }}</strong>
                 </div>
                 <div class="upi-apps-icons">PhonePe • GPay • Paytm</div>
@@ -1259,18 +1331,18 @@
             <div class="upi-confirm-check">
               <label>
                 <input type="checkbox" v-model="customerForm.upiConfirmed" />
-                <span>हाँ, मैंने QR कोड स्कैन करके ₹{{ cartTotalAmount }} का ऑनलाइन भुगतान पूरा कर लिया है (Mark as Paid)</span>
+                <span>{{ t('upi_scan_confirm') }}</span>
               </label>
             </div>
           </div>
 
           <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
             <div style="display: flex; justify-content: space-between; font-weight: 900; color: #064e3b; font-size: 1.15rem;">
-              <span>कुल भुगतान राशि:</span>
+              <span>{{ t('payable_amount') }}:</span>
               <span>₹{{ cartTotalAmount }}</span>
             </div>
             <div style="font-size: 0.84rem; color: #047857; font-weight: 700; margin-top: 4px;">
-              🎉 इस ऑर्डर पर आपकी कुल बचत: ₹{{ cartTotalSavings }}!
+              🎉 {{ t('order_savings_text') }}: ₹{{ cartTotalSavings }}!
             </div>
           </div>
 
@@ -1279,7 +1351,7 @@
             :disabled="orderSubmitting || (customerForm.paymentMethod === 'UPI / QR Code' && !customerForm.upiConfirmed)"
             class="checkout-btn"
           >
-            {{ orderSubmitting ? 'ऑर्डर दर्ज हो रहा है...' : '✅ ऑर्डर कन्फ़र्म करें व पर्चा प्राप्त करें' }}
+            {{ orderSubmitting ? t('placing_order') : '✅ ' + t('place_order_btn') }}
           </button>
         </form>
       </div>
@@ -1291,16 +1363,16 @@
     <div class="modal-overlay" v-if="lastOrderReceipt" @click.self="lastOrderReceipt = null">
       <div class="modal-card printable-area" style="max-width: 480px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 0.88rem; font-weight: 800; color: #047857;">✅ बिल जनरेट हुआ</span>
+          <span style="font-size: 0.88rem; font-weight: 800; color: #047857;">✅ {{ t('parcha_generated_title') }}</span>
           <button class="close-btn" @click="lastOrderReceipt = null">✕</button>
         </div>
 
         <div class="parcha-receipt">
           <div class="parcha-header">
-            <h3>अपना देसी किराना स्टोर</h3>
+            <h3>{{ t('store_name_full') }}</h3>
             <p style="font-size: 0.8rem;">मेन बाजार, स्टेशन रोड • फोन: 98765-43210</p>
             <p style="font-size: 0.85rem; font-weight: bold; margin-top: 4px;">
-              दुकान का पक्का बिल (INVOICE)
+              {{ t('parcha_invoice_title') }}
             </p>
             <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-top: 8px;">
               <span>पर्चा नं: <strong>{{ lastOrderReceipt.order_number }}</strong></span>
@@ -1342,21 +1414,21 @@
 
           <div style="border-top: 1.5px dashed #78716c; padding-top: 8px; font-size: 0.88rem;">
             <div style="display: flex; justify-content: space-between;">
-              <span>कुल एमआरपी (MRP):</span>
+              <span>{{ t('mrp_total') }}:</span>
               <span>₹{{ lastOrderReceipt.total_mrp }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; color: #047857; font-weight: bold;">
-              <span>किराना छूट (बचत):</span>
+              <span>{{ t('kirana_savings') }}:</span>
               <span>- ₹{{ lastOrderReceipt.total_savings }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 900; margin-top: 6px; border-top: 2px solid #000; padding-top: 4px;">
-              <span>कुल देय राशि:</span>
+              <span>{{ t('payable_amount') }}:</span>
               <span>₹{{ lastOrderReceipt.final_amount }}</span>
             </div>
           </div>
 
           <div style="text-align: center; font-size: 0.78rem; margin-top: 16px; border-top: 1.5px dashed #78716c; padding-top: 8px;">
-            🙏 फिर पधारें! धन्यवाद! 🙏
+            🙏 {{ t('parcha_visit_again') }} 🙏
           </div>
         </div>
 
@@ -1365,19 +1437,19 @@
             @click="shareOrderOnWhatsApp(lastOrderReceipt)"
             class="whatsapp-share-btn"
           >
-            📲 व्हाट्सएप पर पर्चा भेजें
+            📲 {{ t('parcha_send_whatsapp') }}
           </button>
           <button
             @click="printParcha"
             style="flex: 1; min-width: 130px; padding: 11px; background: #1c1917; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
           >
-            🖨️ प्रिंट (Print)
+            🖨️ {{ t('parcha_print_btn') }}
           </button>
           <button
             @click="lastOrderReceipt = null"
             style="padding: 11px 18px; background: #e7e2d9; color: #1c1917; border: none; border-radius: 10px; font-weight: 800; cursor: pointer;"
           >
-            बंद करें
+            {{ t('parcha_close_btn') }}
           </button>
         </div>
       </div>
@@ -1612,6 +1684,151 @@
         </div>
       </div>
     </div>
+
+    <!-- ======================================================== -->
+    <!-- QUICK VIEW / PRODUCT DETAIL MODAL                        -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="selectedProductQuickView" @click.self="closeQuickView">
+      <div class="modal-card quick-view-card">
+        <div class="quick-view-header">
+          <div class="quick-view-badge-title">
+            <span>🌾 {{ t('quick_view_title') }}</span>
+          </div>
+          <button class="close-btn" @click="closeQuickView">✕</button>
+        </div>
+
+        <div class="quick-view-grid">
+          <!-- Left: Product Image & Mandi Badges -->
+          <div class="quick-view-image-pane">
+            <img
+              :src="selectedProductQuickView.image_url"
+              :alt="selectedProductQuickView.name"
+              class="quick-view-img"
+              @error="handleImageFallback($event)"
+            />
+            <span v-if="selectedProductQuickView.is_loose" class="loose-badge" style="position: static; margin-top: 10px;">
+              🌾 {{ t('badge_loose') }}
+            </span>
+            <span v-else class="packed-badge" style="position: static; margin-top: 10px;">
+              📦 {{ t('badge_packed') }}
+            </span>
+            <div class="quick-view-trust-tag">
+              ✓ {{ t('quick_view_guarantee') }}
+            </div>
+          </div>
+
+          <!-- Right: Details & Purchase Options -->
+          <div class="quick-view-info-pane">
+            <span class="quick-view-brand-tag" v-if="selectedProductQuickView.brand">{{ selectedProductQuickView.brand }}</span>
+            <h2 class="quick-view-title">{{ getLocalizedProductName(selectedProductQuickView, currentLang) }}</h2>
+            <div class="quick-view-sub">{{ currentLang === 'en' ? (selectedProductQuickView.name_hi || '') : selectedProductQuickView.name }}</div>
+
+            <p class="quick-view-desc">{{ selectedProductQuickView.description }}</p>
+
+            <div class="quick-view-mandi-promise">
+              <span>🌾</span>
+              <span>{{ t('quick_view_mandi_badge') }} • {{ t('hero_perk_weight') }}</span>
+            </div>
+
+            <!-- Variants Selector & Custom kg Mode -->
+            <div class="variants-wrap" style="margin-top: 18px;" v-if="selectedProductQuickView.variants && selectedProductQuickView.variants.length > 0">
+              <div class="variant-label-title">{{ t('weight_select_label') }}</div>
+              <div class="variant-options">
+                <button
+                  v-for="v in selectedProductQuickView.variants"
+                  :key="v.id"
+                  class="variant-chip"
+                  :class="{ selected: selectedVariants[selectedProductQuickView.id] === v.id && !customWeightMode[selectedProductQuickView.id] }"
+                  @click="selectVariant(selectedProductQuickView.id, v.id)"
+                >
+                  {{ v.unit_size }}
+                </button>
+                <!-- Custom Weight Option for Loose Items -->
+                <button
+                  v-if="isLooseProduct(selectedProductQuickView)"
+                  class="variant-chip custom-chip"
+                  :class="{ selected: customWeightMode[selectedProductQuickView.id] }"
+                  @click="enableCustomWeight(selectedProductQuickView)"
+                >
+                  ⚖️ {{ t('custom_weight_btn') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Weight Input Mode -->
+            <div v-if="customWeightMode[selectedProductQuickView.id]" class="custom-weight-box" style="margin-top: 14px;">
+              <div class="custom-weight-header">
+                <span>⚖️ {{ t('enter_custom_weight') }}</span>
+                <span class="custom-rate-badge">{{ t('per_kg_rate') }}: ₹{{ getBasePerKgRate(selectedProductQuickView) }}/kg</span>
+              </div>
+              <div class="custom-input-group">
+                <button type="button" class="weight-stepper-btn" @click="adjustCustomWeight(selectedProductQuickView.id, -0.5)">-0.5</button>
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0.25"
+                  max="100"
+                  v-model.number="customWeightInputs[selectedProductQuickView.id]"
+                  class="custom-weight-input"
+                />
+                <span class="custom-unit-label">kg</span>
+                <button type="button" class="weight-stepper-btn" @click="adjustCustomWeight(selectedProductQuickView.id, 0.5)">+0.5</button>
+                <button type="button" class="weight-stepper-btn" @click="adjustCustomWeight(selectedProductQuickView.id, 1.0)">+1.0</button>
+              </div>
+              <div class="quick-weights">
+                <span class="quick-chip" @click="setQuickCustomWeight(selectedProductQuickView.id, 1.5)">1.5kg</span>
+                <span class="quick-chip" @click="setQuickCustomWeight(selectedProductQuickView.id, 2.5)">2.5kg</span>
+                <span class="quick-chip" @click="setQuickCustomWeight(selectedProductQuickView.id, 5.0)">5kg</span>
+                <span class="quick-chip" @click="setQuickCustomWeight(selectedProductQuickView.id, 10.0)">10kg</span>
+              </div>
+              <div class="custom-price-calc">
+                <span>{{ t('custom_total_label') }}:</span>
+                <strong class="custom-total-val">₹{{ getCustomWeightPrice(selectedProductQuickView) }}</strong>
+              </div>
+              <button
+                class="add-to-cart-btn custom-add-btn"
+                @click="addCustomWeightItemToCart(selectedProductQuickView); closeQuickView();"
+                :disabled="!customWeightInputs[selectedProductQuickView.id] || customWeightInputs[selectedProductQuickView.id] <= 0"
+              >
+                🛒 {{ customWeightInputs[selectedProductQuickView.id] || 0 }} kg {{ t('add_custom_btn') }}
+              </button>
+            </div>
+
+            <!-- Standard Variant Mode -->
+            <template v-else>
+              <div class="price-row" style="margin-top: 16px;" v-if="getActiveVariant(selectedProductQuickView)">
+                <span class="selling-price" style="font-size: 1.5rem;">₹{{ getActiveVariant(selectedProductQuickView).selling_price }}</span>
+                <span class="mrp-price" style="font-size: 1.1rem;" v-if="getActiveVariant(selectedProductQuickView).mrp > getActiveVariant(selectedProductQuickView).selling_price">
+                  ₹{{ getActiveVariant(selectedProductQuickView).mrp }}
+                </span>
+                <span class="discount-tag" v-if="getActiveVariant(selectedProductQuickView).discount_pct > 0">
+                  {{ t('savings_label') }} {{ getActiveVariant(selectedProductQuickView).discount_pct }}%
+                </span>
+              </div>
+
+              <div style="margin-top: 16px;" v-if="getActiveVariant(selectedProductQuickView)">
+                <div v-if="getCartItemQuantity(selectedProductQuickView.id, getActiveVariant(selectedProductQuickView).id) === 0">
+                  <button
+                    class="add-to-cart-btn"
+                    style="padding: 12px 24px; font-size: 1rem;"
+                    @click="addToCart(selectedProductQuickView, getActiveVariant(selectedProductQuickView))"
+                  >
+                    + {{ t('add_to_cart') }}
+                  </button>
+                </div>
+                <div v-else class="qty-control-row" style="max-width: 180px;">
+                  <button class="qty-btn" @click="decreaseQuantity(getActiveVariant(selectedProductQuickView).id)">-</button>
+                  <span class="qty-display" style="font-size: 1.1rem;">
+                    {{ getCartItemQuantity(selectedProductQuickView.id, getActiveVariant(selectedProductQuickView).id) }}
+                  </span>
+                  <button class="qty-btn" @click="increaseQuantity(getActiveVariant(selectedProductQuickView).id)">+</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1687,6 +1904,17 @@ const searchQuery = ref('');
 const looseFilter = ref('all');
 const sortBy = ref('');
 const selectedVariants = ref({});
+
+// Quick View Modal State
+const selectedProductQuickView = ref(null);
+
+function openQuickView(prod) {
+  selectedProductQuickView.value = prod;
+}
+
+function closeQuickView() {
+  selectedProductQuickView.value = null;
+}
 
 // Cart State
 const cart = ref([]);
