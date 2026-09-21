@@ -12,7 +12,13 @@
       <div class="header-container">
         <!-- Logo & Store Branding -->
         <div class="store-brand" @click="resetFilters">
-          <div class="store-logo">🛍️</div>
+          <div class="store-logo">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+          </div>
           <div class="brand-text">
             <h1>अपना किराना स्टोर</h1>
             <p>Apna Desi Kirana & General Store</p>
@@ -108,13 +114,25 @@
       <!-- Desi Kirana Hero Promotional Banner -->
       <section class="hero-promo-banner">
         <div class="hero-text">
-          <h2>🌾 शुद्ध अनाज, असली स्वाद • डायरेक्ट मंडी भाव</h2>
-          <p>ताज़ी चक्की पिसाई का आटा, बिना पॉलिश की दालें एवं 100% असली देसी मसाले।</p>
+          <h2>🌾 शुद्ध अनाज, असली स्वाद • Mandi Direct Wholesale & Retail</h2>
+          <p>Fresh Chakki Atta, unpolished pulses & 100% genuine desi spices at market-direct prices.</p>
           <div class="hero-perks">
-            <div class="hero-perk-item">⚖️ सही तोल • सरकारी कांटा</div>
-            <div class="hero-perk-item">⚡ 30 मिनट में घर पहुँचाएं</div>
-            <div class="hero-perk-item">📖 मासिक राशन उधारी खाता (Khata)</div>
-            <div class="hero-perk-item">🛡️ 100% असली ब्रांड्स</div>
+            <div class="hero-perk-item">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+              <span>सही तोल • 100% Accurate Weight</span>
+            </div>
+            <div class="hero-perk-item">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>30 मिनट में डिलीवरी • Fast Delivery</span>
+            </div>
+            <div class="hero-perk-item">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+              <span>मासिक खाता • Khata Credit</span>
+            </div>
+            <div class="hero-perk-item">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <span>100% असली ब्रांड्स • Authentic Goods</span>
+            </div>
           </div>
           <div class="hero-action-row">
             <button class="hero-cta-btn" @click="openMonthlyParchaModal">
