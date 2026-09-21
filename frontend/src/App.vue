@@ -1,10 +1,87 @@
 <template>
   <div class="kirana-app">
+    <!-- Language Selection Onboarding Modal (Shown on First Visit) -->
+    <div class="modal-overlay" v-if="showLangModal">
+      <div class="modal-card lang-onboarding-card">
+        <div class="lang-onboarding-header">
+          <div class="store-logo-lg">🌾</div>
+          <h2 class="lang-modal-title">आपली भाषा निवडा</h2>
+          <p class="lang-modal-sub">भाषा चुनें • Choose your language</p>
+        </div>
+
+        <div class="lang-selection-grid">
+          <button
+            class="lang-choice-btn"
+            :class="{ selected: currentLang === 'mr' }"
+            @click="currentLang = 'mr'"
+          >
+            <span class="flag-icon">🇮🇳</span>
+            <div class="lang-btn-text">
+              <strong>मराठी</strong>
+              <small>Maharashtra / Mumbai (मराठी)</small>
+            </div>
+            <span class="check-mark" v-if="currentLang === 'mr'">✓</span>
+          </button>
+
+          <button
+            class="lang-choice-btn"
+            :class="{ selected: currentLang === 'hi' }"
+            @click="currentLang = 'hi'"
+          >
+            <span class="flag-icon">🇮🇳</span>
+            <div class="lang-btn-text">
+              <strong>हिंदी</strong>
+              <small>Hindi (हिंदी)</small>
+            </div>
+            <span class="check-mark" v-if="currentLang === 'hi'">✓</span>
+          </button>
+
+          <button
+            class="lang-choice-btn"
+            :class="{ selected: currentLang === 'en' }"
+            @click="currentLang = 'en'"
+          >
+            <span class="flag-icon">🇬🇧</span>
+            <div class="lang-btn-text">
+              <strong>English</strong>
+              <small>English (Default)</small>
+            </div>
+            <span class="check-mark" v-if="currentLang === 'en'">✓</span>
+          </button>
+        </div>
+
+        <button class="lang-proceed-btn" @click="selectLanguage(currentLang)">
+          {{ currentLang === 'mr' ? 'पुढे चला ➔ (Start Shopping)' : (currentLang === 'hi' ? 'आगे बढ़ें ➔' : 'Proceed ➔') }}
+        </button>
+      </div>
+    </div>
+
     <!-- Top Announcement Bar -->
     <div class="top-announcement">
-      <span>🌾 <strong>अपना देसी किराना स्टोर</strong> — ताज़ा माल • सही तोल • कम दाम</span>
-      <span>🛵 30 मिनट में घर पहुँचाएं • फ्री डिलीवरी</span>
-      <span>📞 ऑर्डर हेल्पलाइन: <strong>98765-43210</strong></span>
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <span>🌾 <strong>{{ t('store_name_full') }}</strong> — {{ t('tagline_announcement') }}</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;">🛵 {{ t('delivery_announcement') }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <span>📞 {{ t('helpline_label') }}: <strong>98765-43210</strong></span>
+        <!-- Header Language Switcher Dropdown -->
+        <div class="lang-dropdown-pill">
+          <button class="lang-pill-btn" @click="toggleLangDropdown">
+            🌐 {{ currentLang === 'mr' ? 'मराठी' : (currentLang === 'hi' ? 'हिंदी' : 'English') }} ▾
+          </button>
+          <div class="lang-dropdown-menu" v-if="showLangDropdown">
+            <button :class="{ active: currentLang === 'mr' }" @click="selectLanguage('mr'); showLangDropdown = false">
+              🇮🇳 मराठी
+            </button>
+            <button :class="{ active: currentLang === 'hi' }" @click="selectLanguage('hi'); showLangDropdown = false">
+              🇮🇳 हिंदी
+            </button>
+            <button :class="{ active: currentLang === 'en' }" @click="selectLanguage('en'); showLangDropdown = false">
+              🇬🇧 English
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Main Navigation Header -->
@@ -20,8 +97,8 @@
             </svg>
           </div>
           <div class="brand-text">
-            <h1>अपना किराना स्टोर</h1>
-            <p>Apna Desi Kirana & General Store</p>
+            <h1>{{ t('store_title') }}</h1>
+            <p>{{ t('store_subtitle') }}</p>
           </div>
         </div>
 
@@ -32,7 +109,7 @@
             type="text"
             v-model="searchQuery"
             @input="debounceFetchProducts"
-            placeholder="चावल, दाल, आटा, तेल, चाय, टूथपेस्ट खोजें (Search)..."
+            :placeholder="t('search_placeholder')"
             class="search-input"
           />
         </div>
@@ -42,10 +119,10 @@
           <!-- ADMIN CONTROLS (IF LOGGED IN AS ADMIN) -->
           <template v-if="isAdminLoggedIn">
             <span style="font-size: 0.88rem; font-weight: 800; color: #064e3b; background: #ecfdf5; padding: 6px 14px; border-radius: 20px; border: 1px solid #a7f3d0;">
-              👑 दुकानदार एडमिन
+              👑 {{ t('admin_badge') }}
             </span>
             <button class="user-btn" @click="logout">
-              🚪 लॉगआउट (Logout)
+              🚪 {{ t('logout') }}
             </button>
           </template>
 
@@ -54,21 +131,21 @@
             <!-- Logged in Customer -->
             <div v-if="currentUser" style="display: flex; align-items: center; gap: 8px;">
               <button class="user-btn" @click="openAccountModal">
-                👤 नमस्ते, {{ currentUser.name.split(' ')[0] }}! (खाता)
+                👤 {{ t('greeting') }}, {{ currentUser.name.split(' ')[0] }}! ({{ t('account') }})
               </button>
-              <button class="user-btn" @click="logout" title="Logout" style="padding: 8px 12px;">
+              <button class="user-btn" @click="logout" :title="t('logout')" style="padding: 8px 12px;">
                 🚪
               </button>
             </div>
 
             <!-- Guest / Not Logged In -->
             <button v-else class="user-btn" @click="openAuthModal('login')">
-              👤 लॉगिन / रजिस्टर (Login)
+              👤 {{ t('login_btn') }}
             </button>
 
             <!-- Shopping Cart (Only for Customers / Guests) -->
             <button class="cart-btn" @click="isCartOpen = true">
-              🛒 <span>थैला (Cart)</span>
+              🛒 <span>{{ t('cart_bag') }}</span>
               <span class="cart-badge">{{ cartTotalQuantity }}</span>
               <span v-if="cartTotalAmount > 0">₹{{ cartTotalAmount }}</span>
             </button>
@@ -85,7 +162,7 @@
           :class="{ active: selectedCategorySlug === '' }"
           @click="selectCategory('')"
         >
-          🌟 सब सामान (All Items)
+          🌟 {{ t('cat_all') }}
         </button>
         <button
           v-for="cat in categories"
@@ -94,7 +171,7 @@
           :class="{ active: selectedCategorySlug === cat.slug }"
           @click="selectCategory(cat.slug)"
         >
-          {{ getCategoryEmoji(cat.slug) }} {{ cat.name_hi || cat.name }} ({{ cat.product_count }})
+          {{ getCategoryEmoji(cat.slug) }} {{ getLocalizedCategoryName(cat, currentLang) }} ({{ cat.product_count }})
         </button>
       </div>
     </nav>
@@ -114,29 +191,29 @@
       <!-- Desi Kirana Hero Promotional Banner -->
       <section class="hero-promo-banner">
         <div class="hero-text">
-          <h2>🌾 शुद्ध अनाज, असली स्वाद • Mandi Direct Wholesale & Retail</h2>
-          <p>Fresh Chakki Atta, unpolished pulses & 100% genuine desi spices at market-direct prices.</p>
+          <h2>🌾 {{ t('hero_title') }}</h2>
+          <p>{{ t('hero_desc') }}</p>
           <div class="hero-perks">
             <div class="hero-perk-item">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
-              <span>सही तोल • 100% Accurate Weight</span>
+              <span>{{ t('hero_perk_weight') }}</span>
             </div>
             <div class="hero-perk-item">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span>30 मिनट में डिलीवरी • Fast Delivery</span>
+              <span>{{ t('hero_perk_delivery') }}</span>
             </div>
             <div class="hero-perk-item">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
-              <span>मासिक खाता • Khata Credit</span>
+              <span>{{ t('hero_perk_khata') }}</span>
             </div>
             <div class="hero-perk-item">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#064e3b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-              <span>100% असली ब्रांड्स • Authentic Goods</span>
+              <span>{{ t('hero_perk_brands') }}</span>
             </div>
           </div>
           <div class="hero-action-row">
             <button class="hero-cta-btn" @click="openMonthlyParchaModal">
-              📝 एकमुश्त मासिक राशन पर्चा बनाएं (Monthly Ration Checklist) ➔
+              📝 {{ t('hero_cta') }}
             </button>
           </div>
         </div>
@@ -150,55 +227,60 @@
             :class="{ active: looseFilter === 'all' }"
             @click="setLooseFilter('all')"
           >
-            सभी (All)
+            {{ t('filter_all') }}
           </button>
           <button
             class="filter-btn"
             :class="{ active: looseFilter === 'true' }"
             @click="setLooseFilter('true')"
           >
-            🌾 खुला राशन (Loose Mandi)
+            🌾 {{ t('filter_loose') }}
           </button>
           <button
             class="filter-btn"
             :class="{ active: looseFilter === 'false' }"
             @click="setLooseFilter('false')"
           >
-            📦 ब्रांडेड पैकेट (Packaged)
+            📦 {{ t('filter_packed') }}
           </button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 0.84rem; color: #57534e; font-weight: 700;">सॉर्ट करें:</span>
+          <span style="font-size: 0.84rem; color: #57534e; font-weight: 700;">{{ t('sort_label') }}</span>
           <select v-model="sortBy" @change="fetchProducts" class="sort-select">
-            <option value="">लोकप्रिय (Featured)</option>
-            <option value="price_asc">कीमत: कम से ज्यादा (Price: Low to High)</option>
-            <option value="price_desc">कीमत: ज्यादा से कम (Price: High to Low)</option>
-            <option value="name">नाम के अनुसार (A to Z)</option>
+            <option value="">{{ t('sort_featured') }}</option>
+            <option value="price_asc">{{ t('sort_price_asc') }}</option>
+            <option value="price_desc">{{ t('sort_price_desc') }}</option>
+            <option value="name">{{ t('sort_name') }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" style="text-align: center; padding: 70px 20px;">
-        <div style="font-size: 2.5rem; margin-bottom: 12px; animation: bounce 1s infinite;">🌾</div>
-        <p style="font-weight: 800; color: #047857; font-size: 1.1rem;">
-          किराना भंडार से ताज़ा सामान लोड हो रहा है...
-        </p>
+      <!-- Loading Skeleton State -->
+      <div v-if="loading" class="products-grid">
+        <div v-for="i in 8" :key="i" class="product-card skeleton-card">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line skeleton-title"></div>
+            <div class="skeleton-line skeleton-sub"></div>
+            <div class="skeleton-line skeleton-price"></div>
+            <div class="skeleton-btn"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->
       <div v-else-if="products.length === 0" style="text-align: center; padding: 70px 20px; background: white; border-radius: 14px; border: 1.5px dashed #d6cfc7;">
         <div style="font-size: 3.5rem; margin-bottom: 14px;">🔍</div>
-        <h3 style="font-size: 1.3rem; font-weight: 800; color: #1c1917;">कोई सामान नहीं मिला</h3>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: #1c1917;">{{ currentLang === 'mr' ? 'कोणतेही सामान सापडले नाही' : (currentLang === 'hi' ? 'कोई सामान नहीं मिला' : 'No items found') }}</h3>
         <p style="color: #78716c; font-size: 0.95rem; margin-top: 4px;">
-          कृपया कोई दूसरा नाम खोजें या फ़िल्टर रीसेट करें।
+          {{ currentLang === 'mr' ? 'कृपया दुसरे नाव शोधा किंवा फिल्टर रीसेट करा.' : (currentLang === 'hi' ? 'कृपया कोई दूसरा नाम खोजें या फ़िल्टर रीसेट करें।' : 'Please search with another keyword or reset filters.') }}
         </p>
         <button
           @click="resetFilters"
           style="margin-top: 18px; padding: 10px 22px; background: #047857; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer;"
         >
-          सब सामान देखें
+          {{ t('cat_all') }}
         </button>
       </div>
 
@@ -214,20 +296,20 @@
               loading="lazy"
               @error="handleImageFallback($event)"
             />
-            <span v-if="prod.is_loose" class="loose-badge">🌾 खुला (Loose)</span>
-            <span v-else class="packed-badge">📦 पैकेट (Packed)</span>
-            <span class="brand-badge">{{ prod.brand }}</span>
+            <span v-if="prod.is_loose" class="loose-badge">🌾 {{ t('badge_loose') }}</span>
+            <span v-else class="packed-badge">📦 {{ t('badge_packed') }}</span>
+            <span class="brand-badge" v-if="prod.brand && prod.brand !== 'Loose / Desi Mandi' && prod.brand !== 'Local / Mandi' && prod.brand !== 'Loose / Local'">{{ prod.brand }}</span>
           </div>
 
           <!-- Product Details -->
           <div class="product-info">
-            <h3 class="product-title">{{ prod.name }}</h3>
-            <div class="product-hindi-name">{{ prod.name_hi }}</div>
+            <h3 class="product-title">{{ getLocalizedProductName(prod, currentLang) }}</h3>
+            <div class="product-sub-title">{{ currentLang === 'en' ? (prod.name_hi || '') : prod.name }}</div>
             <p class="product-desc">{{ prod.description }}</p>
 
             <!-- Unit Variant Selector & Loose Custom Weight Option -->
             <div class="variants-wrap" v-if="prod.variants && prod.variants.length > 0">
-              <div class="variant-label-title">वजन / पैक चुनें:</div>
+              <div class="variant-label-title">{{ t('weight_select_label') }}</div>
               <div class="variant-options">
                 <button
                   v-for="v in prod.variants"
@@ -244,9 +326,8 @@
                   class="variant-chip custom-chip"
                   :class="{ selected: customWeightMode[prod.id] }"
                   @click="enableCustomWeight(prod)"
-                  title="अपनी मर्जी का वजन लिखें जैसे 4.5kg, 1.75kg, 15kg"
                 >
-                  ✏️ मनचाहा तोल (Custom kg)
+                  ⚖️ {{ t('custom_weight_btn') }}
                 </button>
               </div>
             </div>
@@ -254,8 +335,8 @@
             <!-- MODE A: CUSTOM WEIGHT ENTRY FOR LOOSE COMMODITIES -->
             <div v-if="customWeightMode[prod.id]" class="custom-weight-box">
               <div class="custom-weight-header">
-                <span>⚖️ मनचाहा वजन लिखें:</span>
-                <span class="custom-rate-badge">दर: ₹{{ getBasePerKgRate(prod) }}/kg</span>
+                <span>⚖️ {{ t('enter_custom_weight') }}</span>
+                <span class="custom-rate-badge">{{ t('per_kg_rate') }}: ₹{{ getBasePerKgRate(prod) }}/kg</span>
               </div>
               <div class="custom-input-group">
                 <button
@@ -301,7 +382,7 @@
                 <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 15)">15kg</span>
               </div>
               <div class="custom-price-calc">
-                <span>कुल कीमत (₹{{ getBasePerKgRate(prod) }} × {{ customWeightInputs[prod.id] || 0 }}):</span>
+                <span>{{ t('custom_total_label') }} (₹{{ getBasePerKgRate(prod) }} × {{ customWeightInputs[prod.id] || 0 }}):</span>
                 <strong class="custom-total-val">₹{{ getCustomWeightPrice(prod) }}</strong>
               </div>
               <button
@@ -309,7 +390,7 @@
                 @click="addCustomWeightItemToCart(prod)"
                 :disabled="!customWeightInputs[prod.id] || customWeightInputs[prod.id] <= 0"
               >
-                🛒 {{ customWeightInputs[prod.id] || 0 }} kg थैले में जोड़ें
+                🛒 {{ customWeightInputs[prod.id] || 0 }} kg {{ t('add_custom_btn') }}
               </button>
             </div>
 
@@ -322,7 +403,7 @@
                   ₹{{ getActiveVariant(prod).mrp }}
                 </span>
                 <span class="discount-tag" v-if="getActiveVariant(prod).discount_pct > 0">
-                  {{ getActiveVariant(prod).discount_pct }}% बचत
+                  {{ t('savings_label') }} {{ getActiveVariant(prod).discount_pct }}%
                 </span>
               </div>
 
@@ -333,7 +414,7 @@
                     class="add-to-cart-btn"
                     @click="addToCart(prod, getActiveVariant(prod))"
                   >
-                    🛒 थैले में जोड़ें (Add to Cart)
+                    + {{ t('add_to_cart') }}
                   </button>
                 </div>
                 <div v-else class="qty-control-row">
@@ -378,44 +459,76 @@
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border-bottom: 1.5px solid var(--border); padding-bottom: 18px;">
           <div>
             <h2 style="font-size: 1.45rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 10px;">
-              🏪 दुकानदार कंट्रोल पैनल (Storekeeper Management)
+              🏪 {{ t('admin_panel_title') }}
             </h2>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
-              यहाँ से आप तुरंत किसी भी दाल, आटा, तेल की दर (Price) और स्टॉक सुरक्षित तरीके से SQLite में बदल सकते हैं।
+              {{ t('admin_panel_desc') }}
             </p>
           </div>
           <div style="display: flex; gap: 10px;">
             <button
               @click="showAddProductModal = true"
-              style="background: #047857; color: white; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              style="background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;"
             >
-              ➕ नया सामान जोड़ें (Add Product)
+              ➕ {{ t('admin_add_product') }}
             </button>
             <button
               @click="confirmResetSeed"
-              style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 10px 18px; border-radius: 10px; font-weight: 800; cursor: pointer;"
+              style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer;"
               title="Reset to default authentic Indian Kirana catalog"
             >
-              🔄 रीसेट डिफ़ॉल्ट सामान
+              🔄 {{ t('admin_reset_seed') }}
             </button>
           </div>
         </div>
 
+        <!-- Store Overview KPI Cards -->
+        <div class="admin-stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-content">
+              <span class="stat-label">{{ currentLang === 'mr' ? 'एकूण सामान' : (currentLang === 'hi' ? 'कुल सामान' : 'Total Products') }}</span>
+              <strong class="stat-val">{{ products.length }}</strong>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🧾</div>
+            <div class="stat-content">
+              <span class="stat-label">{{ currentLang === 'mr' ? 'एकूण ऑर्डर्स' : (currentLang === 'hi' ? 'कुल ऑर्डर' : 'Total Orders') }}</span>
+              <strong class="stat-val">{{ adminOrders.length }}</strong>
+            </div>
+          </div>
+          <div class="stat-card stat-card-danger">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-content">
+              <span class="stat-label">{{ currentLang === 'mr' ? 'बाकी उधारी' : (currentLang === 'hi' ? 'बाकी उधारी' : 'Unpaid Khata') }}</span>
+              <strong class="stat-val">{{ unpaidAdminOrders.length }}</strong>
+            </div>
+          </div>
+          <div class="stat-card stat-card-success">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-content">
+              <span class="stat-label">{{ currentLang === 'mr' ? 'चुकता ऑर्डर्स' : (currentLang === 'hi' ? 'चुकता ऑर्डर' : 'Paid Orders') }}</span>
+              <strong class="stat-val">{{ paidAdminOrders.length }}</strong>
+            </div>
+          </div>
+        </div>
+
         <!-- Dashboard Sub-Tabs -->
-        <div class="account-tabs" style="margin-top: 20px;">
+        <div class="account-tabs" style="margin-top: 10px;">
           <button
             class="account-tab-btn"
             :class="{ active: adminActiveTab === 'inventory' }"
             @click="adminActiveTab = 'inventory'"
           >
-            📋 पूरा सामान व लाइव कीमत (Live Price Editor)
+            📋 {{ t('admin_tab_inventory') }}
           </button>
           <button
             class="account-tab-btn"
             :class="{ active: adminActiveTab === 'orders' }"
             @click="loadAdminOrders"
           >
-            🧾 बहीखाता व ग्राहक ऑर्डर (Customer Orders Book)
+            🧾 {{ t('admin_tab_orders') }}
           </button>
         </div>
 
@@ -640,7 +753,7 @@
       <div class="modal-card" style="max-width: 620px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
-            👤 मेरा किराना खाता (My Account)
+            👤 {{ t('my_account') }}
           </h3>
           <button class="close-btn" @click="showAccountModal = false">✕</button>
         </div>
@@ -651,14 +764,21 @@
             :class="{ active: customerActiveTab === 'orders' }"
             @click="customerActiveTab = 'orders'"
           >
-            📦 मेरे ऑर्डर व उधारी (My Orders)
+            📦 {{ t('tab_my_orders') }}
           </button>
           <button
             class="account-tab-btn"
             :class="{ active: customerActiveTab === 'profile' }"
             @click="customerActiveTab = 'profile'"
           >
-            ⚙️ प्रोफाइल व डिलीवरी पता (Profile & Address)
+            ⚙️ {{ t('tab_my_profile') }}
+          </button>
+          <button
+            class="account-tab-btn"
+            :class="{ active: customerActiveTab === 'language' }"
+            @click="customerActiveTab = 'language'"
+          >
+            🌐 {{ t('select_language') }}
           </button>
         </div>
 
@@ -748,6 +868,57 @@
               💾 पता व सेटिंग्स सेव करें
             </button>
           </form>
+        </div>
+
+        <!-- CUSTOMER TAB 3: LANGUAGE PREFERENCE -->
+        <div v-if="customerActiveTab === 'language'" style="padding: 10px 0;">
+          <h4 style="font-size: 1rem; font-weight: 800; margin-bottom: 6px; color: #064e3b;">
+            {{ t('select_language') }}
+          </h4>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+            {{ currentLang === 'mr' ? 'आपली पसंतीची भाषा निवडा. संपूर्ण ॲप त्वरित बदलले जाईल.' : (currentLang === 'hi' ? 'अपनी पसंदीदा भाषा चुनें। पूरा ऐप तुरंत बदल जाएगा।' : 'Choose your preferred language. The entire app will update immediately.') }}
+          </p>
+
+          <div class="lang-account-grid">
+            <button
+              class="lang-choice-btn"
+              :class="{ selected: currentLang === 'mr' }"
+              @click="selectLanguage('mr')"
+            >
+              <span class="flag-icon">🇮🇳</span>
+              <div class="lang-btn-text">
+                <strong>मराठी</strong>
+                <small>Maharashtra / Mumbai (मराठी)</small>
+              </div>
+              <span class="check-mark" v-if="currentLang === 'mr'">✓</span>
+            </button>
+
+            <button
+              class="lang-choice-btn"
+              :class="{ selected: currentLang === 'hi' }"
+              @click="selectLanguage('hi')"
+            >
+              <span class="flag-icon">🇮🇳</span>
+              <div class="lang-btn-text">
+                <strong>हिंदी</strong>
+                <small>Hindi (हिंदी)</small>
+              </div>
+              <span class="check-mark" v-if="currentLang === 'hi'">✓</span>
+            </button>
+
+            <button
+              class="lang-choice-btn"
+              :class="{ selected: currentLang === 'en' }"
+              @click="selectLanguage('en')"
+            >
+              <span class="flag-icon">🇬🇧</span>
+              <div class="lang-btn-text">
+                <strong>English</strong>
+                <small>English (Default)</small>
+              </div>
+              <span class="check-mark" v-if="currentLang === 'en'">✓</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1446,8 +1617,30 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { translations, marathiProductNames, getLocalizedProductName, getLocalizedCategoryName } from './i18n.js';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:5000/api' : '/api';
+
+// Language State (Marathi default for Maharashtra / Mumbai, user-customizable)
+const currentLang = ref(localStorage.getItem('kirana_preferred_lang') || 'mr');
+const showLangModal = ref(!localStorage.getItem('kirana_lang_selected'));
+const showLangDropdown = ref(false);
+
+function selectLanguage(lang) {
+  currentLang.value = lang;
+  localStorage.setItem('kirana_preferred_lang', lang);
+  localStorage.setItem('kirana_lang_selected', 'true');
+  showLangModal.value = false;
+  showToast(`🌐 भाषा: ${translations[lang]['lang_' + lang]}`);
+}
+
+function toggleLangDropdown() {
+  showLangDropdown.value = !showLangDropdown.value;
+}
+
+function t(key) {
+  return translations[currentLang.value]?.[key] || translations['en']?.[key] || key;
+}
 
 // Auth State
 const currentUser = ref(null);
