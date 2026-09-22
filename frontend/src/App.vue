@@ -1296,8 +1296,9 @@
                       type="button"
                       @click="openCustomerAudit(c)"
                       style="background: #065f46; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                      title="ग्राहकाची मागील सर्व बिले व खरेदी इतिहास पहा"
                     >
-                      🔍 {{ currentLang === 'mr' ? 'बहीखाता ऑडिट' : 'बहीखाता ऑडिट' }}
+                      🧾 {{ currentLang === 'mr' ? 'जुनी बिले पहा' : (currentLang === 'hi' ? 'पुराने बिल देखें' : 'See Past Bills') }}
                     </button>
                   </td>
                 </tr>
@@ -1309,17 +1310,17 @@
     </section>
 
     <!-- ======================================================== -->
-    <!-- CUSTOMER AUDIT & PURCHASE HISTORY MODAL (बहीखाता ऑडिट)   -->
+    <!-- CUSTOMER PAST BILLS & PURCHASE HISTORY MODAL            -->
     <!-- ======================================================== -->
     <div class="audit-modal-backdrop" v-if="activeAuditedCustomer" @click.self="activeAuditedCustomer = null">
       <div class="audit-modal-content">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
           <div>
             <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
-              👥 {{ activeAuditedCustomer.name }} — {{ currentLang === 'mr' ? 'ग्राहक खरेदी व उधारी बहीखाता' : 'ग्राहक खरीदारी व उधारी बहीखाता' }}
+              👥 {{ activeAuditedCustomer.name }} — {{ currentLang === 'mr' ? 'खरेदी इतिहास व जुनी बिले' : (currentLang === 'hi' ? 'खरीदारी इतिहास व पुराने बिल' : 'Purchase History & Past Bills') }}
             </h3>
             <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-              📞 {{ activeAuditedCustomer.phone }} | ✉️ {{ activeAuditedCustomer.email }} | 📍 {{ activeAuditedCustomer.address || 'पत्ता नोंदवलेला नाही' }}
+              📞 {{ activeAuditedCustomer.phone }} | ✉️ {{ activeAuditedCustomer.email || 'ईमेल नाही' }} | 📍 {{ activeAuditedCustomer.address || 'पत्ता नोंदवलेला नाही' }}
             </div>
           </div>
           <button class="close-btn" @click="activeAuditedCustomer = null">✕</button>
@@ -1629,29 +1630,29 @@
     <!-- AUTH MODAL: LOGIN / REGISTER / ADMIN LOGIN               -->
     <!-- ======================================================== -->
     <div class="modal-overlay" v-if="showAuthModal" @click.self="showAuthModal = false">
-      <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-card" style="max-width: 450px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b;">
-            {{ authMode === 'admin' ? '🔐 दुकानदार लॉगिन (Admin Portal)' : (authMode === 'register' ? '📝 नया ग्राहक खाता बनाएं' : '👤 ग्राहक लॉगिन') }}
+            {{ admin2faState.active ? '🔐 दुकानदार २-स्टेप पडताळणी (2FA)' : (authMode === 'reset_password' ? '🔑 पासवर्ड रीसेट करा' : (authMode === 'admin' ? '🏪 दुकानदार लॉगिन (Store Admin)' : (authMode === 'register' ? '📝 नवीन ग्राहक नोंदणी' : '👤 ग्राहक लॉगिन'))) }}
           </h3>
           <button class="close-btn" @click="showAuthModal = false">✕</button>
         </div>
 
-        <!-- Auth Tabs (Only for Customer) -->
-        <div class="account-tabs" v-if="authMode !== 'admin'">
+        <!-- Auth Tabs (Only for Customer Login/Register) -->
+        <div class="account-tabs" v-if="authMode !== 'admin' && !admin2faState.active && authMode !== 'reset_password'">
           <button
             class="account-tab-btn"
             :class="{ active: authMode === 'login' }"
             @click="authMode = 'login'"
           >
-            लॉगिन करें
+            {{ currentLang === 'mr' ? 'लॉगिन करा' : 'लॉगिन करें' }}
           </button>
           <button
             class="account-tab-btn"
             :class="{ active: authMode === 'register' }"
             @click="authMode = 'register'"
           >
-            नया खाता बनाएं
+            {{ currentLang === 'mr' ? 'नवीन खाते उघडा' : 'नया खाता बनाएं' }}
           </button>
         </div>
 
@@ -1660,63 +1661,178 @@
           {{ authError }}
         </div>
 
-        <!-- LOGIN FORM -->
-        <form v-if="authMode === 'login' || authMode === 'admin'" @submit.prevent="handleLogin">
+        <!-- VIEW A: ADMIN 2-STEP VERIFICATION (OTP SCREEN) -->
+        <div v-if="admin2faState.active" style="text-align: center;">
+          <div style="font-size: 2.8rem; margin-bottom: 8px;">🔐</div>
+          <p style="font-size: 0.92rem; color: #374151; margin-bottom: 6px;">
+            सुरक्षा पडताळणीसाठी अधिकृत ॲडमिन ईमेलवर <strong>६-अंकी OTP कोड</strong> पाठवला आहे:
+          </p>
+          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 8px; font-weight: 800; color: #064e3b; margin-bottom: 14px; font-size: 0.95rem;">
+            ✉️ {{ admin2faState.masked_email || admin2faState.admin_email }}
+          </div>
+
+          <!-- Dev Auto-fill Badge for quick testing -->
+          <div
+            v-if="admin2faState.otp_preview"
+            @click="admin2faState.otp = admin2faState.otp_preview"
+            style="display: inline-block; background: #ecfdf5; border: 1.5px dashed #059669; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; color: #047857; cursor: pointer; margin-bottom: 14px;"
+            title="क्लिक करून त्वरित कोड भरा"
+          >
+            💡 Dev Test OTP: <strong>{{ admin2faState.otp_preview }}</strong> (टॅप करा)
+          </div>
+
+          <form @submit.prevent="handleVerifyAdmin2Fa">
+            <div class="form-group">
+              <label class="form-label" style="text-align: left;">६-अंकी OTP कोड टाका (Enter 6-Digit OTP) *</label>
+              <input
+                type="text"
+                v-model="admin2faState.otp"
+                required
+                maxlength="6"
+                pattern="[0-9]{6}"
+                class="form-input"
+                placeholder="123456"
+                style="font-size: 1.6rem; letter-spacing: 8px; text-align: center; font-weight: 900; color: #064e3b;"
+                autofocus
+              />
+            </div>
+
+            <button type="submit" class="checkout-btn" :disabled="authSubmitting">
+              {{ authSubmitting ? 'पडताळणी होत आहे...' : '🔐 OTP सत्यापित करा व प्रवेश करा' }}
+            </button>
+          </form>
+
+          <p style="margin-top: 14px; font-size: 0.82rem; color: var(--text-muted);">
+            <a href="javascript:void(0)" @click="admin2faState.active = false" style="color: #047857; font-weight: 700; text-decoration: none;">
+              ← लॉगिनवर परत जा (Back to Login)
+            </a>
+          </p>
+        </div>
+
+        <!-- VIEW B: FORGOT / RESET PASSWORD FORM -->
+        <div v-else-if="authMode === 'reset_password'">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; color: #166534; margin-bottom: 14px;">
+            ℹ️ आपला नोंदणीकृत १०-अंकी मोबाईल नंबर टाका आणि नवीन पासवर्ड सेट करा.
+          </div>
+
+          <form @submit.prevent="handleResetPassword">
+            <div class="form-group">
+              <label class="form-label">नोंदणीकृत मोबाईल नंबर (10-Digit Phone) *</label>
+              <input
+                type="tel"
+                v-model="resetPasswordForm.phone"
+                required
+                pattern="[6-9][0-9]{9}"
+                class="form-input"
+                placeholder="उदा. 9876543299"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">नवीन पासवर्ड (New Password) *</label>
+              <input
+                type="password"
+                v-model="resetPasswordForm.new_password"
+                required
+                minlength="4"
+                class="form-input"
+                placeholder="किमान ४ अक्षरे / अंक"
+              />
+            </div>
+
+            <button type="submit" class="checkout-btn" :disabled="authSubmitting">
+              {{ authSubmitting ? 'बदल होत आहे...' : '🔑 पासवर्ड रीसेट करा (Reset Password)' }}
+            </button>
+          </form>
+
+          <p style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
+            <a href="javascript:void(0)" @click="authMode = 'login'; authError = '';" style="color: #047857; font-weight: 700; text-decoration: none;">
+              ← लॉगिनवर परत जा (Back to Login)
+            </a>
+          </p>
+        </div>
+
+        <!-- VIEW C: LOGIN FORM (CUSTOMER & ADMIN) -->
+        <form v-else-if="authMode === 'login' || authMode === 'admin'" @submit.prevent="handleLogin">
+          <!-- Admin Whitelist Banner -->
+          <div v-if="authMode === 'admin'" style="background: #fffbeb; border: 1.5px solid #fef3c7; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; color: #92400e; margin-bottom: 14px;">
+            🛡️ <strong>सुरक्षा सूचना:</strong> दुकानदार ॲक्सेस केवळ अधिकृत ईमेल (<code>thisisroushan01@gmail.com</code> / <code>novaaether01@gmail.com</code>) साठी २-स्टेप व्हेरिफिकेशनसह सुरक्षित आहे.
+          </div>
+
           <div class="form-group">
-            <label class="form-label">ईमेल आईडी (Email) *</label>
+            <label class="form-label">
+              {{ authMode === 'admin' ? 'अधिकृत ॲडमिन ईमेल (Admin Email) *' : 'मोबाईल नंबर / ईमेल / युझरनेम *' }}
+            </label>
             <input
-              type="email"
-              v-model="authForm.email"
+              type="text"
+              v-model="authForm.identifier"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'admin@kirana.com' : 'apna-email@gmail.com'"
+              :placeholder="authMode === 'admin' ? 'thisisroushan01@gmail.com' : '9876543299 किंवा email@example.com'"
             />
           </div>
+
           <div class="form-group">
-            <label class="form-label">पासवर्ड (Password) *</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin-bottom: 0;">पासवर्ड (Password) *</label>
+              <a
+                v-if="authMode !== 'admin'"
+                href="javascript:void(0)"
+                @click="authMode = 'reset_password'; authError = '';"
+                style="font-size: 0.78rem; color: #047857; font-weight: 700; text-decoration: none;"
+              >
+                पासवर्ड विसरलात?
+              </a>
+            </div>
             <input
               type="password"
               v-model="authForm.password"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'admin123' : 'पासवर्ड दर्ज करें'"
+              :placeholder="authMode === 'admin' ? 'admin123' : 'आपला पासवर्ड टाका'"
             />
           </div>
 
           <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-            {{ authSubmitting ? 'जाँच हो रही है...' : (authMode === 'admin' ? '🔐 एडमिन डैशबोर्ड खोलें' : 'लॉगिन करें') }}
+            {{ authSubmitting ? 'तपासणी सुरू आहे...' : (authMode === 'admin' ? '🔐 पुढे जा (२-स्टेप OTP पाठवा)' : 'लॉगिन करा') }}
           </button>
-
-          <p v-if="authMode === 'admin'" style="font-size: 0.78rem; color: #78716c; margin-top: 12px; text-align: center;">
-            डिफ़ॉल्ट क्रेडेंशियल्स: <code>admin@kirana.com</code> / <code>admin123</code>
-          </p>
         </form>
 
-        <!-- REGISTER FORM -->
+        <!-- VIEW D: REGISTER FORM (CUSTOMER) -->
         <form v-else @submit.prevent="handleRegister">
           <div class="form-group">
-            <label class="form-label">पूरा नाम (Full Name) *</label>
-            <input type="text" v-model="registerForm.name" required class="form-input" placeholder="जैसे: Roushan Kumar" />
+            <label class="form-label">पूर्ण नाव (Full Name) *</label>
+            <input type="text" v-model="registerForm.name" required class="form-input" placeholder="उदा. राहुल पाटील / पूजा शर्मा" />
           </div>
+
           <div class="form-group">
-            <label class="form-label">ईमेल (Email) *</label>
-            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@example.com" />
+            <label class="form-label">युझरनेम (Username - Unique, उदा. roushan466)</label>
+            <input type="text" v-model="registerForm.username" pattern="[a-zA-Z0-9_.-]{3,30}" class="form-input" placeholder="फक्त अक्षरे, अंक किंवा _ (पर्यायी)" />
           </div>
+
           <div class="form-group">
-            <label class="form-label">मोबाइल नंबर (Phone) *</label>
-            <input type="tel" v-model="registerForm.phone" required pattern="[0-9]{10}" class="form-input" placeholder="10 अंकों का फोन नंबर" />
+            <label class="form-label">मोबाईल नंबर (10-Digit Mobile Number) *</label>
+            <input type="tel" v-model="registerForm.phone" required pattern="[6-9][0-9]{9}" class="form-input" placeholder="१० अंकी वैध मोबाईल नंबर (उदा. 9820011223)" />
+            <span style="font-size: 0.72rem; color: var(--text-muted);">* डमी किंवा बनावट नंबर स्वीकारले जाणार नाहीत.</span>
           </div>
+
+          <div class="form-group">
+            <label class="form-label">ईमेल (Email) - <span style="color: var(--text-muted);">पर्यायी (Optional)</span></label>
+            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com (ऐच्छिक)" />
+          </div>
+
           <div class="form-group">
             <label class="form-label">पासवर्ड (Password) *</label>
-            <input type="password" v-model="registerForm.password" required minlength="4" class="form-input" placeholder="कम से कम 4 अक्षर" />
+            <input type="password" v-model="registerForm.password" required minlength="4" class="form-input" placeholder="किमान ४ अक्षरे / अंक" />
           </div>
+
           <div class="form-group">
-            <label class="form-label">डिलीवरी का पता (Delivery Address) *</label>
-            <textarea v-model="registerForm.address" required rows="2" class="form-input" placeholder="मकान नं, मोहल्ला / लैंडमार्क"></textarea>
+            <label class="form-label">डिलिव्हरी पत्ता (Delivery Address)</label>
+            <textarea v-model="registerForm.address" rows="2" class="form-input" placeholder="घर/फ्लॅट क्र., इमारत, रस्ता, लँडमार्क"></textarea>
           </div>
 
           <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-            {{ authSubmitting ? 'खाता बन रहा है...' : '✅ रजिस्टर करें व खरीदारी शुरू करें' }}
+            {{ authSubmitting ? 'नोंदणी होत आहे...' : '✅ नोंदणी करा व खरेदी सुरू करा' }}
           </button>
         </form>
       </div>
@@ -2270,12 +2386,69 @@
 
         <form @submit.prevent="submitNewProduct">
           <div class="form-group">
-            <label class="form-label">कैटेगरी (Category) *</label>
-            <select v-model.number="newProductForm.category_id" required class="form-input">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin-bottom: 0;">{{ currentLang === 'mr' ? 'सामान श्रेणी (Category) *' : 'कैटेगरी (Category) *' }}</label>
+              <div style="display: flex; gap: 4px;">
+                <button
+                  type="button"
+                  @click="newProductForm.is_new_category = false"
+                  :style="!newProductForm.is_new_category ? 'background: #065f46; color: white;' : 'background: #f1f5f9; color: var(--text-muted);'"
+                  style="border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;"
+                >
+                  📁 {{ currentLang === 'mr' ? 'अस्तित्वात असलेली' : 'मौजूदा' }}
+                </button>
+                <button
+                  type="button"
+                  @click="newProductForm.is_new_category = true"
+                  :style="newProductForm.is_new_category ? 'background: #d97706; color: white;' : 'background: #f1f5f9; color: var(--text-muted);'"
+                  style="border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;"
+                >
+                  ➕ {{ currentLang === 'mr' ? 'नवीन श्रेणी बनवा' : 'नई कैटेगरी' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Existing Category Dropdown -->
+            <select
+              v-if="!newProductForm.is_new_category"
+              v-model.number="newProductForm.category_id"
+              required
+              class="form-input"
+            >
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.name }} ({{ cat.name_hi }})
               </option>
             </select>
+
+            <!-- New Custom Category Inputs -->
+            <div v-else style="background: #fffbeb; border: 1.5px solid #fef3c7; padding: 12px; border-radius: 8px;">
+              <div style="font-size: 0.82rem; font-weight: 800; color: #92400e; margin-bottom: 8px;">
+                ✨ {{ currentLang === 'mr' ? 'नवीन श्रेणी थेट तयार करा (कॅटलॉगमध्ये नवीन विभाग बनेल)' : 'नई कैटेगरी बनाएं (स्टोर में अलग सेक्शन बनेगा)' }}
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div>
+                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">इंग्रजी नाव (English) *</label>
+                  <input
+                    type="text"
+                    v-model="newProductForm.new_category_name"
+                    required
+                    class="form-input"
+                    placeholder="उदा. Dry Fruits & Nuts"
+                    style="margin-top: 2px;"
+                  />
+                </div>
+                <div>
+                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">मराठी/हिंदी नाव</label>
+                  <input
+                    type="text"
+                    v-model="newProductForm.new_category_name_hi"
+                    class="form-input"
+                    placeholder="उदा. सुका मेवा व मेवे"
+                    style="margin-top: 2px;"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -3133,8 +3306,17 @@ const authMode = ref('login'); // 'login' | 'register' | 'admin'
 const authError = ref('');
 const authSubmitting = ref(false);
 
-const authForm = ref({ email: '', password: '' });
-const registerForm = ref({ name: '', email: '', phone: '', password: '', address: '' });
+const authForm = ref({ identifier: '', password: '' });
+const registerForm = ref({ name: '', username: '', email: '', phone: '', password: '', address: '' });
+const resetPasswordForm = ref({ phone: '', new_password: '' });
+const admin2faState = ref({
+  active: false,
+  temp_token: '',
+  masked_email: '',
+  admin_email: '',
+  otp_preview: '',
+  otp: ''
+});
 
 // Customer Account Modal State
 const showAccountModal = ref(false);
@@ -3178,6 +3360,9 @@ const posCustomRate = ref(null);
 
 const newProductForm = ref({
   category_id: 1,
+  is_new_category: false,
+  new_category_name: '',
+  new_category_name_hi: '',
   name: '',
   name_hi: '',
   brand: 'Local / Mandi',
@@ -3658,6 +3843,12 @@ async function checkAuth() {
 function openAuthModal(mode = 'login') {
   authMode.value = mode;
   authError.value = '';
+  admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp_preview: '', otp: '' };
+  if (mode === 'admin') {
+    authForm.value = { identifier: 'thisisroushan01@gmail.com', password: '' };
+  } else {
+    authForm.value = { identifier: '', password: '' };
+  }
   showAuthModal.value = true;
 }
 
@@ -3672,6 +3863,19 @@ async function handleLogin() {
     });
     const data = await res.json();
     if (res.ok) {
+      if (data.require_2fa) {
+        admin2faState.value = {
+          active: true,
+          temp_token: data.temp_token,
+          masked_email: data.masked_email,
+          admin_email: data.admin_email,
+          otp_preview: data.otp_preview,
+          otp: ''
+        };
+        showToast(data.message || 'सुरक्षा पडताळणी कोड पाठवला आहे');
+        return;
+      }
+
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
       currentUser.value = data.user;
@@ -3680,17 +3884,91 @@ async function handleLogin() {
       customerForm.value.phone = data.user.phone;
       customerForm.value.address = data.user.address;
       showAuthModal.value = false;
-      authForm.value = { email: '', password: '' };
-      showToast(`नमस्ते ${data.user.name}! लॉगिन सफल रहा।`);
+      authForm.value = { identifier: '', password: '' };
+      showToast(`नमस्ते ${data.user.name}! लॉगिन यशस्वी.`);
       if (data.user.role === 'admin') {
+        adminActiveTab.value = 'inventory';
         loadAdminOrders();
         loadAdminCustomers();
       }
     } else {
-      authError.value = data.error || 'लॉगिन असफल रहा। कृपया पुनः प्रयास करें।';
+      authError.value = data.error || 'लॉगिन अयशस्वी. कृपया पुन्हा प्रयत्न करा.';
     }
   } catch (err) {
-    authError.value = 'सर्वर से संपर्क नहीं हो पाया।';
+    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+  } finally {
+    authSubmitting.value = false;
+  }
+}
+
+async function handleVerifyAdmin2Fa() {
+  if (!admin2faState.value.otp || admin2faState.value.otp.trim().length !== 6) {
+    authError.value = 'कृपया ६-अंकी OTP कोड टाका.';
+    return;
+  }
+  authSubmitting.value = true;
+  authError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/verify-admin-2fa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        temp_token: admin2faState.value.temp_token,
+        otp: admin2faState.value.otp.trim()
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      authToken.value = data.token;
+      localStorage.setItem('kirana_token', data.token);
+      currentUser.value = data.user;
+      profileForm.value = { ...data.user };
+      showAuthModal.value = false;
+      admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp_preview: '', otp: '' };
+      authForm.value = { identifier: '', password: '' };
+      showToast(`नमस्ते ${data.user.name}! 🔐 २-स्टेप व्हेरिफिकेशन यशस्वी.`);
+      if (data.user.role === 'admin') {
+        adminActiveTab.value = 'inventory';
+        loadAdminOrders();
+        loadAdminCustomers();
+      }
+    } else {
+      authError.value = data.error || 'अवैध OTP कोड. कृपया पुन्हा प्रयत्न करा.';
+    }
+  } catch (err) {
+    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+  } finally {
+    authSubmitting.value = false;
+  }
+}
+
+async function handleResetPassword() {
+  if (!resetPasswordForm.value.phone || !resetPasswordForm.value.new_password) {
+    authError.value = 'कृपया मोबाईल नंबर आणि नवीन पासवर्ड टाका.';
+    return;
+  }
+  authSubmitting.value = true;
+  authError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: resetPasswordForm.value.phone.trim(),
+        new_password: resetPasswordForm.value.new_password.trim()
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('✅ पासवर्ड यशस्वीरीत्या बदलला! आता नवीन पासवर्डने लॉगिन करा.');
+      authMode.value = 'login';
+      authForm.value.identifier = resetPasswordForm.value.phone;
+      resetPasswordForm.value = { phone: '', new_password: '' };
+    } else {
+      authError.value = data.error || 'पासवर्ड बदल अयशस्वी.';
+    }
+  } catch (err) {
+    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
   } finally {
     authSubmitting.value = false;
   }
@@ -3700,16 +3978,25 @@ async function handleRegister() {
   const phone = registerForm.value.phone.trim();
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
-    authError.value = 'कृपया 10 अंकों का सही भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू)';
+    authError.value = 'कृपया १० अंकांचा खरा भारतीय मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा)';
     return;
   }
   authSubmitting.value = true;
   authError.value = '';
   try {
+    const payload = {
+      name: registerForm.value.name.trim(),
+      username: registerForm.value.username ? registerForm.value.username.trim() : null,
+      phone: phone,
+      email: registerForm.value.email ? registerForm.value.email.trim() : null,
+      password: registerForm.value.password,
+      address: registerForm.value.address.trim()
+    };
+
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(registerForm.value)
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (res.ok) {
@@ -3721,12 +4008,12 @@ async function handleRegister() {
       customerForm.value.phone = data.user.phone;
       customerForm.value.address = data.user.address;
       showAuthModal.value = false;
-      showToast(`स्वागत है ${data.user.name}! खाता बन गया है।`);
+      showToast(`स्वागत आहे ${data.user.name}! कोमल मार्ट खाते तयार झाले.`);
     } else {
-      authError.value = data.error || 'रजिस्ट्रेशन असफल रहा।';
+      authError.value = data.error || 'नोंदणी अयशस्वी.';
     }
   } catch (err) {
-    authError.value = 'सर्वर से संपर्क नहीं हो पाया।';
+    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
   } finally {
     authSubmitting.value = false;
   }
@@ -3893,6 +4180,11 @@ function getActiveVariant(product) {
   if (!product.variants || product.variants.length === 0) return null;
   const currentVariantId = selectedVariants.value[product.id];
   return product.variants.find(v => v.id === currentVariantId) || product.variants[0];
+}
+
+function getLocalizedTitle(prod) {
+  if (!prod) return '';
+  return getLocalizedProductName(prod, currentLang.value);
 }
 
 // Loose items custom weight helpers
@@ -4781,7 +5073,9 @@ async function submitNewProduct() {
     }
 
     const payload = {
-      category_id: newProductForm.value.category_id,
+      category_id: newProductForm.value.is_new_category ? null : newProductForm.value.category_id,
+      new_category_name: newProductForm.value.is_new_category ? newProductForm.value.new_category_name.trim() : null,
+      new_category_name_hi: newProductForm.value.is_new_category ? newProductForm.value.new_category_name_hi.trim() : null,
       name: newProductForm.value.name,
       name_hi: newProductForm.value.name_hi,
       brand: newProductForm.value.brand,
@@ -4809,15 +5103,18 @@ async function submitNewProduct() {
     });
 
     if (res.ok) {
-      showToast(`✅ नया सामान '${newProductForm.value.name}' स्टोर में जोड़ा गया!`);
+      showToast(`✅ नवीन सामान '${newProductForm.value.name}' यशस्वीरीत्या जोडले!`);
       showAddProductModal.value = false;
       newProductForm.value.name = '';
       newProductForm.value.name_hi = '';
+      newProductForm.value.is_new_category = false;
+      newProductForm.value.new_category_name = '';
+      newProductForm.value.new_category_name_hi = '';
       newProductForm.value.image_front = '/products/chakki-atta.jpg';
       newProductForm.value.image_back = '';
       newProductForm.value.image_pack = '';
-      fetchProducts();
-      fetchCategories();
+      await fetchCategories();
+      await fetchProducts();
     }
   } catch (err) {
     console.error('Add product error:', err);

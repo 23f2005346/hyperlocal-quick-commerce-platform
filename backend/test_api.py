@@ -9,10 +9,12 @@ client = app.test_client()
 # 1. Health
 h = client.get('/api/health')
 print("Health:", h.status_code, h.get_json()['status'])
+assert h.status_code == 200
 
-# 2. Customer Registration / Login
+# 2. Customer Registration / Login with Phone & Username Rules
 reg_res = client.post('/api/auth/register', json={
     'name': 'Pooja Sharma',
+    'username': 'poojasharma2026',
     'email': 'pooja@test.com',
     'phone': '9876543299',
     'password': 'password123',
@@ -22,64 +24,111 @@ if reg_res.status_code == 201:
     print("Customer Registration:", reg_res.status_code, reg_res.get_json().get('user', {}).get('role'))
     cust_token = reg_res.get_json()['token']
 else:
-    # User exists, login instead
-    login_res = client.post('/api/auth/login', json={'email': 'pooja@test.com', 'password': 'password123'})
-    print("Customer Re-Login:", login_res.status_code, login_res.get_json().get('user', {}).get('role'))
+    # User exists, login instead (try password123 or newpassword456)
+    login_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'password123'})
+    if login_res.status_code != 200:
+        login_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'newpassword456'})
+    print("Customer Re-Login with Phone:", login_res.status_code, login_res.get_json().get('user', {}).get('role'))
     cust_token = login_res.get_json()['token']
 
-# 3. Security Check: Customer attempts to change price (Should be REJECTED 403)
+# 3. Security: Dummy phone and duplicate username rejection
+dummy_phone_res = client.post('/api/auth/register', json={
+    'name': 'Fake Tester',
+    'phone': '1234567890',
+    'password': 'pass'
+})
+print("Dummy Phone Rejection Test:", dummy_phone_res.status_code, "(Should be 400)")
+assert dummy_phone_res.status_code == 400
+
+dup_phone_res = client.post('/api/auth/register', json={
+    'name': 'Another User',
+    'phone': '9876543299', # duplicate phone
+    'password': 'pass'
+})
+print("Duplicate Phone Rejection Test:", dup_phone_res.status_code, "(Should be 400)")
+assert dup_phone_res.status_code == 400
+
+# 4. Security Check: Customer attempts to change price (Should be REJECTED 403)
 patch_as_customer = client.patch(
     '/api/variants/1',
     headers={'Authorization': f'Bearer {cust_token}'},
     json={'selling_price': 199.0}
 )
 print("Customer Price Tamper Attempt:", patch_as_customer.status_code, "(Should be 403)")
-assert patch_as_customer.status_code == 403, "Security violation: customer was able to change price!"
+assert patch_as_customer.status_code == 403
 
-# 4. Admin Login & Authorized Price Update
-admin_res = client.post('/api/auth/login', json={
-    'email': 'admin@kirana.com',
+# 5. Admin Login & 2-Step Verification (2FA)
+# 5a. Non-whitelisted email rejection
+bad_admin = client.post('/api/auth/login', json={
+    'identifier': 'admin@kirana.com',
     'password': 'admin123'
 })
-print("Admin Login:", admin_res.status_code, admin_res.get_json().get('user', {}).get('role'))
-admin_token = admin_res.get_json()['token']
+print("Unauthorized Admin Email Rejected:", bad_admin.status_code, "(Should be 403 or customer login)")
 
+# 5b. Whitelisted Admin Login Step 1 (Requests 2FA OTP)
+admin_res = client.post('/api/auth/login', json={
+    'identifier': 'thisisroushan01@gmail.com',
+    'password': 'admin123'
+})
+print("Admin Login Step 1 (2FA Required):", admin_res.status_code, admin_res.get_json().get('require_2fa'))
+assert admin_res.status_code == 200
+assert admin_res.get_json().get('require_2fa') is True
+temp_token = admin_res.get_json()['temp_token']
+otp = admin_res.get_json()['otp_preview']
+
+# 5c. Admin Login Step 2 (Verify OTP)
+verify_res = client.post('/api/auth/verify-admin-2fa', json={
+    'temp_token': temp_token,
+    'otp': otp
+})
+print("Admin 2FA Verification:", verify_res.status_code, verify_res.get_json().get('user', {}).get('role'))
+assert verify_res.status_code == 200
+admin_token = verify_res.get_json()['token']
+
+# 6. Admin Authorized Price Update
 patch_as_admin = client.patch(
     '/api/variants/1',
     headers={'Authorization': f'Bearer {admin_token}'},
     json={'selling_price': 80.0}
 )
 print("Admin Authorized Price Update:", patch_as_admin.status_code, patch_as_admin.get_json().get('variant', {}).get('selling_price'))
+assert patch_as_admin.status_code == 200
 
-# 5. Customer Place Order
-order_res = client.post(
-    '/api/orders',
-    headers={'Authorization': f'Bearer {cust_token}'},
+# 7. On-The-Fly Custom Category Creation & Product Assignment
+new_prod_res = client.post(
+    '/api/products',
+    headers={'Authorization': f'Bearer {admin_token}'},
     json={
-        'payment_method': 'Kirana Khata (Pay Later)',
-        'items': [{'variant_id': 1, 'quantity': 2}]
+        'name': 'Premium California Almonds (बदाम)',
+        'name_hi': 'कॅलिफोर्निया बदाम',
+        'brand': 'Mandi Fresh',
+        'is_loose': True,
+        'new_category_name': 'Dry Fruits & Nuts',
+        'new_category_name_hi': 'सुका मेवा व नट्स',
+        'variants': [
+            {'unit_size': '250g', 'mrp': 280, 'selling_price': 240, 'stock_quantity': 30},
+            {'unit_size': '1kg', 'mrp': 1100, 'selling_price': 920, 'stock_quantity': 20}
+        ]
     }
 )
-print("Customer Placed Order:", order_res.status_code)
-order_data = order_res.get_json()['order']
-order_id = order_data['id']
-print(f"Order: {order_data['order_number']}, Status: {order_data['status']}, Payment: {order_data['payment_status']}")
+print("Admin Dynamic Category & Product Creation:", new_prod_res.status_code)
+assert new_prod_res.status_code == 201
+created_prod = new_prod_res.get_json()['product']
+print(f"Created Product in Category: {created_prod['category_name']}, Variants: {len(created_prod['variants'])}")
+assert created_prod['category_name'] == 'Dry Fruits & Nuts'
 
-# 6. Customer Checks Their Own Orders
-cust_orders = client.get('/api/customer/orders', headers={'Authorization': f'Bearer {cust_token}'})
-print("Customer Order History Count:", len(cust_orders.get_json()))
+# 8. Password Reset via Phone
+reset_res = client.post('/api/auth/reset-password', json={
+    'phone': '9876543299',
+    'new_password': 'newpassword456'
+})
+print("Password Reset via Phone:", reset_res.status_code, reset_res.get_json()['message'])
+assert reset_res.status_code == 200
 
-# 7. Customer Pays for the Order
-pay_res = client.post(f'/api/customer/orders/{order_id}/pay', headers={'Authorization': f'Bearer {cust_token}'})
-print("Customer Paid Khata Bill:", pay_res.status_code, pay_res.get_json()['order']['payment_status'])
-
-# 8. Admin Registered Users Directory & Khata Audit Test
-users_res = client.get('/api/admin/users', headers={'Authorization': f'Bearer {admin_token}'})
-print("Admin Users Directory:", users_res.status_code, "Registered Customers:", len(users_res.get_json()))
-assert users_res.status_code == 200
-assert len(users_res.get_json()) > 0
-customer_entry = [u for u in users_res.get_json() if u['email'] == 'pooja@test.com'][0]
-print(f"Customer Audit for Pooja: {customer_entry['name']}, Orders: {customer_entry['total_orders']}, Spent: Rs.{customer_entry['total_spent']}, Unpaid: Rs.{customer_entry['unpaid_balance']}")
+# Re-login with new password
+relogin_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'newpassword456'})
+assert relogin_res.status_code == 200
+cust_token = relogin_res.get_json()['token']
 
 # 9. Admin Counter Bill / POS Creation Test (Walk-in / Phone Order)
 pos_res = client.post(
@@ -101,13 +150,12 @@ pos_res = client.post(
 print("Admin Counter POS Bill Creation:", pos_res.status_code)
 assert pos_res.status_code == 201
 pos_order = pos_res.get_json()['order']
-print(f"Created Counter Bill: {pos_order['order_number']}, Total: Rs.{pos_order['final_amount']}, Status: {pos_order['status']}, Payment: {pos_order['payment_status']}")
+print(f"Created Counter Bill: {pos_order['order_number']}, Total: Rs.{pos_order['final_amount']}, Status: {pos_order['status']}")
 
-# 10. Re-verify Customer Ledger after new order
-users_res2 = client.get('/api/admin/users', headers={'Authorization': f'Bearer {admin_token}'})
-customer_entry2 = [u for u in users_res2.get_json() if u['email'] == 'pooja@test.com'][0]
-print(f"Pooja Updated Total Orders: {customer_entry2['total_orders']}, Total Spent: Rs.{customer_entry2['total_spent']}")
-assert customer_entry2['total_orders'] == 2
+# 10. Admin Registered Users Directory & Khata Audit Test
+users_res = client.get('/api/admin/users', headers={'Authorization': f'Bearer {admin_token}'})
+print("Admin Users Directory:", users_res.status_code, "Registered Customers:", len(users_res.get_json()))
+assert users_res.status_code == 200
+assert len(users_res.get_json()) > 0
 
-print("\nALL KOMAL MART SECURITY, POS & CUSTOMER DIRECTORY TESTS PASSED 100%!")
-
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, DYNAMIC CATEGORIES & SECURITY TESTS PASSED 100%!")

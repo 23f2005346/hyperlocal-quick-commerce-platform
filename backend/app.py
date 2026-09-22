@@ -1,5 +1,7 @@
 import os
 import random
+import re
+import time
 import uuid
 from functools import wraps
 from datetime import datetime
@@ -11,6 +13,10 @@ from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
 
 SECRET_KEY = 'apna-desi-kirana-store-secret-key-2026'
 serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+# Strict Store Owner Admin Email Whitelist
+ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
+ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
 
 def create_app():
     app = Flask(__name__)
@@ -28,9 +34,39 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
+        # SQLite migration to ensure username column and unique indices
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        try:
+            cur.execute("PRAGMA table_info(users)")
+            cols = [r[1] for r in cur.fetchall()]
+            if 'username' not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN username VARCHAR(60)")
+                conn.commit()
+
+            # Deduplicate any duplicate phone numbers in legacy test data
+            cur.execute("SELECT phone, COUNT(*) FROM users GROUP BY phone HAVING COUNT(*) > 1")
+            dups = cur.fetchall()
+            for p_dup, cnt in dups:
+                cur.execute("SELECT id FROM users WHERE phone = ?", (p_dup,))
+                rows = cur.fetchall()
+                for idx, r in enumerate(rows[1:], start=1):
+                    new_p = f"{p_dup[:9]}{idx}"
+                    cur.execute("UPDATE users SET phone = ? WHERE id = ?", (new_p, r[0]))
+            conn.commit()
+
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users(username) WHERE username IS NOT NULL")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users(phone)")
+            conn.commit()
+        except Exception as e:
+            print("Migration warning:", e)
+        finally:
+            conn.close()
+
         db.create_all()
-        # Seed default admin and inventory if empty
-        if Category.query.count() == 0:
+        # Seed default admin and inventory if empty or missing admin
+        if Category.query.count() == 0 or User.query.filter_by(role='admin').count() == 0:
             seed_database()
 
     # --- AUTHENTICATION HELPERS ---
@@ -73,30 +109,56 @@ def create_app():
     def register():
         data = request.get_json() or {}
         name = data.get('name', '').strip()
+        username = data.get('username', '').strip()
         email = data.get('email', '').strip().lower()
         phone = data.get('phone', '').strip()
         password = data.get('password', '').strip()
         address = data.get('address', '').strip()
 
-        if not name or not email or not password or not phone:
-            return jsonify({'error': 'Name, email, phone, and password are required'}), 400
+        if not name or not password or not phone:
+            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत (Name, Phone and Password are required)'}), 400
 
-        import re
-        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            return jsonify({'error': 'कृपया सही ईमेल आईडी दर्ज करें (Invalid Email Format)'}), 400
-
+        # Mandatory & Strict Indian Mobile Validation (10 digits starting with 6,7,8,9)
         if not re.match(r'^[6-9]\d{9}$', phone):
-            return jsonify({'error': 'कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें (Must be valid 10-digit Indian number starting with 6-9)'}), 400
+            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (Must be 10-digit Indian mobile starting with 6-9)'}), 400
 
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'इस ईमेल से खाता पहले से मौजूद है (Account already exists)'}), 400
+        # Reject dummy or fake phone numbers
+        if len(set(phone)) <= 1:
+            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 9999999999) चालणार नाही.'}), 400
+
+        dummy_phones = {'1234567890', '0123456789', '1234512345', '9876598765', '1122334455'}
+        if phone in dummy_phones:
+            return jsonify({'error': 'हा डमी नंबर आहे. कृपया आपला खरा १० अंकी मोबाईल नंबर टाका.'}), 400
+
+        # Enforce unique phone
+        if User.query.filter_by(phone=phone).first():
+            return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.'}), 400
+
+        # Unique username validation (if provided)
+        if username:
+            if not re.match(r'^[a-zA-Z0-9_.-]{3,30}$', username):
+                return jsonify({'error': 'युझरनेम ३ ते ३० अक्षरांचे (फक्त अक्षरे, अंक, _, . किंवा -) असावे.'}), 400
+            if User.query.filter_by(username=username).first():
+                return jsonify({'error': f'युझरनेम "{username}" आधीच वापरले गेले आहे. कृपया दुसरे नाव निवडा.'}), 400
+        else:
+            username = None
+
+        # Optional Email Validation
+        if email:
+            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com)'}), 400
+            if User.query.filter_by(email=email).first():
+                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे.'}), 400
+        else:
+            email = None
 
         user = User(
             name=name,
+            username=username,
             email=email,
             phone=phone,
             address=address,
-            role='customer' # Strict role enforcement: customers can NEVER register as admin
+            role='customer' # Strict role enforcement
         )
         user.set_password(password)
         db.session.add(user)
@@ -112,24 +174,125 @@ def create_app():
     @app.route('/api/auth/login', methods=['POST'])
     def login():
         data = request.get_json() or {}
-        email = data.get('email', '').strip().lower()
+        identifier = (data.get('identifier') or data.get('email') or data.get('phone') or data.get('username') or '').strip()
         password = data.get('password', '').strip()
 
-        if not email or not password:
-            return jsonify({'error': 'Email and password are required'}), 400
+        if not identifier or not password:
+            return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.'}), 400
 
-        user = User.query.filter_by(email=email).first()
+        # Find user by email, phone, or username
+        user = User.query.filter(
+            (User.email == identifier.lower()) |
+            (User.phone == identifier) |
+            (User.username == identifier)
+        ).first()
+
         if not user:
-            return jsonify({'error': 'इस ईमेल से कोई खाता नहीं मिला। कृपया पहले नया खाता बनाएं (No account found. Please register first).'}), 404
+            return jsonify({'error': 'या तपशीलांशी जुळणारे कोणतेही खाते सापडले नाही. कृपया नवीन खाते तयार करा.'}), 404
 
         if not user.check_password(password):
-            return jsonify({'error': 'गलत पासवर्ड। कृपया सही पासवर्ड दर्ज करें (Incorrect password).'}), 401
+            return jsonify({'error': 'चुकीचा पासवर्ड! कृपया योग्य पासवर्ड टाका.'}), 401
 
+        # Check if user is Admin -> Strict Whitelist and 2FA Verification
+        if user.role == 'admin':
+            if user.email not in ADMIN_WHITELIST:
+                return jsonify({'error': 'अनाधिकृत प्रवेश: केवळ अधिकृत दुकान मालक ईमेलद्वारे ॲडमिन ॲक्सेस शक्य आहे.'}), 403
+
+            # Generate 6-digit OTP
+            otp = f"{random.randint(100000, 999999)}"
+            temp_token = serializer.dumps({'email': user.email, 'purpose': 'admin_2fa'}, salt='admin-2fa-salt')
+            ADMIN_2FA_STORE[user.email] = {
+                'otp': otp,
+                'expires_at': time.time() + 300, # 5 minutes
+                'user_id': user.id
+            }
+
+            print(f"\n=======================================================")
+            print(f"🔐 [KOMAL MART ADMIN 2FA OTP] Storekeeper Login OTP")
+            print(f"📧 Admin Email: {user.email}")
+            print(f"🔑 6-Digit OTP Code: {otp}")
+            print(f"⏳ Valid for 5 minutes")
+            print(f"=======================================================\n")
+
+            parts = user.email.split('@')
+            masked = (parts[0][:2] + '***' + parts[0][-2:] + '@' + parts[1]) if len(parts[0]) > 4 else user.email
+
+            return jsonify({
+                'require_2fa': True,
+                'temp_token': temp_token,
+                'masked_email': masked,
+                'admin_email': user.email,
+                'otp_preview': otp, # local dev convenience
+                'message': f'सुरक्षा पडताळणी: ६-अंकी OTP कोड {masked} वर पाठवला आहे.'
+            })
+
+        # Regular customer login -> Direct JWT
         token = serializer.dumps({'user_id': user.id, 'role': user.role})
         return jsonify({
             'message': 'Login successful!',
             'token': token,
             'user': user.to_dict()
+        })
+
+    @app.route('/api/auth/verify-admin-2fa', methods=['POST'])
+    def verify_admin_2fa():
+        data = request.get_json() or {}
+        temp_token = data.get('temp_token', '').strip()
+        otp_input = data.get('otp', '').strip()
+
+        if not temp_token or not otp_input:
+            return jsonify({'error': 'Temp token and 6-digit OTP are required'}), 400
+
+        try:
+            payload = serializer.loads(temp_token, salt='admin-2fa-salt', max_age=300)
+            email = payload.get('email')
+        except (SignatureExpired, BadSignature, Exception):
+            return jsonify({'error': '२-स्टेप पडताळणी सत्र संपले आहे. कृपया पुन्हा लॉगिन करा.'}), 401
+
+        record = ADMIN_2FA_STORE.get(email)
+        if not record:
+            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा लॉगिन करा.'}), 400
+
+        if time.time() > record['expires_at']:
+            ADMIN_2FA_STORE.pop(email, None)
+            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.'}), 400
+
+        if record['otp'] != otp_input:
+            return jsonify({'error': 'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका.'}), 400
+
+        # OTP valid! Issue Admin JWT Token
+        ADMIN_2FA_STORE.pop(email, None)
+        user = User.query.get(record['user_id'])
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Unauthorized admin account'}), 403
+
+        token = serializer.dumps({'user_id': user.id, 'role': user.role})
+        return jsonify({
+            'message': 'दुकानदार २-स्टेप व्हेरिफिकेशन यशस्वी! स्वागत आहे.',
+            'token': token,
+            'user': user.to_dict()
+        })
+
+    @app.route('/api/auth/reset-password', methods=['POST'])
+    def reset_password():
+        data = request.get_json() or {}
+        phone = data.get('phone', '').strip()
+        new_password = data.get('new_password', '').strip()
+
+        if not phone or not new_password:
+            return jsonify({'error': 'मोबाईल नंबर आणि नवीन पासवर्ड आवश्यक आहेत.'}), 400
+
+        if len(new_password) < 4:
+            return jsonify({'error': 'पासवर्ड किमान ४ अक्षरांचा असावा.'}), 400
+
+        user = User.query.filter_by(phone=phone).first()
+        if not user:
+            return jsonify({'error': 'या मोबाईल नंबरवर कोणतेही खाते सापडले नाही.'}), 404
+
+        user.set_password(new_password)
+        db.session.commit()
+        return jsonify({
+            'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! कृपया नवीन पासवर्डने लॉगिन करा.'
         })
 
     @app.route('/api/auth/me', methods=['GET'])
@@ -379,12 +542,64 @@ def create_app():
             'order': order.to_dict()
         })
 
+    @app.route('/api/categories', methods=['POST'])
+    @admin_required
+    def create_category():
+        data = request.get_json() or {}
+        name = data.get('name', '').strip()
+        name_hi = data.get('name_hi', '').strip() or name
+        if not name:
+            return jsonify({'error': 'Category name is required'}), 400
+
+        slug = re.sub(r'[^a-zA-Z0-9]+', '-', name.lower()).strip('-')
+        if not slug:
+            slug = f"cat-{uuid.uuid4().hex[:6]}"
+
+        cat = Category.query.filter((Category.slug == slug) | (Category.name.ilike(name))).first()
+        if cat:
+            return jsonify({'message': 'Category already exists', 'category': cat.to_dict()}), 200
+
+        max_order = db.session.query(db.func.max(Category.display_order)).scalar() or 0
+        cat = Category(
+            name=name,
+            name_hi=name_hi,
+            slug=slug,
+            icon=data.get('icon', 'package'),
+            display_order=max_order + 1
+        )
+        db.session.add(cat)
+        db.session.commit()
+        return jsonify({'message': 'Category created successfully!', 'category': cat.to_dict()}), 201
+
     @app.route('/api/products', methods=['POST'])
     @admin_required
     def add_product():
         data = request.get_json() or {}
-        if not data.get('name') or not data.get('category_id'):
-            return jsonify({'error': 'Name and Category ID are required'}), 400
+        category_id = data.get('category_id')
+        new_category_name = data.get('new_category_name', '').strip()
+        new_category_name_hi = data.get('new_category_name_hi', '').strip() or new_category_name
+
+        # On-the-fly Category Creation
+        if new_category_name:
+            cat_slug = re.sub(r'[^a-zA-Z0-9]+', '-', new_category_name.lower()).strip('-')
+            if not cat_slug:
+                cat_slug = f"cat-{uuid.uuid4().hex[:6]}"
+            category = Category.query.filter((Category.slug == cat_slug) | (Category.name.ilike(new_category_name))).first()
+            if not category:
+                max_order = db.session.query(db.func.max(Category.display_order)).scalar() or 0
+                category = Category(
+                    name=new_category_name,
+                    name_hi=new_category_name_hi,
+                    slug=cat_slug,
+                    icon='package',
+                    display_order=max_order + 1
+                )
+                db.session.add(category)
+                db.session.flush()
+            category_id = category.id
+
+        if not data.get('name') or not category_id:
+            return jsonify({'error': 'Product name and Category are required'}), 400
 
         # Multi-angle images support (Front, Back, Packaging)
         images_input = data.get('images')
@@ -397,7 +612,7 @@ def create_app():
             final_image_url = '/products/chakki-atta.jpg'
 
         product = Product(
-            category_id=data['category_id'],
+            category_id=category_id,
             name=data['name'],
             name_hi=data.get('name_hi', ''),
             brand=data.get('brand', 'Local / Loose'),
@@ -720,25 +935,45 @@ def seed_database():
     Product.query.delete()
     Category.query.delete()
     
-    # Create Default Store Owner / Admin Account
-    admin_user = User.query.filter_by(email='admin@kirana.com').first()
-    if not admin_user:
-        admin_user = User(
-            name='Storekeeper (दुकानदार / Owner)',
-            email='admin@kirana.com',
-            phone='9876543210',
-            address='Apna Kirana Store, Main Bazaar, Mumbai',
+    # Create Whitelisted Store Owner / Admin Accounts
+    admin_primary = User.query.filter_by(email='thisisroushan01@gmail.com').first()
+    if not admin_primary:
+        admin_primary = User(
+            name='Roushan (दुकान मालक / Store Owner)',
+            username='roushan_admin',
+            email='thisisroushan01@gmail.com',
+            phone='9820011223',
+            address='कोमल मार्ट (Komal Mart), मुख्य बाजार, स्टेशन रोड, मुंबई',
             role='admin'
         )
-        admin_user.set_password('admin123')
-        db.session.add(admin_user)
-        db.session.commit()
+        admin_primary.set_password('admin123')
+        db.session.add(admin_primary)
+
+    admin_sec = User.query.filter_by(email='novaaether01@gmail.com').first()
+    if not admin_sec:
+        admin_sec = User(
+            name='Nova Aether (दुकानदार / Partner)',
+            username='novaaether_admin',
+            email='novaaether01@gmail.com',
+            phone='9820011224',
+            address='कोमल मार्ट (Komal Mart), मुख्य बाजार, स्टेशन रोड, मुंबई',
+            role='admin'
+        )
+        admin_sec.set_password('admin123')
+        db.session.add(admin_sec)
+
+    # Legacy admin account update if present
+    legacy_admin = User.query.filter_by(email='admin@kirana.com').first()
+    if legacy_admin:
+        legacy_admin.role = 'customer' # demote legacy admin
+        legacy_admin.phone = '9820011299'
 
     # Create Sample Customer Account for testing
     cust_user = User.query.filter_by(email='roushan@example.com').first()
     if not cust_user:
         cust_user = User(
             name='Roushan Kumar',
+            username='roushancust',
             email='roushan@example.com',
             phone='9876543210',
             address='Flat 402, Shiv Shakti Apts, Mumbai',
@@ -746,7 +981,8 @@ def seed_database():
         )
         cust_user.set_password('customer123')
         db.session.add(cust_user)
-        db.session.commit()
+
+    db.session.commit()
 
     cat_map = {}
     for cat_info in CATEGORIES_DATA:
