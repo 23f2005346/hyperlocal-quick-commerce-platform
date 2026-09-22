@@ -1477,7 +1477,7 @@
     <!-- ======================================================== -->
     <div class="modal-overlay" v-if="lastOrderReceipt" @click.self="lastOrderReceipt = null">
       <div class="modal-card printable-area" style="max-width: 480px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <span style="font-size: 0.88rem; font-weight: 800; color: #047857;">✅ {{ t('parcha_generated_title') }}</span>
           <button class="close-btn" @click="lastOrderReceipt = null">✕</button>
         </div>
@@ -1547,7 +1547,7 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+        <div class="no-print" style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
           <button
             @click="shareOrderOnWhatsApp(lastOrderReceipt)"
             class="whatsapp-share-btn"

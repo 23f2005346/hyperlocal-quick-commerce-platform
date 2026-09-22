@@ -2688,9 +2688,9 @@ a {
     padding: 0 !important;
   }
 
-  /* Hide default page layout, header, footer, hero, modals backdrop */
-  .store-top-bar,
-  .store-header,
+  /* Hide entire application layout & chrome except the active modal */
+  .top-announcement,
+  .kirana-header,
   .category-nav,
   .main-layout,
   footer,
@@ -2698,16 +2698,24 @@ a {
   .close-btn,
   .whatsapp-share-btn,
   button,
-  select {
+  select,
+  .toast-notification,
+  .quick-view-card,
+  .cart-drawer-overlay,
+  .free-delivery-meter,
+  nav {
     display: none !important;
+    visibility: hidden !important;
   }
 
   .modal-overlay {
     position: static !important;
     background: transparent !important;
     padding: 0 !important;
+    margin: 0 !important;
     display: block !important;
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .modal-card {
@@ -2715,16 +2723,25 @@ a {
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     background: transparent !important;
   }
 
   /* When single receipt is being printed */
   .parcha-receipt {
     max-width: 380px;
-    margin: 0 auto;
+    margin: 0 auto !important;
     border: 1.5px dashed #000000 !important;
-    padding: 12px;
+    padding: 14px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .printable-area {
+    margin: 0 auto !important;
+    padding: 0 !important;
   }
 
   /* When batch slips are being printed */
