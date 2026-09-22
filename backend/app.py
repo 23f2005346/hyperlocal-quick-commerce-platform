@@ -104,7 +104,7 @@ def create_app():
 
         token = serializer.dumps({'user_id': user.id, 'role': user.role})
         return jsonify({
-            'message': 'Registration successful! Welcome to Apna Kirana Store.',
+            'message': 'Registration successful! Welcome to Komal Mart.',
             'token': token,
             'user': user.to_dict()
         }), 201
@@ -496,6 +496,160 @@ def create_app():
     def reset_seed():
         seed_database()
         return jsonify({'message': 'Database re-seeded successfully with authentic Kirana inventory!'})
+
+    # --- STORE OWNER: REGISTERED CUSTOMERS DIRECTORY & AUDIT ---
+    @app.route('/api/admin/users', methods=['GET'])
+    @admin_required
+    def get_admin_users():
+        users = User.query.filter_by(role='customer').order_by(User.created_at.desc()).all()
+        result = []
+        for u in users:
+            # Query all orders linked to this user (by user_id or matching phone)
+            user_orders = Order.query.filter(
+                (Order.user_id == u.id) | (Order.customer_phone == u.phone)
+            ).order_by(Order.created_at.desc()).all()
+
+            total_spent = sum(o.final_amount for o in user_orders)
+            unpaid_balance = sum(o.final_amount for o in user_orders if o.payment_status != 'Paid')
+
+            result.append({
+                'id': u.id,
+                'name': u.name,
+                'email': u.email,
+                'phone': u.phone,
+                'address': u.address or '',
+                'created_at': u.created_at.strftime('%d %b %Y'),
+                'total_orders': len(user_orders),
+                'total_spent': round(total_spent, 2),
+                'unpaid_balance': round(unpaid_balance, 2),
+                'orders': [o.to_dict() for o in user_orders]
+            })
+        return jsonify(result)
+
+    # --- STORE OWNER: COUNTER POS / WALK-IN / PHONE ORDER CREATOR ---
+    @app.route('/api/admin/orders/create', methods=['POST'])
+    @admin_required
+    def create_admin_order():
+        data = request.get_json() or {}
+        items_data = data.get('items', [])
+        if not items_data:
+            return jsonify({'error': 'कम से कम एक सामान जोड़ना आवश्यक है (Order items cannot be empty)'}), 400
+
+        customer_name = data.get('customer_name', 'काउंटर ग्राहक (Walk-in)').strip()
+        customer_phone = data.get('customer_phone', '9999999999').strip()
+        customer_address = data.get('customer_address', 'दुकान से काउंटर पिकअप (In-Store Pickup)').strip()
+        payment_method = data.get('payment_method', 'Cash on Counter')
+        payment_status = data.get('payment_status', 'Paid')
+        order_status = data.get('status', 'Delivered')
+
+        # Link to customer account if user_id given or phone matches
+        linked_user = None
+        if data.get('user_id'):
+            linked_user = User.query.get(data['user_id'])
+        elif customer_phone and customer_phone != '9999999999':
+            linked_user = User.query.filter_by(phone=customer_phone).first()
+
+        order_number = f"KRN-{datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+
+        total_mrp = 0.0
+        final_amount = 0.0
+        order_items = []
+
+        for item in items_data:
+            is_custom = item.get('is_custom_weight', False)
+            if is_custom:
+                prod_id = item.get('product_id')
+                product = Product.query.get(prod_id) if prod_id else None
+                prod_name = product.name if product else item.get('product_name', 'किराना सामान')
+                unit_label = item.get('unit_size', '1kg')
+                unit_price = float(item.get('unit_price', 30.0))
+                subtotal = round(float(item.get('subtotal', unit_price)), 2)
+                item_mrp = round(float(item.get('mrp', unit_price * 1.15)), 2)
+
+                total_mrp += item_mrp
+                final_amount += subtotal
+
+                order_item = OrderItem(
+                    product_id=prod_id,
+                    variant_id=None,
+                    product_name=prod_name,
+                    variant_label=f"{unit_label} (कस्टम तोल)",
+                    unit_price=unit_price,
+                    quantity=1,
+                    subtotal=subtotal
+                )
+                order_items.append(order_item)
+            else:
+                variant_id = item.get('variant_id')
+                qty = int(item.get('quantity', 1))
+
+                variant = ProductVariant.query.get(variant_id) if variant_id else None
+                if variant:
+                    if variant.stock_quantity >= qty:
+                        variant.stock_quantity -= qty
+                    else:
+                        variant.stock_quantity = 0
+
+                    unit_price = float(item.get('unit_price', variant.selling_price))
+                    subtotal = round(unit_price * qty, 2)
+                    mrp = float(item.get('mrp', variant.mrp))
+                    total_mrp += round(mrp * qty, 2)
+                    final_amount += subtotal
+
+                    order_item = OrderItem(
+                        product_id=variant.product_id,
+                        variant_id=variant.id,
+                        product_name=variant.product.name,
+                        variant_label=variant.unit_size,
+                        unit_price=unit_price,
+                        quantity=qty,
+                        subtotal=subtotal
+                    )
+                    order_items.append(order_item)
+                else:
+                    p_name = item.get('product_name', 'सामान')
+                    p_unit = item.get('unit_size', '1 Unit')
+                    p_price = float(item.get('unit_price', 10.0))
+                    p_mrp = float(item.get('mrp', p_price))
+                    subtotal = round(p_price * qty, 2)
+                    total_mrp += round(p_mrp * qty, 2)
+                    final_amount += subtotal
+
+                    order_item = OrderItem(
+                        product_id=item.get('product_id'),
+                        variant_id=None,
+                        product_name=p_name,
+                        variant_label=p_unit,
+                        unit_price=p_price,
+                        quantity=qty,
+                        subtotal=subtotal
+                    )
+                    order_items.append(order_item)
+
+        savings = round(total_mrp - final_amount, 2) if total_mrp > final_amount else 0.0
+
+        new_order = Order(
+            order_number=order_number,
+            user_id=linked_user.id if linked_user else None,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            customer_address=customer_address,
+            total_mrp=round(total_mrp, 2),
+            final_amount=round(final_amount, 2),
+            total_savings=savings,
+            payment_method=payment_method,
+            payment_status=payment_status,
+            status=order_status
+        )
+        new_order.items = order_items
+
+        db.session.add(new_order)
+        db.session.commit()
+
+        return jsonify({
+            'message': f'बिल #{order_number} सफलतापूर्वक दर्ज हुआ!',
+            'order': new_order.to_dict()
+        }), 201
 
     # --- DEVICE PHOTO / CAMERA UPLOADS ---
     uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'public', 'uploads')

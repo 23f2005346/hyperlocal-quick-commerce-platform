@@ -1,12 +1,14 @@
-# 🌾 अपना किराना स्टोर (Apna Desi Kirana & General Store)
-### Fully Functional Full-Stack Indian Grocery & Ration Store Web Application
+# 🌾 कोमल मार्ट (Komal Mart - Wholesale & Retail Supermarket)
+### Fully Functional Full-Stack Indian Grocery & Supermarket Web Application
 
-A production-ready, authentic Indian Kirana & General Store web application built with **Python Flask (REST API + SQLite)** on the backend and **Vue 3 (Vite + Modern Responsive UI)** on the frontend.
+A production-ready, authentic Indian Grocery & Supermarket web application built with **Python Flask (REST API + SQLite)** on the backend and **Vue 3 (Vite + Modern Responsive Indian Mandi Aesthetic)** on the frontend.
 
-Designed specifically around the nuances of Indian grocery shopping:
+Designed specifically around the nuances of Indian retail & wholesale operations:
+- **Komal Mart Counter POS:** Storekeeper manual bill builder for walk-in counter customers, phone-in orders, and restaurant/hotel bulk supplies.
+- **Customer Directory & Khata Audit:** Lifetime purchase history and payment tracking per registered customer with 1-click WhatsApp statements.
 - **Khula vs Packed:** Open grain mandi staples (Chakki Atta, Loose Dals, Mustard Oil by liter) vs Branded packaged items (Aashirvaad, Fortune, Tata Sampann).
 - **Weight Variants:** 250g, 500g, 1kg, 5kg, 10kg, 25kg bori with dynamic price updates.
-- **Bilingual Desi Catalog:** English & Hindi naming (e.g. *अरहर दाल, धुली मूंग, साबुत काली दाल - दाल मखनी, चक्की का ताजा आटा*).
+- **Trilingual System:** Marathi default, Hindi, and English with Devanagari catalog.
 - **Dukandar Mode (Admin):** Live price & stock editor in SQLite, product adder, and order ledger (बहीखाता).
 - **Desi Kirana Parcha (Bill):** Realistic printable shop receipt with order number, itemized rates, discounts, and customer details.
 

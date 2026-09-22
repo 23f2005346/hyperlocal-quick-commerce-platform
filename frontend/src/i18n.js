@@ -6,14 +6,14 @@
 export const translations = {
   mr: {
     // Top Bar
-    store_name_full: "आपलं किराणा स्टोअर",
+    store_name_full: "कोमल मार्ट",
     tagline_announcement: "ताजा माल • अचूक वजन • कमी भाव",
     delivery_announcement: "३० मिनिटांत घरपोच • मोफत डिलिव्हरी",
     helpline_label: "ऑर्डर हेल्पलाइन",
     
     // Header
-    store_title: "आपलं किराणा स्टोअर",
-    store_subtitle: "घाऊक व किरकोळ किराणा भंडार",
+    store_title: "कोमल मार्ट",
+    store_subtitle: "घाऊक व किरकोळ सुपरमार्केट व किराणा भंडार",
     search_placeholder: "तांदूळ, डाळ, गव्हाचे पीठ, तेल, चहा, टूथपेस्ट शोधा...",
     login_btn: "लॉगिन / नोंदणी",
     greeting: "नमस्ते",
@@ -126,7 +126,9 @@ export const translations = {
     admin_add_product: "नवीन सामान जोडा",
     admin_reset_seed: "डिफॉल्ट सामान रीसेट करा",
     admin_tab_inventory: "सामान यादी व लाईव्ह दर (Price Editor)",
+    admin_tab_pos: "⚡ नवीन काउंटर बिल (POS & Phone)",
     admin_tab_orders: "बहीखाते व ग्राहक ऑर्डर्स (Orders Book)",
+    admin_tab_customers: "👥 नोंदणीकृत ग्राहक व बहीखाता (Customers)",
     admin_search_placeholder: "सामान शोधा...",
     admin_save_btn: "सेव्ह करा",
     admin_mark_paid: "नगद मिळाले (Mark Paid)",
@@ -188,14 +190,14 @@ export const translations = {
 
   hi: {
     // Top Bar
-    store_name_full: "अपना किराना स्टोर",
+    store_name_full: "कोमल मार्ट",
     tagline_announcement: "ताज़ा माल • सही तोल • कम दाम",
     delivery_announcement: "30 मिनट में घर पहुँचाएं • फ्री डिलीवरी",
     helpline_label: "ऑर्डर हेल्पलाइन",
 
     // Header
-    store_title: "अपना किराना स्टोर",
-    store_subtitle: "थोक एवं फुटकर किराना भंडार",
+    store_title: "कोमल मार्ट",
+    store_subtitle: "थोक एवं खुदरा सुपरमार्केट व किराना भंडार",
     search_placeholder: "चावल, दाल, आटा, तेल, चाय, टूथपेस्ट खोजें...",
     login_btn: "लॉगिन / रजिस्टर",
     greeting: "नमस्ते",
@@ -308,7 +310,9 @@ export const translations = {
     admin_add_product: "नया सामान जोड़ें",
     admin_reset_seed: "डिफ़ॉल्ट सामान रीसेट करें",
     admin_tab_inventory: "पूरा सामान व लाइव कीमत (Price Editor)",
+    admin_tab_pos: "⚡ नया काउंटर बिल (POS & Phone)",
     admin_tab_orders: "बहीखाता व ग्राहक ऑर्डर (Orders Book)",
+    admin_tab_customers: "👥 ग्राहक खाते व बहीखाता (Customers)",
     admin_search_placeholder: "सामान खोजें...",
     admin_save_btn: "सेव करें",
     admin_mark_paid: "नकद मिला (Mark Paid)",
@@ -370,14 +374,14 @@ export const translations = {
 
   en: {
     // Top Bar
-    store_name_full: "Apna Desi Kirana Store",
+    store_name_full: "Komal Mart",
     tagline_announcement: "Fresh Goods • Accurate Weight • Wholesale Rates",
     delivery_announcement: "30-Min Fast Home Delivery • Free on ₹300+",
     helpline_label: "Order Helpline",
 
     // Header
-    store_title: "Apna Kirana Store",
-    store_subtitle: "Wholesale & Retail Grocery Hub",
+    store_title: "Komal Mart",
+    store_subtitle: "Wholesale & Retail Supermarket & Kirana Hub",
     search_placeholder: "Search rice, pulses, atta, oils, tea, toothpaste...",
     login_btn: "Login / Register",
     greeting: "Hello",
@@ -490,7 +494,9 @@ export const translations = {
     admin_add_product: "Add New Product",
     admin_reset_seed: "Reset Default Inventory",
     admin_tab_inventory: "Inventory & Live Price Editor",
-    admin_tab_orders: "Customer Orders & Khata Book",
+    admin_tab_pos: "⚡ New Counter Bill (POS & Phone)",
+    admin_tab_orders: "Orders Ledger & Dispatches",
+    admin_tab_customers: "👥 Customer Directory & Khata Audit",
     admin_search_placeholder: "Filter products...",
     admin_save_btn: "Save",
     admin_mark_paid: "Mark Paid (Received)",
