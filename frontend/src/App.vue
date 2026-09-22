@@ -736,6 +736,32 @@
             </button>
           </div>
 
+          <!-- Batch Select & Print Action Bar -->
+          <div class="admin-batch-toolbar" v-if="displayedAdminOrders.length > 0">
+            <label class="batch-select-all-label">
+              <input
+                type="checkbox"
+                :checked="isAllDisplayedOrdersSelected"
+                @change="toggleSelectAllOrders"
+                class="batch-checkbox"
+              />
+              <span>{{ t('select_all_orders') }}</span>
+            </label>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <span class="selected-count-badge" v-if="selectedAdminOrderIds.length > 0">
+                ✓ {{ selectedAdminOrderIds.length }} {{ t('selected_orders_count') }}
+              </span>
+              <button
+                class="batch-print-btn"
+                :disabled="selectedAdminOrderIds.length === 0"
+                @click="openBatchPrintModal"
+              >
+                {{ t('admin_batch_print_btn') }} ({{ selectedAdminOrderIds.length }})
+              </button>
+            </div>
+          </div>
+
           <div v-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
             इस फ़िल्टर में कोई ऑर्डर नहीं मिला।
           </div>
@@ -746,13 +772,22 @@
               style="border: 1.5px solid var(--border); border-radius: 12px; padding: 18px; background: #fdfbf7;"
             >
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                <div>
-                  <span style="font-weight: 900; color: #064e3b; font-size: 1.05rem;">
-                    {{ ord.order_number }}
-                  </span>
-                  <span style="margin-left: 12px; font-size: 0.82rem; color: var(--text-subtle);">
-                    {{ ord.created_at }}
-                  </span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <input
+                    type="checkbox"
+                    :value="ord.id"
+                    v-model="selectedAdminOrderIds"
+                    class="order-select-checkbox"
+                    title="या ऑर्डरचा पर्चा निवडा"
+                  />
+                  <div>
+                    <span style="font-weight: 900; color: #064e3b; font-size: 1.05rem;">
+                      {{ ord.order_number }}
+                    </span>
+                    <span style="margin-left: 8px; font-size: 0.82rem; color: var(--text-subtle);">
+                      {{ ord.created_at }}
+                    </span>
+                  </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                   <!-- Delivery Status Dropdown -->
@@ -811,6 +846,28 @@
                 <span v-for="(it, idx) in ord.items" :key="idx" style="margin-left: 8px; color: var(--text-muted);">
                   {{ it.product_name }} ({{ it.variant_label }}) × {{ it.quantity }} = ₹{{ it.subtotal }}{{ idx < ord.items.length - 1 ? ' | ' : '' }}
                 </span>
+              </div>
+
+              <!-- Admin Action Buttons: View Full Invoice, Direct Print, WhatsApp -->
+              <div class="admin-order-action-bar">
+                <button
+                  class="admin-action-btn view-bill-btn"
+                  @click="viewOrderReceipt(ord)"
+                >
+                  {{ t('admin_view_bill') }}
+                </button>
+                <button
+                  class="admin-action-btn print-bill-btn"
+                  @click="printSingleOrder(ord)"
+                >
+                  {{ t('admin_print_direct') }}
+                </button>
+                <button
+                  class="admin-action-btn whatsapp-bill-btn"
+                  @click="shareOrderOnWhatsApp(ord)"
+                >
+                  {{ t('admin_whatsapp_direct') }}
+                </button>
               </div>
             </div>
           </div>
@@ -1124,6 +1181,46 @@
           </div>
         </div>
 
+        <!-- Smart Add-ons for Free Delivery -->
+        <div class="cart-addons-section" v-if="cart.length > 0 && Number(cartTotalAmount) < 300 && smartAddons.length > 0">
+          <div class="cart-addons-header">
+            <span class="addons-title">{{ t('free_delivery_addons_title') }}</span>
+            <span class="addons-fee-tag">₹25 {{ t('delivery_charge_label') }}</span>
+          </div>
+          <p class="addons-subtext">
+            {{ t('under_threshold_warning') }}
+          </p>
+          <div class="cart-addons-slider">
+            <div
+              v-for="addon in smartAddons"
+              :key="addon.id"
+              class="addon-chip-card"
+            >
+              <img
+                :src="addon.image_url"
+                :alt="addon.name"
+                class="addon-chip-img"
+                @error="handleImageFallback($event)"
+              />
+              <div class="addon-chip-info">
+                <div class="addon-chip-name">{{ getLocalizedProductName(addon, currentLang) }}</div>
+                <div class="addon-chip-unit" v-if="addon.variants && addon.variants[0]">{{ addon.variants[0].unit_size }}</div>
+                <div class="addon-chip-pricing">
+                  <span class="addon-chip-price">₹{{ addon.variants[0].selling_price }}</span>
+                  <span class="addon-chip-mrp" v-if="addon.variants[0].mrp > addon.variants[0].selling_price">₹{{ addon.variants[0].mrp }}</span>
+                </div>
+              </div>
+              <button
+                class="addon-quick-add-btn"
+                @click="addToCart(addon, addon.variants[0])"
+                title="थैलीत जोडा"
+              >
+                + {{ currentLang === 'mr' ? 'जोडा' : (currentLang === 'hi' ? 'जोड़ें' : 'Add') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Empty Cart -->
         <div v-if="cart.length === 0" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
           <div style="font-size: 3.5rem; margin-bottom: 12px;">🧺</div>
@@ -1193,14 +1290,23 @@
               <span>{{ t('kirana_savings') }}</span>
               <span>- ₹{{ cartTotalSavings }}</span>
             </div>
+            <div class="bill-row delivery-row">
+              <span>{{ t('delivery_charge_label') }}</span>
+              <span v-if="deliveryFee === 0" style="color: #059669; font-weight: 800;">
+                {{ t('delivery_free_badge') }}
+              </span>
+              <span v-else style="font-weight: 800; color: #b45309;">
+                ₹{{ deliveryFee.toFixed(2) }}
+              </span>
+            </div>
             <div class="bill-row total">
               <span>{{ t('payable_amount') }}</span>
-              <span>₹{{ cartTotalAmount }}</span>
+              <span>₹{{ cartPayableWithDelivery }}</span>
             </div>
           </div>
 
           <button class="checkout-btn" @click="openCheckoutModal">
-            📝 {{ t('proceed_checkout') }}
+            📝 {{ t('proceed_checkout') }} (₹{{ cartPayableWithDelivery }})
           </button>
         </div>
       </div>
@@ -1322,7 +1428,7 @@
                 <div class="upi-id-row"><span>UPI ID:</span> <code>apnakirana@upi</code></div>
                 <div class="upi-amount-row">
                   <span>{{ t('payable_amount') }}:</span>
-                  <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ cartTotalAmount }}</strong>
+                  <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ cartPayableWithDelivery }}</strong>
                 </div>
                 <div class="upi-apps-icons">PhonePe • GPay • Paytm</div>
               </div>
@@ -1337,9 +1443,18 @@
           </div>
 
           <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
-            <div style="display: flex; justify-content: space-between; font-weight: 900; color: #064e3b; font-size: 1.15rem;">
-              <span>{{ t('payable_amount') }}:</span>
+            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 6px;">
+              <span>{{ t('cart_bag') }}:</span>
               <span>₹{{ cartTotalAmount }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+              <span>{{ t('delivery_charge_label') }}:</span>
+              <span v-if="deliveryFee === 0" style="color: #059669; font-weight: 800;">{{ t('delivery_free_badge') }}</span>
+              <span v-else style="font-weight: 700; color: #b45309;">₹{{ deliveryFee.toFixed(2) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: 900; color: #064e3b; font-size: 1.15rem; border-top: 1px dashed #a7f3d0; padding-top: 8px; margin-top: 4px;">
+              <span>{{ t('payable_amount') }}:</span>
+              <span>₹{{ cartPayableWithDelivery }}</span>
             </div>
             <div style="font-size: 0.84rem; color: #047857; font-weight: 700; margin-top: 4px;">
               🎉 {{ t('order_savings_text') }}: ₹{{ cartTotalSavings }}!
@@ -1451,6 +1566,119 @@
           >
             {{ t('parcha_close_btn') }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- BATCH PRINT SLIPS MODAL (A4 MULTI-SLIP FITTING)          -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showBatchPrintModal" @click.self="showBatchPrintModal = false">
+      <div class="modal-card batch-modal-card">
+        <div class="batch-modal-header no-print">
+          <div>
+            <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
+              {{ t('batch_print_title') }}
+            </h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+              {{ selectedBatchOrders.length }} {{ t('selected_orders_count') }} • A4 शीट वर २ किंवा ४ पर्चे कटिंग लाईनसह
+            </p>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <!-- Layout Selector -->
+            <div class="batch-layout-selector">
+              <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">{{ t('slips_per_page') }}</span>
+              <select v-model="batchPrintLayout" class="batch-select">
+                <option value="auto">{{ t('layout_auto') }}</option>
+                <option value="two">{{ t('layout_two') }}</option>
+                <option value="four">{{ t('layout_four') }}</option>
+              </select>
+            </div>
+
+            <button class="batch-trigger-print-btn" @click="triggerBatchPrint">
+              {{ t('print_or_pdf_btn') }}
+            </button>
+
+            <button class="close-btn" @click="showBatchPrintModal = false">✕</button>
+          </div>
+        </div>
+
+        <!-- Scrollable Sheet Preview in Modal -->
+        <div class="batch-printable-area" :class="resolvedBatchLayoutClass">
+          <div
+            v-for="(pageOrders, pageIdx) in chunkedBatchOrders"
+            :key="pageIdx"
+            class="batch-page-container"
+          >
+            <div class="batch-page-sheet">
+              <div
+                v-for="slip in pageOrders"
+                :key="slip.id"
+                class="batch-slip-card"
+              >
+                <!-- Slip Header -->
+                <div class="slip-header">
+                  <div class="slip-store-title">{{ t('store_name_full') }}</div>
+                  <div class="slip-store-sub">मेन बाजार, स्टेशन रोड • मो. 98765-43210</div>
+                  <div class="slip-meta-row">
+                    <span>बिल नं: <strong>{{ slip.order_number }}</strong></span>
+                    <span>{{ slip.created_at }}</span>
+                  </div>
+                </div>
+
+                <!-- Customer Details -->
+                <div class="slip-cust-box">
+                  <div class="slip-cust-line">
+                    <strong>ग्राहक:</strong> {{ slip.customer_name }} | 📞 {{ slip.customer_phone }}
+                  </div>
+                  <div class="slip-cust-line">
+                    <strong>पत्ता:</strong> {{ slip.customer_address }}
+                  </div>
+                  <div class="slip-cust-line">
+                    <strong>भुगतान:</strong> {{ slip.payment_method }}
+                    <span class="slip-badge" :class="slip.payment_status === 'Paid' ? 'slip-paid' : 'slip-unpaid'">
+                      {{ slip.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी उधारी' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Items Table -->
+                <table class="slip-table">
+                  <thead>
+                    <tr>
+                      <th style="text-align: left;">सामान</th>
+                      <th style="text-align: center;">नग</th>
+                      <th style="text-align: right;">रकम (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(it, i) in slip.items" :key="i">
+                      <td>
+                        <span class="slip-item-name">{{ it.product_name }}</span>
+                        <span v-if="it.variant_label" class="slip-item-variant">{{ it.variant_label }}</span>
+                      </td>
+                      <td style="text-align: center; font-weight: 700;">{{ it.quantity }}</td>
+                      <td style="text-align: right; font-weight: 800;">{{ it.subtotal.toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Slip Calculation Summary -->
+                <div class="slip-footer">
+                  <div class="slip-calc-row">
+                    <span style="color: #047857; font-weight: 700;">बचत: ₹{{ slip.total_savings }}</span>
+                    <span class="slip-total-amount">देय: <strong>₹{{ slip.final_amount }}</strong></span>
+                  </div>
+                </div>
+
+                <!-- Scissor Cut Marker -->
+                <div class="slip-cut-divider">
+                  <span>{{ t('cut_line_text') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1833,7 +2061,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { translations, marathiProductNames, getLocalizedProductName, getLocalizedCategoryName } from './i18n.js';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:5000/api' : '/api';
@@ -1877,11 +2105,14 @@ const customerOrders = ref([]);
 const customerOrdersLoading = ref(false);
 const profileForm = ref({ name: '', email: '', phone: '', address: '' });
 
-// Admin State
+// Admin State & Batch Printing
 const adminActiveTab = ref('inventory');
 const adminSearch = ref('');
 const adminOrders = ref([]);
 const showAddProductModal = ref(false);
+const selectedAdminOrderIds = ref([]);
+const showBatchPrintModal = ref(false);
+const batchPrintLayout = ref('auto'); // 'auto' | 'two' | 'four'
 const newProductForm = ref({
   category_id: 1,
   name: '',
@@ -2541,6 +2772,45 @@ const cartTotalSavings = computed(() => {
   return savings > 0 ? savings.toFixed(2) : '0.00';
 });
 
+// Delivery Economics & Smart Add-ons
+const DELIVERY_FREE_THRESHOLD = 300;
+const DELIVERY_STANDARD_FEE = 25;
+
+const deliveryFee = computed(() => {
+  if (cart.value.length === 0) return 0;
+  return Number(cartTotalAmount.value) < DELIVERY_FREE_THRESHOLD ? DELIVERY_STANDARD_FEE : 0;
+});
+
+const cartPayableWithDelivery = computed(() => {
+  return (Number(cartTotalAmount.value) + deliveryFee.value).toFixed(2);
+});
+
+const smartAddons = computed(() => {
+  if (Number(cartTotalAmount.value) >= DELIVERY_FREE_THRESHOLD || cart.value.length === 0) {
+    return [];
+  }
+  const cartProductIds = new Set(
+    cart.value.map(item => (item.product ? item.product.id : (item.id || null)))
+  );
+  const neededGap = DELIVERY_FREE_THRESHOLD - Number(cartTotalAmount.value);
+
+  // Filter available products not in cart, with price <= 160
+  const candidates = products.value.filter(p => {
+    if (cartProductIds.has(p.id)) return false;
+    const v = p.variants && p.variants.length > 0 ? p.variants[0] : null;
+    if (!v || v.selling_price <= 0) return false;
+    return v.selling_price <= 160;
+  });
+
+  return candidates.sort((a, b) => {
+    const priceA = a.variants[0].selling_price;
+    const priceB = b.variants[0].selling_price;
+    const diffA = Math.abs(neededGap - priceA);
+    const diffB = Math.abs(neededGap - priceB);
+    return diffA - diffB;
+  }).slice(0, 6);
+});
+
 function openCheckoutModal() {
   if (currentUser.value) {
     customerForm.value.name = currentUser.value.name;
@@ -2601,6 +2871,19 @@ async function submitOrder() {
         };
       })
     };
+
+    // If order total is below ₹300, attach delivery fee line item to persist in DB & bills
+    if (deliveryFee.value > 0) {
+      payload.items.push({
+        is_custom_weight: true,
+        product_id: null,
+        product_name: `${t('delivery_charge_label')} (डिलिव्हरी शुल्क)`,
+        unit_size: 'Standard',
+        unit_price: deliveryFee.value,
+        subtotal: deliveryFee.value,
+        mrp: deliveryFee.value
+      });
+    }
 
     const res = await fetch(`${API_BASE}/orders`, {
       method: 'POST',
@@ -2815,6 +3098,63 @@ const displayedAdminOrders = computed(() => {
   if (adminOrderFilter.value === 'upi') return upiAdminOrders.value;
   return adminOrders.value;
 });
+
+// Admin Batch Selection & Multi-Slip Print Helpers
+const selectedBatchOrders = computed(() => {
+  return adminOrders.value.filter(o => selectedAdminOrderIds.value.includes(o.id));
+});
+
+const isAllDisplayedOrdersSelected = computed(() => {
+  return displayedAdminOrders.value.length > 0 &&
+    displayedAdminOrders.value.every(o => selectedAdminOrderIds.value.includes(o.id));
+});
+
+function toggleSelectAllOrders() {
+  if (isAllDisplayedOrdersSelected.value) {
+    selectedAdminOrderIds.value = [];
+  } else {
+    selectedAdminOrderIds.value = displayedAdminOrders.value.map(o => o.id);
+  }
+}
+
+const resolvedBatchLayout = computed(() => {
+  if (batchPrintLayout.value === 'auto') {
+    return selectedBatchOrders.value.length <= 2 ? 'two' : 'four';
+  }
+  return batchPrintLayout.value;
+});
+
+const resolvedBatchLayoutClass = computed(() => {
+  return resolvedBatchLayout.value === 'two' ? 'layout-2-slips' : 'layout-4-slips';
+});
+
+const chunkedBatchOrders = computed(() => {
+  const chunkSize = resolvedBatchLayout.value === 'two' ? 2 : 4;
+  const chunks = [];
+  for (let i = 0; i < selectedBatchOrders.value.length; i += chunkSize) {
+    chunks.push(selectedBatchOrders.value.slice(i, i + chunkSize));
+  }
+  return chunks;
+});
+
+function openBatchPrintModal() {
+  if (selectedAdminOrderIds.value.length === 0) {
+    showToast('कृपया प्रिंटसाठी आधी किमान १ ऑर्डर निवडा.');
+    return;
+  }
+  showBatchPrintModal.value = true;
+}
+
+function printSingleOrder(order) {
+  lastOrderReceipt.value = order;
+  nextTick(() => {
+    window.print();
+  });
+}
+
+function triggerBatchPrint() {
+  window.print();
+}
 
 async function markOrderAsPaid(order) {
   try {

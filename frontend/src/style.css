@@ -2186,3 +2186,595 @@ a {
   font-weight: 600;
 }
 
+/* ==========================================================================
+   SMART ADD-ONS & FREE DELIVERY ECONOMICS (CART DRAWER)
+   ========================================================================== */
+.cart-addons-section {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 12px 0 6px 0;
+}
+
+.cart-addons-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.addons-title {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+.addons-fee-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.addons-subtext {
+  font-size: 0.75rem;
+  color: #166534;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.cart-addons-slider {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 2px 4px 2px;
+  scrollbar-width: thin;
+}
+
+.cart-addons-slider::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cart-addons-slider::-webkit-scrollbar-thumb {
+  background: #a7f3d0;
+  border-radius: 4px;
+}
+
+.addon-chip-card {
+  width: 140px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.addon-chip-card:hover {
+  transform: translateY(-2px);
+  border-color: #059669;
+}
+
+.addon-chip-img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.addon-chip-info {
+  flex: 1;
+  width: 100%;
+}
+
+.addon-chip-name {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #1c1917;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.addon-chip-unit {
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+  margin: 1px 0;
+}
+
+.addon-chip-pricing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.addon-chip-price {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #047857;
+}
+
+.addon-chip-mrp {
+  font-size: 0.7rem;
+  color: #a8a29e;
+  text-decoration: line-through;
+}
+
+.addon-quick-add-btn {
+  margin-top: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.addon-quick-add-btn:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+.delivery-free-tag {
+  color: #059669;
+  font-weight: 800;
+}
+
+/* ==========================================================================
+   ADMIN BATCH PRINT TOOLBAR & ORDER ACTIONS
+   ========================================================================== */
+.admin-batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.batch-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #064e3b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.batch-checkbox,
+.order-select-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #059669;
+  cursor: pointer;
+}
+
+.selected-count-badge {
+  background: #059669;
+  color: white;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.batch-print-btn {
+  background: #064e3b;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.batch-print-btn:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.batch-print-btn:not(:disabled):hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.admin-order-action-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.admin-action-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.view-bill-btn {
+  background: #ffffff;
+  color: #064e3b;
+  border: 1.5px solid #059669;
+}
+
+.view-bill-btn:hover {
+  background: #ecfdf5;
+}
+
+.print-bill-btn {
+  background: #1c1917;
+  color: #ffffff;
+  border: none;
+}
+
+.print-bill-btn:hover {
+  background: #292524;
+}
+
+.whatsapp-bill-btn {
+  background: #25d366;
+  color: #ffffff;
+  border: none;
+}
+
+.whatsapp-bill-btn:hover {
+  background: #1eb954;
+}
+
+/* ==========================================================================
+   BATCH PRINT MODAL & A4 MULTI-SLIP LAYOUT
+   ========================================================================== */
+.batch-modal-card {
+  max-width: 960px !important;
+  width: 95%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.batch-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.batch-layout-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batch-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.batch-trigger-print-btn {
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.batch-trigger-print-btn:hover {
+  background: #047857;
+}
+
+.batch-printable-area {
+  overflow-y: auto;
+  max-height: calc(92vh - 120px);
+  padding: 10px;
+  background: #f1f5f9;
+  border-radius: var(--radius-md);
+}
+
+.batch-page-sheet {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+/* 2 Slips per page layout */
+.layout-2-slips .batch-page-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 4 Slips per page layout (2x2 grid) */
+.layout-4-slips .batch-page-sheet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .layout-4-slips .batch-page-sheet {
+    grid-template-columns: 1fr;
+  }
+}
+
+.batch-slip-card {
+  border: 1.5px dashed #475569;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.slip-header {
+  text-align: center;
+  border-bottom: 1.5px dashed #cbd5e1;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.slip-store-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #064e3b;
+  font-family: var(--font-hindi);
+}
+
+.slip-store-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.slip-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-top: 6px;
+  color: var(--text-subtle);
+}
+
+.slip-cust-box {
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.76rem;
+  margin-bottom: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.slip-cust-line {
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.slip-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  margin-left: 6px;
+}
+
+.slip-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.slip-unpaid {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  margin-bottom: 8px;
+}
+
+.slip-table th {
+  border-bottom: 1px solid #cbd5e1;
+  padding: 4px 2px;
+  color: #475569;
+}
+
+.slip-table td {
+  padding: 4px 2px;
+  border-bottom: 1px dashed #f1f5f9;
+}
+
+.slip-item-name {
+  font-weight: 700;
+  display: block;
+}
+
+.slip-item-variant {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.slip-footer {
+  border-top: 1.5px dashed #cbd5e1;
+  padding-top: 6px;
+  font-size: 0.8rem;
+}
+
+.slip-calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slip-total-amount {
+  font-size: 0.95rem;
+  color: #064e3b;
+}
+
+.slip-total-amount strong {
+  font-size: 1.05rem;
+}
+
+.slip-cut-divider {
+  border-top: 1.5px dashed #94a3b8;
+  text-align: center;
+  margin-top: 10px;
+  padding-top: 4px;
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   PRINT MEDIA STYLES (Single Receipt & A4 Batch Printing)
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide default page layout, header, footer, hero, modals backdrop */
+  .store-top-bar,
+  .store-header,
+  .category-nav,
+  .main-layout,
+  footer,
+  .no-print,
+  .close-btn,
+  .whatsapp-share-btn,
+  button,
+  select {
+    display: none !important;
+  }
+
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+    backdrop-filter: none !important;
+  }
+
+  .modal-card {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* When single receipt is being printed */
+  .parcha-receipt {
+    max-width: 380px;
+    margin: 0 auto;
+    border: 1.5px dashed #000000 !important;
+    padding: 12px;
+  }
+
+  /* When batch slips are being printed */
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm;
+  }
+
+  .batch-printable-area {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .batch-page-container {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .batch-page-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .layout-2-slips .batch-page-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8mm !important;
+  }
+
+  .layout-4-slips .batch-page-sheet {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6mm !important;
+  }
+
+  .batch-slip-card {
+    border: 1.5px dashed #000000 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    padding: 8px 12px !important;
+  }
+
+  .slip-cut-divider {
+    border-top: 1.5px dashed #000000 !important;
+    color: #000000 !important;
+  }
+}
+
+

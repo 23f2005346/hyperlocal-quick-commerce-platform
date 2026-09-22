@@ -161,7 +161,29 @@ export const translations = {
     parcha_send_whatsapp: "व्हॉट्सॲपवर पावती पाठवा",
     parcha_print_btn: "प्रिंट (Print)",
     parcha_close_btn: "बंद करा",
-    parcha_visit_again: "पुन्हा भेट द्या! धन्यवाद!"
+    parcha_visit_again: "पुन्हा भेट द्या! धन्यवाद!",
+
+    // Smart Suggestions & Delivery Economics
+    free_delivery_addons_title: "⚡ मोफत डिलिव्हरीसाठी हे जोडा (Add to get FREE Delivery)",
+    add_to_unlock_free: "आणखी फक्त",
+    delivery_charge_label: "डिलिव्हरी शुल्क",
+    delivery_free_badge: "मोफत (FREE)",
+    under_threshold_warning: "₹300 पेक्षा कमी ऑर्डरवर ₹25 डिलिव्हरी शुल्क लागू आहे. मोफत डिलिव्हरीसाठी खालीलपैकी काहीही जोडा!",
+
+    // Admin Orders & Batch Print
+    admin_view_bill: "🧾 पावती / बिल पहा",
+    admin_print_direct: "🖨️ प्रिंट पावती",
+    admin_whatsapp_direct: "📲 व्हॉट्सॲप",
+    admin_batch_print_btn: "🖨️ निवडलेले पर्चे प्रिंट करा",
+    batch_print_title: "दुकानदार बिलांची एकत्रित प्रिंट (Batch Print Slips)",
+    slips_per_page: "एका पानावर पर्चे:",
+    layout_auto: "ऑटो (योग्य आकार)",
+    layout_two: "२ पर्चे (A4 - उभं)",
+    layout_four: "४ पर्चे (A4 - 2x2 ग्रीड)",
+    select_all_orders: "सर्व ऑर्डर्स निवडा",
+    selected_orders_count: "निवडलेले ऑर्डर्स",
+    cut_line_text: "✂ कटिंग लाईन (Delivery Slip)",
+    print_or_pdf_btn: "🖨️ प्रिंट काढा / PDF सेव्ह करा"
   },
 
   hi: {
@@ -321,7 +343,29 @@ export const translations = {
     parcha_send_whatsapp: "व्हाट्सएप पर पर्चा भेजें",
     parcha_print_btn: "प्रिंट (Print)",
     parcha_close_btn: "बंद करें",
-    parcha_visit_again: "फिर पधारें! धन्यवाद!"
+    parcha_visit_again: "फिर पधारें! धन्यवाद!",
+
+    // Smart Suggestions & Delivery Economics
+    free_delivery_addons_title: "⚡ मुफ़्त डिलीवरी हेतु ये सामान जोड़ें (Add to get FREE Delivery)",
+    add_to_unlock_free: "बस",
+    delivery_charge_label: "डिलीवरी शुल्क",
+    delivery_free_badge: "मुफ़्त (FREE)",
+    under_threshold_warning: "₹300 से कम के ऑर्डर पर ₹25 डिलीवरी शुल्क है। मुफ़्त डिलीवरी हेतु नीचे से सामान जोड़ें!",
+
+    // Admin Orders & Batch Print
+    admin_view_bill: "🧾 पर्चा / बिल देखें",
+    admin_print_direct: "🖨️ प्रिंट पर्चा",
+    admin_whatsapp_direct: "📲 व्हाट्सएप",
+    admin_batch_print_btn: "🖨️ चुने हुए पर्चे प्रिंट करें",
+    batch_print_title: "दुकानदार पर्चों का सामूहिक प्रिंट (Batch Print Slips)",
+    slips_per_page: "प्रति पेज पर्चे:",
+    layout_auto: "ऑटो (उपयुक्त आकार)",
+    layout_two: "2 पर्चे (A4 - वर्टिकल)",
+    layout_four: "4 पर्चे (A4 - 2x2 ग्रिड)",
+    select_all_orders: "सभी ऑर्डर चुनें",
+    selected_orders_count: "चुने हुए ऑर्डर",
+    cut_line_text: "✂ कटिंग लाइन (Delivery Slip)",
+    print_or_pdf_btn: "🖨️ प्रिंट निकालें / PDF सेव करें"
   },
 
   en: {
@@ -481,7 +525,29 @@ export const translations = {
     parcha_send_whatsapp: "Share Bill on WhatsApp",
     parcha_print_btn: "Print Receipt",
     parcha_close_btn: "Close",
-    parcha_visit_again: "Thank you! Please visit again!"
+    parcha_visit_again: "Thank you! Please visit again!",
+
+    // Smart Suggestions & Delivery Economics
+    free_delivery_addons_title: "⚡ Add these to unlock FREE Delivery",
+    add_to_unlock_free: "Add just",
+    delivery_charge_label: "Delivery Charge",
+    delivery_free_badge: "FREE",
+    under_threshold_warning: "Orders below ₹300 incur a nominal ₹25 delivery fee. Add any item below to get FREE delivery!",
+
+    // Admin Orders & Batch Print
+    admin_view_bill: "🧾 View Full Invoice",
+    admin_print_direct: "🖨️ Print Slip",
+    admin_whatsapp_direct: "📲 WhatsApp",
+    admin_batch_print_btn: "🖨️ Batch Print Selected Slips",
+    batch_print_title: "Multi-Slip Delivery Batch Print",
+    slips_per_page: "Slips per Page:",
+    layout_auto: "Auto (Best Fit)",
+    layout_two: "2 Slips per A4 Page",
+    layout_four: "4 Slips per A4 Page (2x2)",
+    select_all_orders: "Select All Orders",
+    selected_orders_count: "Selected Orders",
+    cut_line_text: "✂ Cut Line (Delivery Slip)",
+    print_or_pdf_btn: "🖨️ Print / Save as PDF"
   }
 };
 
