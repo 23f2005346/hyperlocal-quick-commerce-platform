@@ -1,5 +1,6 @@
 import os
 import random
+import uuid
 from functools import wraps
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
@@ -495,6 +496,48 @@ def create_app():
     def reset_seed():
         seed_database()
         return jsonify({'message': 'Database re-seeded successfully with authentic Kirana inventory!'})
+
+    # --- DEVICE PHOTO / CAMERA UPLOADS ---
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'public', 'uploads')
+    dist_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    os.makedirs(dist_uploads_dir, exist_ok=True)
+
+    @app.route('/uploads/<path:filename>')
+    def serve_uploaded_file(filename):
+        if os.path.exists(os.path.join(uploads_dir, filename)):
+            return send_from_directory(uploads_dir, filename)
+        return send_from_directory(dist_uploads_dir, filename)
+
+    @app.route('/api/upload', methods=['POST'])
+    @admin_required
+    def upload_product_image():
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Empty file selected'}), 400
+
+        allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'}
+        raw_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
+        if raw_ext not in allowed_exts:
+            raw_ext = 'jpg'
+
+        unique_name = f"kirana_{uuid.uuid4().hex[:10]}.{raw_ext}"
+        file_bytes = file.read()
+
+        # Save to both frontend/public/uploads and frontend/dist/uploads
+        path1 = os.path.join(uploads_dir, unique_name)
+        path2 = os.path.join(dist_uploads_dir, unique_name)
+        with open(path1, 'wb') as f:
+            f.write(file_bytes)
+        with open(path2, 'wb') as f:
+            f.write(file_bytes)
+
+        return jsonify({
+            'message': 'Image uploaded successfully!',
+            'url': f'/uploads/{unique_name}'
+        })
 
     # --- STATIC FILE SERVING FOR PRODUCTION / SINGLE-PORT RUN ---
     frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')

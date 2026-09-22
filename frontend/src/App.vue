@@ -1766,50 +1766,168 @@
               </div>
             </div>
 
-            <!-- 3 Image Inputs with Live Previews -->
+            <!-- 3 Image Slots with Live Camera, Device Upload & Previews -->
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
               <!-- Angle 1: Front -->
               <div class="photo-slot-card">
-                <label class="photo-slot-label">📸 १. Front (मुख्य)</label>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label class="photo-slot-label">📸 १. Front (मुख्य) *</label>
+                  <button
+                    v-if="newProductForm.image_front"
+                    type="button"
+                    class="photo-remove-btn"
+                    @click="clearSlot('new', 'front')"
+                    title="फोटो काढा"
+                  >✕</button>
+                </div>
                 <div class="photo-slot-preview">
-                  <img :src="newProductForm.image_front || '/products/chakki-atta.jpg'" @error="handleImageFallback($event)" alt="Front" />
+                  <span v-if="uploadingSlot === 'new_front'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                    ⏳ अपलोड होत आहे...
+                  </span>
+                  <img
+                    v-else-if="newProductForm.image_front"
+                    :src="newProductForm.image_front"
+                    @error="handleImageFallback($event)"
+                    alt="Front"
+                  />
+                  <span v-else class="photo-slot-placeholder">फोटो जोडा</span>
+                </div>
+                <!-- Device / Camera Upload Buttons -->
+                <div class="photo-upload-actions">
+                  <label class="photo-action-btn camera-btn" title="फोनचा कॅमेरा उघडा">
+                    📷 कॅमेरा
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'front')"
+                    />
+                  </label>
+                  <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                    📁 फाइल/गॅलरी
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'front')"
+                    />
+                  </label>
                 </div>
                 <input
                   type="text"
                   v-model="newProductForm.image_front"
                   class="form-input photo-slot-input"
-                  placeholder="Front URL"
+                  placeholder="किंवा URL टाका"
                   required
                 />
               </div>
 
               <!-- Angle 2: Back / Ingredients -->
               <div class="photo-slot-card">
-                <label class="photo-slot-label">🏷️ २. Back (घटक/माहिती)</label>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label class="photo-slot-label">🏷️ २. Back (घटक/माहिती)</label>
+                  <button
+                    v-if="newProductForm.image_back"
+                    type="button"
+                    class="photo-remove-btn"
+                    @click="clearSlot('new', 'back')"
+                    title="फोटो काढा"
+                  >✕</button>
+                </div>
                 <div class="photo-slot-preview">
-                  <img v-if="newProductForm.image_back" :src="newProductForm.image_back" @error="handleImageFallback($event)" alt="Back" />
+                  <span v-if="uploadingSlot === 'new_back'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                    ⏳ अपलोड होत आहे...
+                  </span>
+                  <img
+                    v-else-if="newProductForm.image_back"
+                    :src="newProductForm.image_back"
+                    @error="handleImageFallback($event)"
+                    alt="Back"
+                  />
                   <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+                </div>
+                <!-- Device / Camera Upload Buttons -->
+                <div class="photo-upload-actions">
+                  <label class="photo-action-btn camera-btn" title="मागील बाजूचा फोटो काढा">
+                    📷 कॅमेरा
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'back')"
+                    />
+                  </label>
+                  <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                    📁 फाइल/गॅलरी
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'back')"
+                    />
+                  </label>
                 </div>
                 <input
                   type="text"
                   v-model="newProductForm.image_back"
                   class="form-input photo-slot-input"
-                  placeholder="Back URL"
+                  placeholder="किंवा URL टाका"
                 />
               </div>
 
               <!-- Angle 3: Pack / Texture -->
               <div class="photo-slot-card">
-                <label class="photo-slot-label">📦 ३. Pack (पोत/पोते)</label>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label class="photo-slot-label">📦 ३. Pack (पोत/पोते)</label>
+                  <button
+                    v-if="newProductForm.image_pack"
+                    type="button"
+                    class="photo-remove-btn"
+                    @click="clearSlot('new', 'pack')"
+                    title="फोटो काढा"
+                  >✕</button>
+                </div>
                 <div class="photo-slot-preview">
-                  <img v-if="newProductForm.image_pack" :src="newProductForm.image_pack" @error="handleImageFallback($event)" alt="Pack" />
+                  <span v-if="uploadingSlot === 'new_pack'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                    ⏳ अपलोड होत आहे...
+                  </span>
+                  <img
+                    v-else-if="newProductForm.image_pack"
+                    :src="newProductForm.image_pack"
+                    @error="handleImageFallback($event)"
+                    alt="Pack"
+                  />
                   <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+                </div>
+                <!-- Device / Camera Upload Buttons -->
+                <div class="photo-upload-actions">
+                  <label class="photo-action-btn camera-btn" title="पोत/पोत्याचा फोटो काढा">
+                    📷 कॅमेरा
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'pack')"
+                    />
+                  </label>
+                  <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                    📁 फाइल/गॅलरी
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style="display: none;"
+                      @change="handleFileUpload($event, 'new', 'pack')"
+                    />
+                  </label>
                 </div>
                 <input
                   type="text"
                   v-model="newProductForm.image_pack"
                   class="form-input photo-slot-input"
-                  placeholder="Packaging URL"
+                  placeholder="किंवा URL टाका"
                 />
               </div>
             </div>
@@ -1869,50 +1987,168 @@
             </div>
           </div>
 
-          <!-- 3 Image Inputs with Live Previews -->
+          <!-- 3 Image Slots with Live Camera, Device Upload & Previews -->
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;">
             <!-- Angle 1: Front -->
             <div class="photo-slot-card">
-              <label class="photo-slot-label">📸 १. Front (समोरासमोर)</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="photo-slot-label">📸 १. Front (समोरासमोर) *</label>
+                <button
+                  v-if="editPhotosForm.image_front"
+                  type="button"
+                  class="photo-remove-btn"
+                  @click="clearSlot('edit', 'front')"
+                  title="फोटो काढा"
+                >✕</button>
+              </div>
               <div class="photo-slot-preview">
-                <img :src="editPhotosForm.image_front || '/products/chakki-atta.jpg'" @error="handleImageFallback($event)" alt="Front" />
+                <span v-if="uploadingSlot === 'edit_front'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                  ⏳ अपलोड होत आहे...
+                </span>
+                <img
+                  v-else-if="editPhotosForm.image_front"
+                  :src="editPhotosForm.image_front"
+                  @error="handleImageFallback($event)"
+                  alt="Front"
+                />
+                <span v-else class="photo-slot-placeholder">फोटो जोडा</span>
+              </div>
+              <!-- Device / Camera Upload Buttons -->
+              <div class="photo-upload-actions">
+                <label class="photo-action-btn camera-btn" title="फोनचा कॅमेरा उघडा">
+                  📷 कॅमेरा
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'front')"
+                  />
+                </label>
+                <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                  📁 फाइल/गॅलरी
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'front')"
+                  />
+                </label>
               </div>
               <input
                 type="text"
                 v-model="editPhotosForm.image_front"
                 class="form-input photo-slot-input"
-                placeholder="Front URL"
+                placeholder="किंवा URL टाका"
                 required
               />
             </div>
 
             <!-- Angle 2: Back / Ingredients -->
             <div class="photo-slot-card">
-              <label class="photo-slot-label">🏷️ २. Back (घटक व पोषण)</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="photo-slot-label">🏷️ २. Back (घटक व पोषण)</label>
+                <button
+                  v-if="editPhotosForm.image_back"
+                  type="button"
+                  class="photo-remove-btn"
+                  @click="clearSlot('edit', 'back')"
+                  title="फोटो काढा"
+                >✕</button>
+              </div>
               <div class="photo-slot-preview">
-                <img v-if="editPhotosForm.image_back" :src="editPhotosForm.image_back" @error="handleImageFallback($event)" alt="Back" />
+                <span v-if="uploadingSlot === 'edit_back'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                  ⏳ अपलोड होत आहे...
+                </span>
+                <img
+                  v-else-if="editPhotosForm.image_back"
+                  :src="editPhotosForm.image_back"
+                  @error="handleImageFallback($event)"
+                  alt="Back"
+                />
                 <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+              </div>
+              <!-- Device / Camera Upload Buttons -->
+              <div class="photo-upload-actions">
+                <label class="photo-action-btn camera-btn" title="मागील बाजूचा फोटो काढा">
+                  📷 कॅमेरा
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'back')"
+                  />
+                </label>
+                <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                  📁 फाइल/गॅलरी
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'back')"
+                  />
+                </label>
               </div>
               <input
                 type="text"
                 v-model="editPhotosForm.image_back"
                 class="form-input photo-slot-input"
-                placeholder="Back URL"
+                placeholder="किंवा URL टाका"
               />
             </div>
 
             <!-- Angle 3: Pack / Texture -->
             <div class="photo-slot-card">
-              <label class="photo-slot-label">📦 ३. Pack (पोत व पोते)</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="photo-slot-label">📦 ३. Pack (पोत व पोते)</label>
+                <button
+                  v-if="editPhotosForm.image_pack"
+                  type="button"
+                  class="photo-remove-btn"
+                  @click="clearSlot('edit', 'pack')"
+                  title="फोटो काढा"
+                >✕</button>
+              </div>
               <div class="photo-slot-preview">
-                <img v-if="editPhotosForm.image_pack" :src="editPhotosForm.image_pack" @error="handleImageFallback($event)" alt="Pack" />
+                <span v-if="uploadingSlot === 'edit_pack'" style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                  ⏳ अपलोड होत आहे...
+                </span>
+                <img
+                  v-else-if="editPhotosForm.image_pack"
+                  :src="editPhotosForm.image_pack"
+                  @error="handleImageFallback($event)"
+                  alt="Pack"
+                />
                 <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+              </div>
+              <!-- Device / Camera Upload Buttons -->
+              <div class="photo-upload-actions">
+                <label class="photo-action-btn camera-btn" title="पोत/पोत्याचा फोटो काढा">
+                  📷 कॅमेरा
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'pack')"
+                  />
+                </label>
+                <label class="photo-action-btn" title="फोन किंवा लॅपटॉपमधून निवडा">
+                  📁 फाइल/गॅलरी
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style="display: none;"
+                    @change="handleFileUpload($event, 'edit', 'pack')"
+                  />
+                </label>
               </div>
               <input
                 type="text"
                 v-model="editPhotosForm.image_pack"
                 class="form-input photo-slot-input"
-                placeholder="Packaging URL"
+                placeholder="किंवा URL टाका"
               />
             </div>
           </div>
@@ -2094,24 +2330,71 @@
         </div>
 
         <div class="quick-view-grid">
-          <!-- Left: Product Multi-Angle Image Gallery & Mandi Badges -->
+          <!-- Left: Flipkart-Style Multi-Angle Image Slider & Mandi Badges -->
           <div class="quick-view-image-pane">
-            <div class="quick-view-main-image-wrap">
+            <div
+              class="quick-view-main-image-wrap"
+              @touchstart="handleTouchStart"
+              @touchend="handleTouchEnd"
+            >
+              <!-- Counter badge (e.g. 📸 1 / 3) -->
+              <span class="slider-counter-badge">
+                📸 {{ activeQuickViewAngle + 1 }} / {{ quickViewImagesList.length }}
+              </span>
+
+              <!-- Previous Arrow (Flipkart style) -->
+              <button
+                v-if="quickViewImagesList.length > 1"
+                type="button"
+                class="slider-nav-btn prev-btn"
+                @click.stop="prevQuickViewAngle"
+                title="मागील फोटो (Previous)"
+              >
+                ‹
+              </button>
+
+              <!-- Main Product Image -->
               <img
                 :src="currentQuickViewImage"
                 :alt="selectedProductQuickView.name"
                 class="quick-view-img"
                 @error="handleImageFallback($event)"
               />
-              <span class="active-angle-badge" v-if="selectedProductQuickView.images && selectedProductQuickView.images.length > 1">
+
+              <!-- Next Arrow (Flipkart style) -->
+              <button
+                v-if="quickViewImagesList.length > 1"
+                type="button"
+                class="slider-nav-btn next-btn"
+                @click.stop="nextQuickViewAngle"
+                title="पुढील फोटो (Next)"
+              >
+                ›
+              </button>
+
+              <!-- Active Angle Floating Badge -->
+              <span class="active-angle-badge">
                 {{ getAngleLabel(activeQuickViewAngle) }}
               </span>
             </div>
 
-            <!-- Multi-Angle Thumbnails Selector -->
-            <div class="quick-view-angles-row" v-if="selectedProductQuickView.images && selectedProductQuickView.images.length > 1">
+            <!-- Flipkart-Style Dot Carousel Indicators -->
+            <div class="slider-dots-row" v-if="quickViewImagesList.length > 1">
               <button
-                v-for="(img, idx) in selectedProductQuickView.images"
+                v-for="(_, dIdx) in quickViewImagesList"
+                :key="'dot-' + dIdx"
+                type="button"
+                class="slider-dot"
+                :class="{ active: activeQuickViewAngle === dIdx }"
+                @click="activeQuickViewAngle = dIdx"
+                :title="getAngleShortLabel(dIdx)"
+              ></button>
+            </div>
+
+            <!-- Multi-Angle Thumbnails Selector -->
+            <div class="quick-view-angles-row" v-if="quickViewImagesList.length > 1">
+              <button
+                v-for="(img, idx) in quickViewImagesList"
                 :key="idx"
                 type="button"
                 class="angle-thumb-btn"
@@ -2420,17 +2703,94 @@ const looseFilter = ref('all');
 const sortBy = ref('');
 const selectedVariants = ref({});
 
+const uploadingSlot = ref(null);
+
+async function handleFileUpload(event, targetType, slot) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const key = `${targetType}_${slot}`;
+  uploadingSlot.value = key;
+
+  // Immediate local preview
+  const blobUrl = URL.createObjectURL(file);
+  if (targetType === 'new') {
+    if (slot === 'front') newProductForm.value.image_front = blobUrl;
+    if (slot === 'back') newProductForm.value.image_back = blobUrl;
+    if (slot === 'pack') newProductForm.value.image_pack = blobUrl;
+  } else if (targetType === 'edit') {
+    if (slot === 'front') editPhotosForm.value.image_front = blobUrl;
+    if (slot === 'back') editPhotosForm.value.image_back = blobUrl;
+    if (slot === 'pack') editPhotosForm.value.image_pack = blobUrl;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok && data.url) {
+      if (targetType === 'new') {
+        if (slot === 'front') newProductForm.value.image_front = data.url;
+        if (slot === 'back') newProductForm.value.image_back = data.url;
+        if (slot === 'pack') newProductForm.value.image_pack = data.url;
+      } else if (targetType === 'edit') {
+        if (slot === 'front') editPhotosForm.value.image_front = data.url;
+        if (slot === 'back') editPhotosForm.value.image_back = data.url;
+        if (slot === 'pack') editPhotosForm.value.image_pack = data.url;
+      }
+      showToast('✅ फोटो यशस्वीरीत्या अपलोड झाला!');
+    } else {
+      showToast(`❌ ${data.error || 'फोटो अपलोड अयशस्वी.'}`);
+    }
+  } catch (err) {
+    console.error('Upload error:', err);
+    showToast('❌ फोटो अपलोड करताना एरर आली.');
+  } finally {
+    uploadingSlot.value = null;
+    event.target.value = '';
+  }
+}
+
+function clearSlot(targetType, slot) {
+  if (targetType === 'new') {
+    if (slot === 'front') newProductForm.value.image_front = '';
+    if (slot === 'back') newProductForm.value.image_back = '';
+    if (slot === 'pack') newProductForm.value.image_pack = '';
+  } else if (targetType === 'edit') {
+    if (slot === 'front') editPhotosForm.value.image_front = '';
+    if (slot === 'back') editPhotosForm.value.image_back = '';
+    if (slot === 'pack') editPhotosForm.value.image_pack = '';
+  }
+}
+
 // Quick View Modal State
 const selectedProductQuickView = ref(null);
 const activeQuickViewAngle = ref(0);
 
-const currentQuickViewImage = computed(() => {
-  if (!selectedProductQuickView.value) return '';
+const quickViewImagesList = computed(() => {
+  if (!selectedProductQuickView.value) return [];
   const imgs = selectedProductQuickView.value.images || [];
-  if (imgs.length > activeQuickViewAngle.value && imgs[activeQuickViewAngle.value]) {
-    return imgs[activeQuickViewAngle.value];
+  if (imgs.length > 0) return imgs;
+  if (selectedProductQuickView.value.image_url) return [selectedProductQuickView.value.image_url];
+  return ['/products/chakki-atta.jpg'];
+});
+
+const currentQuickViewImage = computed(() => {
+  const list = quickViewImagesList.value;
+  if (!list.length) return '';
+  if (activeQuickViewAngle.value >= 0 && activeQuickViewAngle.value < list.length) {
+    return list[activeQuickViewAngle.value];
   }
-  return selectedProductQuickView.value.image_url || '';
+  return list[0];
 });
 
 function openQuickView(prod) {
@@ -2441,6 +2801,38 @@ function openQuickView(prod) {
 function closeQuickView() {
   selectedProductQuickView.value = null;
   activeQuickViewAngle.value = 0;
+}
+
+function nextQuickViewAngle() {
+  const list = quickViewImagesList.value;
+  if (list.length <= 1) return;
+  activeQuickViewAngle.value = (activeQuickViewAngle.value + 1) % list.length;
+}
+
+function prevQuickViewAngle() {
+  const list = quickViewImagesList.value;
+  if (list.length <= 1) return;
+  activeQuickViewAngle.value = (activeQuickViewAngle.value - 1 + list.length) % list.length;
+}
+
+// Touch swipe gestures for mobile devices
+let touchStartX = 0;
+let touchEndX = 0;
+
+function handleTouchStart(e) {
+  touchStartX = e.changedTouches[0].screenX;
+}
+
+function handleTouchEnd(e) {
+  touchEndX = e.changedTouches[0].screenX;
+  const diff = touchEndX - touchStartX;
+  if (Math.abs(diff) > 40) {
+    if (diff < 0) {
+      nextQuickViewAngle();
+    } else {
+      prevQuickViewAngle();
+    }
+  }
 }
 
 function getAngleLabel(idx) {
