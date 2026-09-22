@@ -385,6 +385,16 @@ def create_app():
         if not data.get('name') or not data.get('category_id'):
             return jsonify({'error': 'Name and Category ID are required'}), 400
 
+        # Multi-angle images support (Front, Back, Packaging)
+        images_input = data.get('images')
+        if isinstance(images_input, list) and len(images_input) > 0:
+            valid_images = [img.strip() for img in images_input if isinstance(img, str) and img.strip()]
+            final_image_url = '||'.join(valid_images) if valid_images else '/products/chakki-atta.jpg'
+        elif data.get('image_url'):
+            final_image_url = str(data['image_url']).strip()
+        else:
+            final_image_url = '/products/chakki-atta.jpg'
+
         product = Product(
             category_id=data['category_id'],
             name=data['name'],
@@ -392,7 +402,7 @@ def create_app():
             brand=data.get('brand', 'Local / Loose'),
             is_loose=data.get('is_loose', False),
             description=data.get('description', ''),
-            image_url=data.get('image_url', '/products/chakki-atta.jpg')
+            image_url=final_image_url
         )
         db.session.add(product)
         db.session.flush()
@@ -414,6 +424,42 @@ def create_app():
 
         db.session.commit()
         return jsonify({'message': 'Product added successfully!', 'product': product.to_dict()}), 201
+
+    @app.route('/api/products/<int:product_id>', methods=['PUT', 'PATCH'])
+    @admin_required
+    def update_product(product_id):
+        product = Product.query.get_or_404(product_id)
+        data = request.get_json() or {}
+
+        if 'name' in data and data['name'].strip():
+            product.name = data['name'].strip()
+        if 'name_hi' in data:
+            product.name_hi = data['name_hi'].strip()
+        if 'brand' in data:
+            product.brand = data['brand'].strip()
+        if 'is_loose' in data:
+            product.is_loose = bool(data['is_loose'])
+        if 'description' in data:
+            product.description = data['description'].strip()
+        if 'category_id' in data:
+            product.category_id = int(data['category_id'])
+
+        # Multi-angle images update
+        if 'images' in data:
+            images_input = data['images']
+            if isinstance(images_input, list):
+                valid_images = [img.strip() for img in images_input if isinstance(img, str) and img.strip()]
+                product.image_url = '||'.join(valid_images) if valid_images else '/products/chakki-atta.jpg'
+            elif isinstance(images_input, str):
+                product.image_url = images_input.strip()
+        elif 'image_url' in data:
+            product.image_url = str(data['image_url']).strip()
+
+        db.session.commit()
+        return jsonify({
+            'message': f'Product {product.name} updated successfully!',
+            'product': product.to_dict()
+        })
 
     @app.route('/api/variants/<int:variant_id>', methods=['PATCH'])
     @admin_required

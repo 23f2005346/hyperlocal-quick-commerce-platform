@@ -69,12 +69,18 @@ class Product(db.Model):
     brand = db.Column(db.String(100), nullable=True, default='Loose / Local')
     is_loose = db.Column(db.Boolean, default=False)
     description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(500), nullable=True)
+    image_url = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     variants = db.relationship('ProductVariant', backref='product', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
+        raw_img = self.image_url or ''
+        images = [u.strip() for u in raw_img.split('||') if u.strip()]
+        primary_image = images[0] if images else '/products/chakki-atta.jpg'
+        if not images:
+            images = [primary_image]
+
         return {
             'id': self.id,
             'category_id': self.category_id,
@@ -84,7 +90,8 @@ class Product(db.Model):
             'brand': self.brand,
             'is_loose': self.is_loose,
             'description': self.description,
-            'image_url': self.image_url,
+            'image_url': primary_image,
+            'images': images,
             'variants': [v.to_dict() for v in self.variants]
         }
 

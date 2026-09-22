@@ -676,6 +676,15 @@
                     <td>
                       <div style="display: flex; gap: 6px; align-items: center;">
                         <button
+                          type="button"
+                          class="save-chip-btn photo-edit-btn"
+                          style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;"
+                          @click="openEditPhotosModal(prod)"
+                          title="सामान के 3-अँगल फोटो बदलें / जोड़ें"
+                        >
+                          📸 फोटो ({{ prod.images ? prod.images.length : 1 }})
+                        </button>
+                        <button
                           class="save-chip-btn"
                           @click="saveVariantPrice(v)"
                           title="Save changed price to SQLite"
@@ -1734,6 +1743,78 @@
             <textarea v-model="newProductForm.description" rows="2" class="form-input"></textarea>
           </div>
 
+          <!-- 3-ANGLE PRODUCT PHOTOS SECTION -->
+          <div style="background: #f0fdf4; border: 1.5px solid #86efac; padding: 14px; border-radius: 10px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 800; font-size: 0.9rem; color: #065f46;">📸 ३-अँगल सामान फोटो (Product Photos)</span>
+              <span style="font-size: 0.72rem; color: #047857;">१-टॅप प्रिसेट किंवा URL टाका</span>
+            </div>
+
+            <!-- 1-Tap Presets Bar -->
+            <div style="margin-bottom: 10px;">
+              <span style="font-size: 0.72rem; font-weight: 700; color: #374151; display: block; margin-bottom: 4px;">⚡ झटपट किराना प्रिसेट्स (Quick Presets):</span>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button
+                  v-for="(preset, pIdx) in kiranaImagePresets"
+                  :key="pIdx"
+                  type="button"
+                  class="photo-preset-btn"
+                  @click="applyImagePresetToNew(preset)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 3 Image Inputs with Live Previews -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <!-- Angle 1: Front -->
+              <div class="photo-slot-card">
+                <label class="photo-slot-label">📸 १. Front (मुख्य)</label>
+                <div class="photo-slot-preview">
+                  <img :src="newProductForm.image_front || '/products/chakki-atta.jpg'" @error="handleImageFallback($event)" alt="Front" />
+                </div>
+                <input
+                  type="text"
+                  v-model="newProductForm.image_front"
+                  class="form-input photo-slot-input"
+                  placeholder="Front URL"
+                  required
+                />
+              </div>
+
+              <!-- Angle 2: Back / Ingredients -->
+              <div class="photo-slot-card">
+                <label class="photo-slot-label">🏷️ २. Back (घटक/माहिती)</label>
+                <div class="photo-slot-preview">
+                  <img v-if="newProductForm.image_back" :src="newProductForm.image_back" @error="handleImageFallback($event)" alt="Back" />
+                  <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+                </div>
+                <input
+                  type="text"
+                  v-model="newProductForm.image_back"
+                  class="form-input photo-slot-input"
+                  placeholder="Back URL"
+                />
+              </div>
+
+              <!-- Angle 3: Pack / Texture -->
+              <div class="photo-slot-card">
+                <label class="photo-slot-label">📦 ३. Pack (पोत/पोते)</label>
+                <div class="photo-slot-preview">
+                  <img v-if="newProductForm.image_pack" :src="newProductForm.image_pack" @error="handleImageFallback($event)" alt="Pack" />
+                  <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+                </div>
+                <input
+                  type="text"
+                  v-model="newProductForm.image_pack"
+                  class="form-input photo-slot-input"
+                  placeholder="Packaging URL"
+                />
+              </div>
+            </div>
+          </div>
+
           <div style="background: #fdfbf7; border: 1.5px solid var(--border); padding: 14px; border-radius: 10px; margin-bottom: 16px;">
             <div style="font-weight: 800; font-size: 0.88rem; margin-bottom: 8px;">डिफ़ॉल्ट वजन व दर (First Variant):</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
@@ -1755,6 +1836,93 @@
           <button type="submit" class="checkout-btn">
             ✅ स्टोर में नया सामान जोड़ें
           </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- EDIT PRODUCT PHOTOS MODAL (ADMIN)                        -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showEditPhotosModal" @click.self="showEditPhotosModal = false">
+      <div class="modal-card" style="max-width: 580px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 1.2rem; font-weight: 900; color: #064e3b;">
+            📸 सामान के फोटो बदलें: {{ editPhotosForm.product_name }}
+          </h3>
+          <button class="close-btn" @click="showEditPhotosModal = false">✕</button>
+        </div>
+
+        <form @submit.prevent="saveProductPhotos">
+          <!-- 1-Tap Presets Bar -->
+          <div style="margin-bottom: 14px; background: #fdfbf7; border: 1.5px solid var(--border); padding: 10px; border-radius: 8px;">
+            <span style="font-size: 0.76rem; font-weight: 700; color: #374151; display: block; margin-bottom: 6px;">⚡ झटपट किराना प्रिसेट निवडा (Quick Presets):</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button
+                v-for="(preset, pIdx) in kiranaImagePresets"
+                :key="pIdx"
+                type="button"
+                class="photo-preset-btn"
+                @click="applyImagePresetToEdit(preset)"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 3 Image Inputs with Live Previews -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+            <!-- Angle 1: Front -->
+            <div class="photo-slot-card">
+              <label class="photo-slot-label">📸 १. Front (समोरासमोर)</label>
+              <div class="photo-slot-preview">
+                <img :src="editPhotosForm.image_front || '/products/chakki-atta.jpg'" @error="handleImageFallback($event)" alt="Front" />
+              </div>
+              <input
+                type="text"
+                v-model="editPhotosForm.image_front"
+                class="form-input photo-slot-input"
+                placeholder="Front URL"
+                required
+              />
+            </div>
+
+            <!-- Angle 2: Back / Ingredients -->
+            <div class="photo-slot-card">
+              <label class="photo-slot-label">🏷️ २. Back (घटक व पोषण)</label>
+              <div class="photo-slot-preview">
+                <img v-if="editPhotosForm.image_back" :src="editPhotosForm.image_back" @error="handleImageFallback($event)" alt="Back" />
+                <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+              </div>
+              <input
+                type="text"
+                v-model="editPhotosForm.image_back"
+                class="form-input photo-slot-input"
+                placeholder="Back URL"
+              />
+            </div>
+
+            <!-- Angle 3: Pack / Texture -->
+            <div class="photo-slot-card">
+              <label class="photo-slot-label">📦 ३. Pack (पोत व पोते)</label>
+              <div class="photo-slot-preview">
+                <img v-if="editPhotosForm.image_pack" :src="editPhotosForm.image_pack" @error="handleImageFallback($event)" alt="Pack" />
+                <span v-else class="photo-slot-placeholder">ऐच्छिक (Optional)</span>
+              </div>
+              <input
+                type="text"
+                v-model="editPhotosForm.image_pack"
+                class="form-input photo-slot-input"
+                placeholder="Packaging URL"
+              />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn-cancel" @click="showEditPhotosModal = false">रद्द करा</button>
+            <button type="submit" class="save-chip-btn" style="padding: 10px 20px; font-size: 0.9rem;">
+              💾 फोटो सेव्ह करा (Save Photos)
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -1926,22 +2094,45 @@
         </div>
 
         <div class="quick-view-grid">
-          <!-- Left: Product Image & Mandi Badges -->
+          <!-- Left: Product Multi-Angle Image Gallery & Mandi Badges -->
           <div class="quick-view-image-pane">
-            <img
-              :src="selectedProductQuickView.image_url"
-              :alt="selectedProductQuickView.name"
-              class="quick-view-img"
-              @error="handleImageFallback($event)"
-            />
-            <span v-if="selectedProductQuickView.is_loose" class="loose-badge" style="position: static; margin-top: 10px;">
-              🌾 {{ t('badge_loose') }}
-            </span>
-            <span v-else class="packed-badge" style="position: static; margin-top: 10px;">
-              📦 {{ t('badge_packed') }}
-            </span>
-            <div class="quick-view-trust-tag">
-              ✓ {{ t('quick_view_guarantee') }}
+            <div class="quick-view-main-image-wrap">
+              <img
+                :src="currentQuickViewImage"
+                :alt="selectedProductQuickView.name"
+                class="quick-view-img"
+                @error="handleImageFallback($event)"
+              />
+              <span class="active-angle-badge" v-if="selectedProductQuickView.images && selectedProductQuickView.images.length > 1">
+                {{ getAngleLabel(activeQuickViewAngle) }}
+              </span>
+            </div>
+
+            <!-- Multi-Angle Thumbnails Selector -->
+            <div class="quick-view-angles-row" v-if="selectedProductQuickView.images && selectedProductQuickView.images.length > 1">
+              <button
+                v-for="(img, idx) in selectedProductQuickView.images"
+                :key="idx"
+                type="button"
+                class="angle-thumb-btn"
+                :class="{ active: activeQuickViewAngle === idx }"
+                @click="activeQuickViewAngle = idx"
+              >
+                <img :src="img" :alt="getAngleLabel(idx)" class="angle-thumb-img" @error="handleImageFallback($event)" />
+                <span class="angle-thumb-label">{{ getAngleShortLabel(idx) }}</span>
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px;">
+              <span v-if="selectedProductQuickView.is_loose" class="loose-badge" style="position: static;">
+                🌾 {{ t('badge_loose') }}
+              </span>
+              <span v-else class="packed-badge" style="position: static;">
+                📦 {{ t('badge_packed') }}
+              </span>
+              <div class="quick-view-trust-tag" style="margin-top: 0;">
+                ✓ {{ t('quick_view_guarantee') }}
+              </div>
             </div>
           </div>
 
@@ -2122,8 +2313,101 @@ const newProductForm = ref({
   description: '',
   unit_size: '1kg',
   mrp: 100,
-  selling_price: 90
+  selling_price: 90,
+  image_front: '/products/chakki-atta.jpg',
+  image_back: '',
+  image_pack: ''
 });
+
+// Multi-Angle Image Presets
+const kiranaImagePresets = [
+  { label: '🌾 चक्की आटा', front: '/products/chakki-atta.jpg', back: '', pack: '/products/chakki-atta.jpg' },
+  { label: '🟡 तुवर डाळ', front: '/products/tata-toor-dal.jpg', back: '', pack: '/products/toor-dal.jpg' },
+  { label: '🟤 चना डाळ', front: '/products/chana-dal.jpg', back: '', pack: '/products/chana-dal.jpg' },
+  { label: '🍚 बासमती तांदूळ', front: '/products/basmati-rice.jpg', back: '', pack: '/products/basmati-rice.jpg' },
+  { label: '🛢️ मोहरी तेल', front: '/products/fortune-mustard-oil.jpg', back: '', pack: '/products/mustard-oil.jpg' },
+  { label: '🧈 अमूल तूप', front: '/products/amul-ghee.jpg', back: '', pack: '/products/desi-ghee.jpg' },
+  { label: '🧂 टाटा मीठ', front: '/products/tata-salt.jpg', back: '', pack: '/products/tata-salt.jpg' },
+  { label: '☕ टाटा चहा', front: '/products/tata-tea-gold.jpg', back: '', pack: '/products/ctc-tea.jpg' },
+  { label: '🟡 हळद पावडर', front: '/products/haldi-powder.jpg', back: '', pack: '/products/haldi-powder.jpg' },
+  { label: '🌶️ लाल मिरची', front: '/products/mirch-powder.jpg', back: '', pack: '/products/mirch-powder.jpg' },
+  { label: '🧼 सर्फ एक्सेल', front: '/products/surf-excel.jpg', back: '', pack: '/products/rin-bar.jpg' },
+  { label: '🪥 कोलगेट', front: '/products/colgate-strong.jpg', back: '', pack: '/products/colgate-maxfresh.jpg' }
+];
+
+function applyImagePresetToNew(preset) {
+  newProductForm.value.image_front = preset.front;
+  newProductForm.value.image_back = preset.back;
+  newProductForm.value.image_pack = preset.pack;
+}
+
+// Edit Product Photos Modal (Admin)
+const showEditPhotosModal = ref(false);
+const editingProductPhotos = ref(null);
+const editPhotosForm = ref({
+  product_id: null,
+  product_name: '',
+  image_front: '',
+  image_back: '',
+  image_pack: ''
+});
+
+function openEditPhotosModal(prod) {
+  editingProductPhotos.value = prod;
+  const imgs = prod.images || (prod.image_url ? [prod.image_url] : []);
+  editPhotosForm.value = {
+    product_id: prod.id,
+    product_name: prod.name,
+    image_front: imgs[0] || prod.image_url || '',
+    image_back: imgs[1] || '',
+    image_pack: imgs[2] || ''
+  };
+  showEditPhotosModal.value = true;
+}
+
+function applyImagePresetToEdit(preset) {
+  editPhotosForm.value.image_front = preset.front;
+  editPhotosForm.value.image_back = preset.back;
+  editPhotosForm.value.image_pack = preset.pack;
+}
+
+async function saveProductPhotos() {
+  try {
+    const images = [];
+    if (editPhotosForm.value.image_front && editPhotosForm.value.image_front.trim()) {
+      images.push(editPhotosForm.value.image_front.trim());
+    }
+    if (editPhotosForm.value.image_back && editPhotosForm.value.image_back.trim()) {
+      images.push(editPhotosForm.value.image_back.trim());
+    }
+    if (editPhotosForm.value.image_pack && editPhotosForm.value.image_pack.trim()) {
+      images.push(editPhotosForm.value.image_pack.trim());
+    }
+    if (images.length === 0) {
+      images.push('/products/chakki-atta.jpg');
+    }
+
+    const res = await fetch(`${API_BASE}/products/${editPhotosForm.value.product_id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({ images })
+    });
+
+    if (res.ok) {
+      showToast(`✅ '${editPhotosForm.value.product_name}' चे 3-अँगल फोटो सेव्ह झाले!`);
+      showEditPhotosModal.value = false;
+      fetchProducts();
+    } else {
+      showToast('❌ फोटो सेव्ह करता आले नाहीत.');
+    }
+  } catch (err) {
+    console.error('Error saving photos:', err);
+    showToast('❌ नेटवर्क त्रुटी.');
+  }
+}
 
 // Products & Filters State
 const categories = ref([]);
@@ -2138,13 +2422,57 @@ const selectedVariants = ref({});
 
 // Quick View Modal State
 const selectedProductQuickView = ref(null);
+const activeQuickViewAngle = ref(0);
+
+const currentQuickViewImage = computed(() => {
+  if (!selectedProductQuickView.value) return '';
+  const imgs = selectedProductQuickView.value.images || [];
+  if (imgs.length > activeQuickViewAngle.value && imgs[activeQuickViewAngle.value]) {
+    return imgs[activeQuickViewAngle.value];
+  }
+  return selectedProductQuickView.value.image_url || '';
+});
 
 function openQuickView(prod) {
   selectedProductQuickView.value = prod;
+  activeQuickViewAngle.value = 0;
 }
 
 function closeQuickView() {
   selectedProductQuickView.value = null;
+  activeQuickViewAngle.value = 0;
+}
+
+function getAngleLabel(idx) {
+  if (currentLang.value === 'mr') {
+    if (idx === 0) return '📸 समोरासमोरील मुख्य पॅक (Front View)';
+    if (idx === 1) return '🏷️ घटक व पोषण माहिती (Back / Ingredients)';
+    return '📦 राशन पोत व पॅकिंग (Packaging / Texture)';
+  } else if (currentLang.value === 'hi') {
+    if (idx === 0) return '📸 सामने का मुख्य पैकेट (Front View)';
+    if (idx === 1) return '🏷️ सामग्री व पोषण जानकारी (Back / Ingredients)';
+    return '📦 बनावट व पैकिंग (Packaging / Texture)';
+  } else {
+    if (idx === 0) return '📸 Front Pack View';
+    if (idx === 1) return '🏷️ Ingredients & Nutrition (Back)';
+    return '📦 Packaging & Texture View';
+  }
+}
+
+function getAngleShortLabel(idx) {
+  if (currentLang.value === 'mr') {
+    if (idx === 0) return 'समोरासमोर';
+    if (idx === 1) return 'घटक व माहिती';
+    return 'पोत व पॅक';
+  } else if (currentLang.value === 'hi') {
+    if (idx === 0) return 'सामने';
+    if (idx === 1) return 'सामग्री';
+    return 'पैकिंग';
+  } else {
+    if (idx === 0) return 'Front';
+    if (idx === 1) return 'Back';
+    return 'Pack';
+  }
 }
 
 // Cart State
@@ -3223,6 +3551,20 @@ async function updateAdminOrderStatus(order) {
 
 async function submitNewProduct() {
   try {
+    const images = [];
+    if (newProductForm.value.image_front && newProductForm.value.image_front.trim()) {
+      images.push(newProductForm.value.image_front.trim());
+    }
+    if (newProductForm.value.image_back && newProductForm.value.image_back.trim()) {
+      images.push(newProductForm.value.image_back.trim());
+    }
+    if (newProductForm.value.image_pack && newProductForm.value.image_pack.trim()) {
+      images.push(newProductForm.value.image_pack.trim());
+    }
+    if (images.length === 0) {
+      images.push('/products/chakki-atta.jpg');
+    }
+
     const payload = {
       category_id: newProductForm.value.category_id,
       name: newProductForm.value.name,
@@ -3230,7 +3572,8 @@ async function submitNewProduct() {
       brand: newProductForm.value.brand,
       is_loose: newProductForm.value.is_loose,
       description: newProductForm.value.description,
-      image_url: '/products/chakki-atta.jpg',
+      images: images,
+      image_url: images[0],
       variants: [
         {
           unit_size: newProductForm.value.unit_size,
@@ -3255,6 +3598,9 @@ async function submitNewProduct() {
       showAddProductModal.value = false;
       newProductForm.value.name = '';
       newProductForm.value.name_hi = '';
+      newProductForm.value.image_front = '/products/chakki-atta.jpg';
+      newProductForm.value.image_back = '';
+      newProductForm.value.image_pack = '';
       fetchProducts();
       fetchCategories();
     }
