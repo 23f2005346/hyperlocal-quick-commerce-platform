@@ -846,6 +846,7 @@
                   <input
                     type="text"
                     v-model="counterOrder.customer_name"
+                    @input="onPosCustomerManualEdit"
                     class="pos-input"
                     placeholder="उदा. रमेश हॉटेल / राहुल पाटील"
                   />
@@ -856,6 +857,7 @@
                   <input
                     type="text"
                     v-model="counterOrder.customer_phone"
+                    @input="onPosCustomerManualEdit"
                     class="pos-input"
                     placeholder="9876543210"
                   />
@@ -1616,8 +1618,13 @@
                   <div v-if="ord.credit_used > 0" style="font-size: 0.74rem; color: #047857; font-weight: 700;">
                     💳 छूट: -₹{{ ord.credit_used }}
                   </div>
-                  <div v-if="ord.credit_earned > 0" style="font-size: 0.74rem; color: #059669; font-weight: 700;">
-                    🎉 अर्जित: +₹{{ ord.credit_earned }}
+                  <div v-if="ord.credit_earned > 0" style="font-size: 0.74rem; font-weight: 700;">
+                    <span v-if="ord.payment_status === 'Paid'" style="color: #059669;">
+                      🎉 {{ currentLang === 'mr' ? 'क्रेडिट जमा:' : 'क्रेडिट जमा:' }} +₹{{ ord.credit_earned }}
+                    </span>
+                    <span v-else style="color: #d97706;">
+                      ⏳ +₹{{ ord.credit_earned }} {{ currentLang === 'mr' ? '(पेमेंट झाल्यावर मिळेल)' : '(पेमेंट पर अनलॉक होगा)' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -2401,8 +2408,11 @@
               <span>{{ t('payable_amount') }}:</span>
               <span>₹{{ lastOrderReceipt.final_amount }}</span>
             </div>
-            <div v-if="lastOrderReceipt.credit_earned > 0" style="margin-top: 6px; background: #ecfdf5; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #064e3b; font-weight: bold; text-align: center;">
+            <div v-if="lastOrderReceipt.credit_earned > 0 && lastOrderReceipt.payment_status === 'Paid'" style="margin-top: 6px; background: #ecfdf5; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #064e3b; font-weight: bold; text-align: center;">
               🎉 {{ t('store_credit_earned') }}: +₹{{ lastOrderReceipt.credit_earned }}!
+            </div>
+            <div v-else-if="lastOrderReceipt.credit_earned > 0" style="margin-top: 6px; background: #fffbeb; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #b45309; font-weight: bold; text-align: center; border: 1px dashed #f59e0b;">
+              ⏳ {{ currentLang === 'mr' ? `₹${lastOrderReceipt.credit_earned} स्टोअर क्रेडिट (पेमेंट चुकता झाल्यावर वॉलेटमध्ये जमा होईल)` : `₹${lastOrderReceipt.credit_earned} स्टोर क्रेडिट (पेमेंट पूरा होने पर वॉलेट में जुड़ेगा)` }}
             </div>
           </div>
 
@@ -5315,6 +5325,17 @@ function selectRegisteredCustomerForPos(cust) {
   showToast(`${cust.name} निवडले!`);
 }
 
+function onPosCustomerManualEdit() {
+  if (selectedPosCustomer.value) {
+    if (counterOrder.value.customer_name.trim() !== selectedPosCustomer.value.name ||
+        counterOrder.value.customer_phone.trim() !== selectedPosCustomer.value.phone) {
+      selectedPosCustomer.value = null;
+      counterOrder.value.user_id = null;
+      posUseStoreCredit.value = false;
+    }
+  }
+}
+
 async function submitCounterOrder(action = 'view') {
   if (counterOrder.value.items.length === 0) {
     showToast(currentLang.value === 'mr' ? 'बिलात किमान १ सामान जोडा!' : 'बिल में कम से कम 1 सामान जोड़ें!', 'error');
@@ -5326,6 +5347,13 @@ async function submitCounterOrder(action = 'view') {
 
   isPosSubmitting.value = true;
   try {
+    // Only link user_id if selected customer matches the input phone and name
+    const validUserId = (selectedPosCustomer.value && 
+      selectedPosCustomer.value.id === counterOrder.value.user_id &&
+      selectedPosCustomer.value.phone === counterOrder.value.customer_phone.trim()) 
+      ? counterOrder.value.user_id 
+      : null;
+
     const payload = {
       customer_name: counterOrder.value.customer_name.trim(),
       customer_phone: counterOrder.value.customer_phone.trim() || '9999999999',
@@ -5334,7 +5362,7 @@ async function submitCounterOrder(action = 'view') {
       payment_method: counterOrder.value.payment_method,
       payment_status: counterOrder.value.payment_status,
       status: counterOrder.value.order_type === 'counter' ? 'Delivered' : 'Placed',
-      user_id: counterOrder.value.user_id,
+      user_id: validUserId,
       use_credit: posUseStoreCredit.value,
       items: counterOrder.value.items
     };

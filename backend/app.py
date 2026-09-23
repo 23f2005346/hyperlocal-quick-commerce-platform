@@ -646,12 +646,16 @@ def create_app():
             return jsonify({'error': 'Unauthorized'}), 401
 
         order = Order.query.filter_by(id=order_id, user_id=user.id).first_or_404()
+        prev_payment_status = order.payment_status
         order.payment_status = 'Paid'
+        if prev_payment_status != 'Paid' and order.credit_earned and order.credit_earned > 0:
+            user.wallet_balance = round((user.wallet_balance or 0.0) + order.credit_earned, 2)
         db.session.commit()
 
         return jsonify({
             'message': f'Order {order.order_number} payment recorded successfully! Thank you.',
-            'order': order.to_dict()
+            'order': order.to_dict(),
+            'user': user.to_dict()
         })
 
     # --- PUBLIC STORE ROUTES ---
@@ -820,7 +824,9 @@ def create_app():
             final_amount = round(final_amount - credit_used, 2)
             user.wallet_balance = round(user.wallet_balance - credit_used, 2)
 
-        if user:
+        # Store Credit is only awarded once payment is actually Received / Paid!
+        # If Unpaid (COD / Khata), credit remains pending on the order and unlocks upon payment.
+        if user and payment_status == 'Paid':
             user.wallet_balance = round((user.wallet_balance or 0.0) + credit_earned, 2)
 
         new_order = Order(
@@ -871,7 +877,19 @@ def create_app():
         if 'status' in data:
             order.status = data['status']
         if 'payment_status' in data:
-            order.payment_status = data['payment_status']
+            prev_pay_status = order.payment_status
+            new_pay_status = data['payment_status']
+            order.payment_status = new_pay_status
+            if prev_pay_status != 'Paid' and new_pay_status == 'Paid':
+                if order.user_id and order.credit_earned and order.credit_earned > 0:
+                    cust_user = db.session.get(User, order.user_id)
+                    if cust_user:
+                        cust_user.wallet_balance = round((cust_user.wallet_balance or 0.0) + order.credit_earned, 2)
+            elif prev_pay_status == 'Paid' and new_pay_status != 'Paid':
+                if order.user_id and order.credit_earned and order.credit_earned > 0:
+                    cust_user = db.session.get(User, order.user_id)
+                    if cust_user:
+                        cust_user.wallet_balance = max(0.0, round((cust_user.wallet_balance or 0.0) - order.credit_earned, 2))
 
         db.session.commit()
         return jsonify({
@@ -1056,9 +1074,10 @@ def create_app():
         users = User.query.filter_by(role='customer').order_by(User.created_at.desc()).all()
         result = []
         for u in users:
-            # Query all orders linked to this user (by user_id or matching phone)
+            # Query all orders linked to this user (by user_id or matching unassigned phone)
             user_orders = Order.query.filter(
-                (Order.user_id == u.id) | (Order.customer_phone == u.phone)
+                (Order.user_id == u.id) |
+                ((Order.user_id.is_(None)) & (Order.customer_phone == u.phone) & (Order.customer_phone != '9999999999'))
             ).order_by(Order.created_at.desc()).all()
 
             total_spent = sum(o.final_amount for o in user_orders)
@@ -1070,6 +1089,7 @@ def create_app():
                 'email': u.email,
                 'phone': u.phone,
                 'address': u.address or '',
+                'wallet_balance': round(float(u.wallet_balance or 0.0), 2),
                 'created_at': u.created_at.strftime('%d %b %Y'),
                 'total_orders': len(user_orders),
                 'total_spent': round(total_spent, 2),
@@ -1191,7 +1211,8 @@ def create_app():
             final_amount = round(final_amount - credit_used, 2)
             linked_user.wallet_balance = round(linked_user.wallet_balance - credit_used, 2)
 
-        if linked_user:
+        # Store Credit is only credited to customer balance if payment is Paid/Received
+        if linked_user and payment_status == 'Paid':
             linked_user.wallet_balance = round((linked_user.wallet_balance or 0.0) + credit_earned, 2)
 
         new_order = Order(
