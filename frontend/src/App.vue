@@ -182,7 +182,7 @@
             </button>
 
             <!-- QR Code Button to Open on Phone -->
-            <button class="qr-header-btn" @click="showQRModal = true" title="Scan to open on Phone">
+            <button class="qr-header-btn desktop-only" @click="showQRModal = true" title="Scan to open on Phone">
               📱 <span>Scan on Phone</span>
             </button>
 
@@ -1200,6 +1200,13 @@
               {{ currentLang === 'en' ? 'All Orders' : (currentLang === 'mr' ? 'सर्व ऑर्डर्स' : 'सभी ऑर्डर') }} ({{ adminOrders.length }})
             </button>
             <button
+              :class="{ active: adminOrderFilter === 'pending' }"
+              @click="adminOrderFilter = 'pending'"
+              style="color: #b45309; font-weight: 800; background: #fef3c7; border: 1px solid #fde68a;"
+            >
+              ⏳ {{ currentLang === 'en' ? 'Verify UPI' : (currentLang === 'mr' ? 'UPI पडताळणी' : 'UPI सत्यापन') }} ({{ pendingVerificationAdminOrders.length }})
+            </button>
+            <button
               :class="{ active: adminOrderFilter === 'unpaid' }"
               @click="adminOrderFilter = 'unpaid'"
               style="color: #b91c1c; font-weight: 800;"
@@ -1298,20 +1305,27 @@
                     v-model="ord.payment_status"
                     @change="updateAdminOrderStatus(ord)"
                     style="padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 800; font-size: 0.82rem;"
-                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : 'color: #991b1b; background: #fee2e2;'"
+                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : 'color: #991b1b; background: #fee2e2;')"
                   >
                     <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
+                    <option value="Pending Verification">{{ currentLang === 'en' ? '⏳ Pending Verification' : (currentLang === 'mr' ? '⏳ UPI पडताळणी बाकी' : '⏳ UPI सत्यापन बाकी') }}</option>
                     <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
                   </select>
 
-                  <!-- 1-Click Mark as Paid Button for COD/Unpaid Orders -->
+                  <!-- 1-Click Mark as Paid / Verify Button -->
                   <button
                     v-if="ord.payment_status !== 'Paid'"
                     @click="markOrderAsPaid(ord)"
                     class="admin-mark-paid-btn"
-                    :title="currentLang === 'en' ? 'Mark order as paid upon cash receipt' : 'ग्राहक से नकद/UPI मिलते ही चुकता मार्क करें'"
+                    :style="ord.payment_status === 'Pending Verification' ? 'background: #059669; color: white;' : ''"
+                    :title="ord.payment_status === 'Pending Verification' ? 'Verify bank SMS/App and mark as Paid' : 'Mark order as paid upon cash receipt'"
                   >
-                    ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
+                    <span v-if="ord.payment_status === 'Pending Verification'">
+                      ✅ {{ currentLang === 'en' ? 'Verify & Mark Paid' : (currentLang === 'mr' ? 'UPI तपासून चुकता करा' : 'UPI चेक कर चुकता करें') }}
+                    </span>
+                    <span v-else>
+                      ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
+                    </span>
                   </button>
 
                   <span style="font-weight: 900; font-size: 1.2rem; color: #1c1917;">
@@ -2316,18 +2330,33 @@
                   <span class="status-badge" :class="ord.status.toLowerCase().replace(/\s+/g, '')">
                     📦 {{ ord.status }}
                   </span>
-                  <span class="pay-badge" :class="ord.payment_status.toLowerCase().includes('paid') && !ord.payment_status.toLowerCase().includes('unpaid') ? 'paid' : 'unpaid'">
-                    {{ ord.payment_status === 'Paid' ? (currentLang === 'en' ? '🟢 Paid' : '🟢 चुकता (Paid)') : (currentLang === 'en' ? '🔴 Unpaid Khata' : '🔴 बाकी उधारी (Unpaid)') }}
+                  <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : (ord.payment_status === 'Pending Verification' ? 'pending' : 'unpaid')">
+                    <template v-if="ord.payment_status === 'Paid'">
+                      {{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}
+                    </template>
+                    <template v-else-if="ord.payment_status === 'Pending Verification'">
+                      ⏳ {{ t('status_pending_verification') }}
+                    </template>
+                    <template v-else>
+                      {{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}
+                    </template>
                   </span>
                 </div>
 
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button
-                    v-if="ord.payment_status !== 'Paid'"
+                    v-if="ord.payment_status === 'Unpaid'"
                     @click="openUpiPayForCustomerOrder(ord)"
                     style="background: #047857; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
                   >
                     💳 {{ currentLang === 'en' ? 'Pay via UPI' : (currentLang === 'mr' ? 'UPI ने भरा' : 'UPI से भुगतान करें') }}
+                  </button>
+                  <button
+                    v-else-if="ord.payment_status === 'Pending Verification'"
+                    @click="openUpiPayForCustomerOrder(ord)"
+                    style="background: #d97706; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
+                  >
+                    📝 {{ currentLang === 'en' ? 'Update UTR' : (currentLang === 'mr' ? 'UTR बदला' : 'UTR अपडेट करें') }}
                   </button>
                   <button
                     @click="viewOrderReceipt(ord)"
@@ -3039,7 +3068,15 @@
               <h4>{{ t('upi_qr_title') }}</h4>
             </div>
 
-            <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 12px 0;">
+            <!-- Mobile 1-Tap Pay Direct App Link -->
+            <a
+              :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Komal%20Mart&am=${finalPayableAmount}&cu=INR&tn=KomalMart_Order`"
+              class="upi-intent-app-btn"
+            >
+              {{ t('upi_app_pay_btn') }}
+            </a>
+
+            <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 10px 0;">
               <div class="qr-code-img-wrap" style="text-align: center;">
                 <img src="/komal-mart-upi-qr.jpeg" alt="Komal Mart UPI QR Code" style="width: 220px; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
               </div>
@@ -3054,6 +3091,20 @@
                 </div>
                 <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
               </div>
+            </div>
+
+            <!-- Optional 12-digit UTR Input -->
+            <div class="upi-utr-wrap">
+              <label style="font-size: 0.82rem; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">
+                {{ t('upi_utr_label') }}
+              </label>
+              <input
+                type="text"
+                v-model="customerForm.utrNumber"
+                maxlength="16"
+                placeholder="उदा. 426812345678"
+                class="upi-utr-input"
+              />
             </div>
 
             <div class="upi-confirm-check">
@@ -3150,7 +3201,7 @@
             <div><strong>पता:</strong> {{ lastOrderReceipt.customer_address }}</div>
             <div>
               <strong>भुगतान:</strong> {{ lastOrderReceipt.payment_method }}
-              ({{ lastOrderReceipt.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी उधारी' }})
+              ({{ lastOrderReceipt.payment_status === 'Paid' ? '🟢 चुकता (Paid)' : (lastOrderReceipt.payment_status === 'Pending Verification' ? '⏳ UPI सत्यापन बाकी (Store Verification Pending)' : '🔴 बाकी उधारी') }})
             </div>
           </div>
 
@@ -3894,7 +3945,15 @@
             <h4>दुकान का ऑफिशियल UPI QR कोड</h4>
           </div>
 
-          <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 12px 0;">
+          <!-- Mobile 1-Tap Pay Direct App Link -->
+          <a
+            :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Komal%20Mart&am=${pendingUpiOrder.final_amount}&cu=INR&tn=KomalMart_${pendingUpiOrder.order_number}`"
+            class="upi-intent-app-btn"
+          >
+            {{ t('upi_app_pay_btn') }}
+          </a>
+
+          <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 10px 0;">
             <div class="qr-code-img-wrap" style="text-align: center;">
               <img src="/komal-mart-upi-qr.jpeg" alt="Komal Mart UPI QR Code" style="width: 200px; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
             </div>
@@ -3911,15 +3970,29 @@
             </div>
           </div>
 
-          <p style="font-size: 0.82rem; color: var(--text-muted); margin: 14px 0 16px; text-align: center;">
-            UPI ऐप से स्कैन कर ₹{{ pendingUpiOrder.final_amount }} का भुगतान करें, फिर नीचे कन्फ़र्म बटन दबाएं।
+          <!-- UTR / Reference No. Input -->
+          <div class="upi-utr-wrap">
+            <label style="font-size: 0.82rem; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">
+              {{ t('upi_utr_label') }}
+            </label>
+            <input
+              type="text"
+              v-model="pendingUpiUtr"
+              maxlength="16"
+              placeholder="उदा. 426812345678"
+              class="upi-utr-input"
+            />
+          </div>
+
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 14px; text-align: center;">
+            {{ currentLang === 'en' ? 'After sending payment via UPI, enter your 12-digit UTR above and submit. Store owner will verify against bank receipt and mark your bill as Paid.' : (currentLang === 'mr' ? 'UPI ने पैसे पाठवल्यावर 12-अंकी UTR टाकून सबमिट करा. दुकानदार बँक मेसेज तपासून बिल चुकता करतील.' : 'UPI द्वारा भुगतान करने के बाद 12 अंकों का UTR डालकर सबमिट करें। दुकानदार बैंक SMS देखकर बिल चुकता करेंगे।') }}
           </p>
 
           <button
             class="checkout-btn"
             @click="confirmUpiPayForCustomerOrder"
           >
-            ✅ मैंने भुगतान कर दिया है (Confirm & Mark Paid)
+            ✅ {{ currentLang === 'en' ? 'Submit for Verification' : (currentLang === 'mr' ? 'पडताळणीसाठी सबमिट करा' : 'सत्यापन के लिए सबमिट करें') }}
           </button>
         </div>
       </div>
@@ -4014,27 +4087,6 @@
             </button>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Floating Sticky Cart Pill (Blinkit / Zepto Style) -->
-    <div
-      v-if="!isAdminLoggedIn && cart.length > 0 && !isCartOpen"
-      class="floating-cart-pill"
-      @click="isCartOpen = true"
-    >
-      <div class="pill-left">
-        <div class="pill-badge">🛒 {{ cartTotalQuantity }} आइटम</div>
-        <div class="pill-info">
-          <span class="pill-amount">₹{{ cartTotalAmount }}</span>
-          <span class="pill-savings" v-if="Number(cartTotalSavings) > 0">
-            बचत: ₹{{ cartTotalSavings }}
-          </span>
-        </div>
-      </div>
-      <div class="pill-right">
-        <span>थैला देखें</span>
-        <span class="pill-arrow">➔</span>
       </div>
     </div>
 
@@ -5006,7 +5058,8 @@ const customerForm = ref({
   pincode: '400031',
   deliverySlot: 'instant',
   paymentMethod: 'Cash on Delivery (COD)',
-  upiConfirmed: false
+  upiConfirmed: false,
+  utrNumber: ''
 });
 
 const WADALA_SERVICEABLE_AREAS = [
@@ -5165,6 +5218,7 @@ const customWeightInputs = ref({});
 // Customer Khata UPI Settlement Modal
 const showUpiPayModal = ref(false);
 const pendingUpiOrder = ref(null);
+const pendingUpiUtr = ref('');
 
 // Admin Orders Ledger Filter
 const adminOrderFilter = ref('all');
@@ -5464,6 +5518,7 @@ async function loadCustomerOrders() {
 
 function openUpiPayForCustomerOrder(order) {
   pendingUpiOrder.value = order;
+  pendingUpiUtr.value = '';
   showUpiPayModal.value = true;
 }
 
@@ -5472,12 +5527,19 @@ async function confirmUpiPayForCustomerOrder() {
   try {
     const res = await fetch(`${API_BASE}/customer/orders/${pendingUpiOrder.value.id}/pay`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${authToken.value}` }
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        utr_number: pendingUpiUtr.value.trim()
+      })
     });
     if (res.ok) {
-      showToast(`🎉 ₹${pendingUpiOrder.value.final_amount} का भुगतान सफल! बिल चुकता कर दिया गया।`);
+      showToast(currentLang.value === 'en' ? '✅ UPI payment submitted! Store owner will verify against bank receipt.' : (currentLang.value === 'mr' ? '✅ UPI पेमेंट सबमिट केले! दुकानदार बँक मेसेज तपासून बिल चुकता करतील.' : '✅ UPI भुगतान सबमिट हुआ! दुकानदार बैंक SMS देखकर बिल चुकता करेंगे।'));
       showUpiPayModal.value = false;
       pendingUpiOrder.value = null;
+      pendingUpiUtr.value = '';
       loadCustomerOrders();
     } else {
       const err = await res.json();
@@ -5943,6 +6005,7 @@ async function submitOrder() {
       delivery_type: customerForm.value.deliveryType,
       pincode: customerForm.value.deliveryType === 'home_delivery' ? customerForm.value.pincode : '400031',
       payment_method: customerForm.value.paymentMethod,
+      utr_number: customerForm.value.utrNumber ? customerForm.value.utrNumber.trim() : '',
       use_credit: useStoreCredit.value,
       items: cart.value.map(i => {
         if (i.is_custom_weight) {
@@ -5988,11 +6051,13 @@ async function submitOrder() {
       if (data.user) {
         currentUser.value = data.user;
       } else if (currentUser.value && data.order) {
-        currentUser.value.wallet_balance = (currentUser.value.wallet_balance || 0) - (data.order.credit_used || 0) + (data.order.credit_earned || 0);
+        const earnedToAdd = data.order.payment_status === 'Paid' ? (data.order.credit_earned || 0) : 0;
+        currentUser.value.wallet_balance = (currentUser.value.wallet_balance || 0) - (data.order.credit_used || 0) + earnedToAdd;
       }
       useStoreCredit.value = false;
       cart.value = [];
       customerForm.value.upiConfirmed = false;
+      customerForm.value.utrNumber = '';
       showCheckoutModal.value = false;
       showToast(`🎉 ऑर्डर पक्का हुआ! बिल संख्या: ${data.order.order_number}`);
       fetchProducts();
@@ -6733,6 +6798,10 @@ const unpaidAdminOrders = computed(() => {
   return adminOrders.value.filter(o => o.payment_status !== 'Paid');
 });
 
+const pendingVerificationAdminOrders = computed(() => {
+  return adminOrders.value.filter(o => o.payment_status === 'Pending Verification');
+});
+
 const paidAdminOrders = computed(() => {
   return adminOrders.value.filter(o => o.payment_status === 'Paid');
 });
@@ -6746,6 +6815,7 @@ const upiAdminOrders = computed(() => {
 });
 
 const displayedAdminOrders = computed(() => {
+  if (adminOrderFilter.value === 'pending') return pendingVerificationAdminOrders.value;
   if (adminOrderFilter.value === 'unpaid') return unpaidAdminOrders.value;
   if (adminOrderFilter.value === 'paid') return paidAdminOrders.value;
   if (adminOrderFilter.value === 'cod') return codAdminOrders.value;

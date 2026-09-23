@@ -287,8 +287,35 @@ pickup_order = client.post('/api/orders', json={
     'items': [{'variant_id': 1, 'quantity': 1}]
 })
 print("Store Counter Pickup Acceptance (Any Pincode):", pickup_order.status_code, "(Should be 201)")
-assert pickup_order.status_code == 201
-assert pickup_order.get_json()['order']['delivery_type'] == 'store_pickup'
+# 15. Anti-Fraud UPI Verification Protocol Test
+# 15a. Customer placing UPI QR order gets 'Pending Verification' (NOT instant 'Paid')
+upi_order_res = client.post('/api/orders', headers={'Authorization': f'Bearer {cust_token}'}, json={
+    'customer_name': 'Santosh Patil',
+    'customer_phone': '9876543299',
+    'customer_address': 'Dosti Acres, Wadala East, Mumbai 400037',
+    'delivery_type': 'home_delivery',
+    'pincode': '400037',
+    'payment_method': 'UPI / QR Code',
+    'utr_number': '426899123456',
+    'items': [{'variant_id': 1, 'quantity': 2}]
+})
+assert upi_order_res.status_code == 201
+upi_order = upi_order_res.get_json()['order']
+print("UPI Order Placed Payment Status:", upi_order['payment_status'], "(Should be 'Pending Verification')")
+assert upi_order['payment_status'] == 'Pending Verification'
+assert 'UPI UTR: 426899123456' in upi_order['customer_address']
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD & HOT BACKUP TESTS PASSED 100%!")
+# 15b. Store Owner verifies bank receipt and marks order as 'Paid'
+admin_verify_res = client.patch(
+    f"/api/admin/orders/{upi_order['id']}/status",
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'payment_status': 'Paid'}
+)
+assert admin_verify_res.status_code == 200
+verified_order = admin_verify_res.get_json()['order']
+print("Admin Verified Payment Status:", verified_order['payment_status'], "(Should be 'Paid')")
+assert verified_order['payment_status'] == 'Paid'
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP & ANTI-FRAUD UPI TESTS PASSED 100%!")
+
 

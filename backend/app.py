@@ -745,14 +745,22 @@ def create_app():
             return jsonify({'error': 'Unauthorized'}), 401
 
         order = Order.query.filter_by(id=order_id, user_id=user.id).first_or_404()
-        prev_payment_status = order.payment_status
-        order.payment_status = 'Paid'
-        if prev_payment_status != 'Paid' and order.credit_earned and order.credit_earned > 0:
-            user.wallet_balance = round((user.wallet_balance or 0.0) + order.credit_earned, 2)
+        data = request.get_json() or {}
+        utr_number = str(data.get('utr_number', '')).strip()
+
+        # Submit for Store Owner Verification — do NOT blindly mark Paid!
+        order.payment_status = 'Pending Verification'
+        order.payment_method = 'UPI / QR Code'
+        if utr_number:
+            if '[UPI UTR:' not in (order.customer_address or ''):
+                order.customer_address = f"{order.customer_address or ''} [UPI UTR: {utr_number}]"
+            else:
+                order.customer_address = re.sub(r'\[UPI UTR: [^\]]+\]', f'[UPI UTR: {utr_number}]', order.customer_address or '')
+
         db.session.commit()
 
         return jsonify({
-            'message': f'Order {order.order_number} payment recorded successfully! Thank you.',
+            'message': f'UPI payment submitted for Order {order.order_number}! Store owner will verify before marking Paid.',
             'order': order.to_dict(),
             'user': user.to_dict()
         })
@@ -866,9 +874,14 @@ def create_app():
                         'allowed_pincodes': list(sorted(ALLOWED_WADALA_PINCODES))
                     }), 400
 
-        # Only UPI QR code is paid immediately; COD and Khata are Unpaid until cash received
-        if payment_method in ['UPI / QR Code', 'Paid via UPI QR']:
-            payment_status = 'Paid'
+        # Online customer checkout with UPI QR must NEVER be automatically marked 'Paid'
+        # It must be 'Pending Verification' until store owner verifies bank receipt/SMS.
+        # This completely prevents fraud where customers check 'Paid' without paying.
+        utr_number = str(data.get('utr_number', '')).strip()
+        if payment_method in ['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR']:
+            payment_status = 'Pending Verification'
+            if utr_number:
+                customer_address = f"{customer_address} [UPI UTR: {utr_number}]"
         else:
             payment_status = 'Unpaid'
 
