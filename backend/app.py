@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 import re
 import time
@@ -14,6 +15,31 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from models import db, User, Category, Product, ProductVariant, Order, OrderItem
 from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
 
+# Ensure UTF-8 stdout encoding on Windows consoles to prevent charmap crashes
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+# Automatically load backend/.env if present
+env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+if os.path.exists(env_file):
+    try:
+        with open(env_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+    except Exception as e:
+        print(f"[ENV WARNING] Could not read .env: {e}")
+
 SECRET_KEY = 'apna-desi-kirana-store-secret-key-2026'
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
@@ -21,11 +47,11 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
 ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
 
-# Optional SMTP configuration for real email delivery (e.g. Gmail App Password)
+# SMTP configuration for real email delivery (Gmail App Password)
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-SMTP_USER = os.environ.get('SMTP_USER', '')
-SMTP_PASS = os.environ.get('SMTP_PASS', '')
+SMTP_USER = os.environ.get('SMTP_USER', 'thisisroushan01@gmail.com').strip()
+SMTP_PASS = os.environ.get('SMTP_PASS', 'emaiuwgdfqddjskg').replace(' ', '').strip()
 
 def send_admin_otp_email(to_email, otp):
     """
@@ -64,13 +90,13 @@ def send_admin_otp_email(to_email, otp):
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, [to_email], msg.as_string())
             server.quit()
-            print(f"📧 [EMAIL SENT] Successfully sent 2FA OTP to {to_email}")
+            print(f"[EMAIL SENT] Successfully sent 2FA OTP to {to_email}")
             return True, "Email dispatched successfully"
         except Exception as e:
-            print(f"⚠️ [SMTP ERROR] Failed to send email to {to_email}: {e}")
+            print(f"[SMTP ERROR] Failed to send email to {to_email}: {e}")
             return False, str(e)
     else:
-        print(f"ℹ️ [SMTP INFO] SMTP_USER/SMTP_PASS not set. Printed OTP to terminal console only.")
+        print("[SMTP INFO] SMTP_USER/SMTP_PASS not set. Printed OTP to terminal console only.")
         return False, "SMTP not configured"
 
 def create_app():
@@ -95,9 +121,36 @@ def create_app():
         cur = conn.cursor()
         try:
             cur.execute("PRAGMA table_info(users)")
-            cols = [r[1] for r in cur.fetchall()]
-            if 'username' not in cols:
+            cols = cur.fetchall()
+            col_names = [r[1] for r in cols]
+            if 'username' not in col_names:
                 cur.execute("ALTER TABLE users ADD COLUMN username VARCHAR(60)")
+                conn.commit()
+
+            # Ensure email is nullable
+            email_col = next((c for c in cols if c[1] == 'email'), None)
+            if email_col and email_col[3] == 1:
+                cur.execute("PRAGMA foreign_keys = OFF")
+                cur.execute("""
+                    CREATE TABLE users_migrated (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username VARCHAR(60),
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(120),
+                        phone VARCHAR(20) NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        address TEXT,
+                        role VARCHAR(20) DEFAULT 'customer',
+                        created_at DATETIME
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO users_migrated (id, username, name, email, phone, password_hash, address, role, created_at)
+                    SELECT id, username, name, email, phone, password_hash, address, role, created_at FROM users
+                """)
+                cur.execute("DROP TABLE users")
+                cur.execute("ALTER TABLE users_migrated RENAME TO users")
+                cur.execute("PRAGMA foreign_keys = ON")
                 conn.commit()
 
             # Deduplicate any duplicate phone numbers in legacy test data
@@ -163,12 +216,12 @@ def create_app():
     @app.route('/api/auth/register', methods=['POST'])
     def register():
         data = request.get_json() or {}
-        name = data.get('name', '').strip()
-        username = data.get('username', '').strip()
-        email = data.get('email', '').strip().lower()
-        phone = data.get('phone', '').strip()
-        password = data.get('password', '').strip()
-        address = data.get('address', '').strip()
+        name = (data.get('name') or '').strip()
+        username = (data.get('username') or '').strip()
+        email = (data.get('email') or '').strip().lower()
+        phone = (data.get('phone') or '').strip()
+        password = (data.get('password') or '').strip()
+        address = (data.get('address') or '').strip()
 
         if not name or not password or not phone:
             return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
@@ -262,12 +315,12 @@ def create_app():
                 'user_id': user.id
             }
 
-            print(f"\n=======================================================")
-            print(f"🔐 [KOMAL MART ADMIN 2FA OTP] Storekeeper Login OTP")
-            print(f"📧 Admin Email: {user.email}")
-            print(f"🔑 6-Digit OTP Code: {otp}")
-            print(f"⏳ Valid for 5 minutes")
-            print(f"=======================================================\n")
+            print("\n=======================================================")
+            print("[KOMAL MART ADMIN 2FA OTP] Storekeeper Login OTP")
+            print(f"Admin Email: {user.email}")
+            print(f"6-Digit OTP Code: {otp}")
+            print("Valid for 5 minutes")
+            print("=======================================================\n")
 
             # Dispatch email via SMTP if configured
             email_sent, _ = send_admin_otp_email(user.email, otp)
