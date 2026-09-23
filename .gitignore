@@ -5,3 +5,8 @@ node_modules/
 .env
 .env.*
 dist/
+backups/
+backend/backups/
+*.db-wal
+*.db-shm
+

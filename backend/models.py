@@ -84,6 +84,7 @@ class Product(db.Model):
 
     variants = db.relationship('ProductVariant', backref='product', lazy=True, cascade="all, delete-orphan")
     tiered_prices = db.relationship('TieredPricing', backref='product', lazy=True, cascade="all, delete-orphan", order_by="TieredPricing.min_qty.asc()")
+    restock_alerts = db.relationship('RestockAlert', backref='product', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         raw_img = self.image_url or ''
@@ -118,6 +119,8 @@ class ProductVariant(db.Model):
     selling_price = db.Column(db.Float, nullable=False)
     stock_quantity = db.Column(db.Integer, default=50)
     is_available = db.Column(db.Boolean, default=True)
+
+    restock_alerts = db.relationship('RestockAlert', backref='variant', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         discount_pct = 0
@@ -249,3 +252,31 @@ class TieredPricing(db.Model):
             'tier_label': self.tier_label or f"होलसेल ({self.min_qty}+)",
             'tier_label_hi': self.tier_label_hi or f"होलसेल ({self.min_qty}+)"
         }
+
+
+class RestockAlert(db.Model):
+    __tablename__ = 'restock_alerts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    variant_id = db.Column(db.Integer, db.ForeignKey('product_variants.id'), nullable=True)
+    customer_name = db.Column(db.String(100), nullable=False)
+    customer_phone = db.Column(db.String(20), nullable=False)
+    is_notified = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    notified_at = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'product_name': self.product.name if self.product else '',
+            'variant_id': self.variant_id,
+            'variant_label': self.variant.unit_size if self.variant else '',
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'is_notified': self.is_notified,
+            'created_at': self.created_at.strftime('%d %b %Y, %I:%M %p') if self.created_at else '',
+            'notified_at': self.notified_at.strftime('%d %b %Y, %I:%M %p') if self.notified_at else None
+        }
+

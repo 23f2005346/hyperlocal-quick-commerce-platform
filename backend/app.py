@@ -9,11 +9,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from datetime import datetime
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment, TieredPricing, get_ist_time
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment, TieredPricing, RestockAlert, get_ist_time
 from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
+from backup_service import create_hot_backup, list_backups, verify_backup
 
 # Ensure UTF-8 stdout encoding on Windows consoles to prevent charmap crashes
 if hasattr(sys.stdout, 'reconfigure'):
@@ -334,6 +337,17 @@ def seed_default_tiered_pricing():
         db.session.rollback()
         print(f"[WHOLESALE SEED ERROR] {e}")
 
+# Configure SQLite engine event listeners for WAL mode and fast concurrency
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if dbapi_connection.__class__.__module__.startswith('sqlite3'):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = SECRET_KEY
@@ -341,88 +355,103 @@ def create_app():
     # Enable CORS for frontend development
     CORS(app)
 
-    # SQLite Database setup
-    db_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(db_dir, 'kirana.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    # Database setup: Support external PostgreSQL / Supabase, persistent DB_PATH, or local SQLite WAL
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+        is_sqlite = False
+    else:
+        db_path = os.environ.get('DB_PATH') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kirana.db')
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'connect_args': {'timeout': 15}
+        }
+        is_sqlite = True
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
 
     with app.app_context():
         # SQLite migration to ensure username column and unique indices
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        try:
-            cur.execute("PRAGMA table_info(users)")
-            cols = cur.fetchall()
-            col_names = [r[1] for r in cols]
-            if 'username' not in col_names:
-                cur.execute("ALTER TABLE users ADD COLUMN username VARCHAR(60)")
+        if is_sqlite:
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            try:
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA synchronous=NORMAL")
+                cur.execute("PRAGMA busy_timeout=5000")
+                cur.execute("PRAGMA table_info(users)")
+                cols = cur.fetchall()
+                col_names = [r[1] for r in cols]
+                if 'username' not in col_names:
+                    cur.execute("ALTER TABLE users ADD COLUMN username VARCHAR(60)")
+                    conn.commit()
+
+                # Ensure email is nullable
+                email_col = next((c for c in cols if c[1] == 'email'), None)
+                if email_col and email_col[3] == 1:
+                    cur.execute("PRAGMA foreign_keys = OFF")
+                    cur.execute("""
+                        CREATE TABLE users_migrated (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            username VARCHAR(60),
+                            name VARCHAR(100) NOT NULL,
+                            email VARCHAR(120),
+                            phone VARCHAR(20) NOT NULL,
+                            password_hash VARCHAR(255) NOT NULL,
+                            address TEXT,
+                            role VARCHAR(20) DEFAULT 'customer',
+                            created_at DATETIME
+                        )
+                    """)
+                    cur.execute("""
+                        INSERT INTO users_migrated (id, username, name, email, phone, password_hash, address, role, created_at)
+                        SELECT id, username, name, email, phone, password_hash, address, role, created_at FROM users
+                    """)
+                    cur.execute("DROP TABLE users")
+                    cur.execute("ALTER TABLE users_migrated RENAME TO users")
+                    cur.execute("PRAGMA foreign_keys = ON")
+                    conn.commit()
+
+                # Deduplicate any duplicate phone numbers in legacy test data
+                cur.execute("SELECT phone, COUNT(*) FROM users GROUP BY phone HAVING COUNT(*) > 1")
+                dups = cur.fetchall()
+                for p_dup, cnt in dups:
+                    cur.execute("SELECT id FROM users WHERE phone = ?", (p_dup,))
+                    rows = cur.fetchall()
+                    for idx, r in enumerate(rows[1:], start=1):
+                        new_p = f"{p_dup[:9]}{idx}"
+                        cur.execute("UPDATE users SET phone = ? WHERE id = ?", (new_p, r[0]))
                 conn.commit()
 
-            # Ensure email is nullable
-            email_col = next((c for c in cols if c[1] == 'email'), None)
-            if email_col and email_col[3] == 1:
-                cur.execute("PRAGMA foreign_keys = OFF")
-                cur.execute("""
-                    CREATE TABLE users_migrated (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username VARCHAR(60),
-                        name VARCHAR(100) NOT NULL,
-                        email VARCHAR(120),
-                        phone VARCHAR(20) NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
-                        address TEXT,
-                        role VARCHAR(20) DEFAULT 'customer',
-                        created_at DATETIME
-                    )
-                """)
-                cur.execute("""
-                    INSERT INTO users_migrated (id, username, name, email, phone, password_hash, address, role, created_at)
-                    SELECT id, username, name, email, phone, password_hash, address, role, created_at FROM users
-                """)
-                cur.execute("DROP TABLE users")
-                cur.execute("ALTER TABLE users_migrated RENAME TO users")
-                cur.execute("PRAGMA foreign_keys = ON")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users(username) WHERE username IS NOT NULL")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users(phone)")
                 conn.commit()
 
-            # Deduplicate any duplicate phone numbers in legacy test data
-            cur.execute("SELECT phone, COUNT(*) FROM users GROUP BY phone HAVING COUNT(*) > 1")
-            dups = cur.fetchall()
-            for p_dup, cnt in dups:
-                cur.execute("SELECT id FROM users WHERE phone = ?", (p_dup,))
-                rows = cur.fetchall()
-                for idx, r in enumerate(rows[1:], start=1):
-                    new_p = f"{p_dup[:9]}{idx}"
-                    cur.execute("UPDATE users SET phone = ? WHERE id = ?", (new_p, r[0]))
-            conn.commit()
+                # Ensure users.wallet_balance column exists
+                cur.execute("PRAGMA table_info(users)")
+                current_user_cols = [r[1] for r in cur.fetchall()]
+                if 'wallet_balance' not in current_user_cols:
+                    cur.execute("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0")
+                    conn.commit()
 
-            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users(username) WHERE username IS NOT NULL")
-            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users(phone)")
-            conn.commit()
-
-            # Ensure users.wallet_balance column exists
-            cur.execute("PRAGMA table_info(users)")
-            current_user_cols = [r[1] for r in cur.fetchall()]
-            if 'wallet_balance' not in current_user_cols:
-                cur.execute("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0")
-                conn.commit()
-
-            # Ensure orders.credit_used and orders.credit_earned columns exist
-            cur.execute("PRAGMA table_info(orders)")
-            order_cols = [r[1] for r in cur.fetchall()]
-            if 'credit_used' not in order_cols:
-                cur.execute("ALTER TABLE orders ADD COLUMN credit_used FLOAT DEFAULT 0.0")
-                conn.commit()
-            if 'credit_earned' not in order_cols:
-                cur.execute("ALTER TABLE orders ADD COLUMN credit_earned FLOAT DEFAULT 0.0")
-                conn.commit()
-        except Exception as e:
-            print("Migration warning:", e)
-        finally:
-            conn.close()
+                # Ensure orders.credit_used and orders.credit_earned columns exist
+                cur.execute("PRAGMA table_info(orders)")
+                order_cols = [r[1] for r in cur.fetchall()]
+                if 'credit_used' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN credit_used FLOAT DEFAULT 0.0")
+                    conn.commit()
+                if 'credit_earned' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN credit_earned FLOAT DEFAULT 0.0")
+                    conn.commit()
+            except Exception as e:
+                print("Migration warning:", e)
+            finally:
+                conn.close()
 
         db.create_all()
         # Seed default admin and inventory if empty or missing admin
@@ -1118,6 +1147,8 @@ def create_app():
         variant = ProductVariant.query.get_or_404(variant_id)
         data = request.get_json() or {}
 
+        was_out_of_stock = (variant.stock_quantity is None or variant.stock_quantity <= 0 or not variant.is_available)
+
         if 'selling_price' in data:
             variant.selling_price = float(data['selling_price'])
         if 'mrp' in data:
@@ -1127,10 +1158,29 @@ def create_app():
         if 'is_available' in data:
             variant.is_available = bool(data['is_available'])
 
+        is_now_in_stock = (variant.stock_quantity is not None and variant.stock_quantity > 0 and variant.is_available)
+        notified_count = 0
+
+        # Trigger Restock Alerts if item was replenished!
+        if was_out_of_stock and is_now_in_stock:
+            pending_alerts = RestockAlert.query.filter(
+                RestockAlert.product_id == variant.product_id,
+                (RestockAlert.variant_id == variant.id) | (RestockAlert.variant_id.is_(None)),
+                RestockAlert.is_notified == False
+            ).all()
+            now_time = get_ist_time()
+            for alert in pending_alerts:
+                alert.is_notified = True
+                alert.notified_at = now_time
+                notified_count += 1
+                prod_name = variant.product.name if variant.product else 'Kirana Item'
+                print(f"[RESTOCK ALERT TRIGGERED] Notified {alert.customer_name} ({alert.customer_phone}) for {prod_name} - {variant.unit_size}")
+
         db.session.commit()
         return jsonify({
             'message': 'Variant updated successfully in SQLite!',
-            'variant': variant.to_dict()
+            'variant': variant.to_dict(),
+            'notified_count': notified_count
         })
 
     @app.route('/api/products/<int:product_id>', methods=['DELETE'])
@@ -1146,6 +1196,120 @@ def create_app():
     def reset_seed():
         seed_database()
         return jsonify({'message': 'Database re-seeded successfully with authentic Kirana inventory!'})
+
+    # --- RESTOCK NOTIFICATIONS (NOTIFY ME) ---
+
+    @app.route('/api/products/<int:product_id>/notify-me', methods=['POST'])
+    def register_restock_alert(product_id):
+        product = Product.query.get_or_404(product_id)
+        data = request.get_json() or {}
+
+        customer_name = (data.get('customer_name') or '').strip()
+        customer_phone = (data.get('customer_phone') or '').strip()
+        variant_id = data.get('variant_id')
+
+        # Auto-fill from logged-in customer session if available
+        user = get_current_user()
+        if user:
+            if not customer_name:
+                customer_name = user.name
+            if not customer_phone:
+                customer_phone = user.phone
+
+        if not customer_phone:
+            return jsonify({'error': 'मोबाईल नंबर आवश्यक आहे.', 'code': 'MISSING_PHONE'}), 400
+
+        # Validate Indian 10-digit mobile number
+        if not re.match(r'^[6-9]\d{9}$', customer_phone):
+            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
+
+        if is_dummy_phone(customer_phone):
+            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
+
+        if not customer_name:
+            customer_name = 'ग्राहक (Customer)'
+
+        # Check for existing unnotified alert
+        query = RestockAlert.query.filter_by(
+            product_id=product_id,
+            customer_phone=customer_phone,
+            is_notified=False
+        )
+        if variant_id:
+            query = query.filter_by(variant_id=variant_id)
+
+        existing = query.first()
+        if existing:
+            return jsonify({
+                'message': 'तुम्ही आधीच या उत्पादनासाठी अलर्ट नोंदवला आहे! माल दुकानात आल्यावर आम्ही नक्की कळवू.',
+                'already_registered': True
+            })
+
+        new_alert = RestockAlert(
+            product_id=product_id,
+            variant_id=variant_id if variant_id else None,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            is_notified=False
+        )
+        db.session.add(new_alert)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'धन्यवाद! हा माल दुकानात उपलब्ध झाल्यावर आम्ही तुम्हाला लगेच कळवू.',
+            'alert': new_alert.to_dict()
+        }), 201
+
+    @app.route('/api/admin/restock-alerts', methods=['GET'])
+    @admin_required
+    def get_admin_restock_alerts():
+        alerts = RestockAlert.query.order_by(RestockAlert.created_at.desc()).all()
+        return jsonify({
+            'alerts': [a.to_dict() for a in alerts],
+            'pending_count': sum(1 for a in alerts if not a.is_notified)
+        })
+
+    # --- SAFE SQLITE HOT DATABASE BACKUPS ---
+
+    @app.route('/api/admin/backup/download', methods=['GET'])
+    @admin_required
+    def download_db_backup():
+        compress = request.args.get('compress', 'true').lower() in ['true', '1', 'yes']
+        try:
+            meta = create_hot_backup(compress=compress)
+            return send_file(
+                meta['filepath'],
+                as_attachment=True,
+                download_name=meta['filename'],
+                mimetype='application/gzip' if compress else 'application/x-sqlite3'
+            )
+        except Exception as e:
+            return jsonify({'error': f'Backup failed: {str(e)}'}), 500
+
+    @app.route('/api/admin/backup/list', methods=['GET'])
+    @admin_required
+    def get_backups_list():
+        backups = list_backups()
+        return jsonify({
+            'backups': backups,
+            'count': len(backups)
+        })
+
+    @app.route('/api/admin/backup/create', methods=['POST'])
+    @admin_required
+    def trigger_db_backup():
+        data = request.get_json() or {}
+        compress = bool(data.get('compress', True))
+        try:
+            meta = create_hot_backup(compress=compress)
+            ok, msg = verify_backup(meta['filepath'])
+            return jsonify({
+                'message': 'Safe SQLite hot backup created successfully!',
+                'backup': meta,
+                'integrity_ok': ok
+            }), 201
+        except Exception as e:
+            return jsonify({'error': f'Backup creation failed: {str(e)}'}), 500
 
     # --- STORE OWNER: REGISTERED CUSTOMERS DIRECTORY & AUDIT ---
     @app.route('/api/admin/users', methods=['GET'])

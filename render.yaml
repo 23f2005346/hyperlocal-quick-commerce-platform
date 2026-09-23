@@ -1,0 +1,30 @@
+# =========================================================================
+# KOMAL MART — RENDER PRODUCTION BLUEPRINT
+# Unified deployment: Vite Frontend + Flask Backend + SQLite WAL on Persistent Disk
+# =========================================================================
+services:
+  - type: web
+    name: komal-mart
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: singapore # Closest low-latency region for Indian users (Mumbai / Singapore)
+    disk:
+      name: kirana-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DB_PATH
+        value: /data/kirana.db
+      - key: BACKUP_DIR
+        value: /data/backups
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

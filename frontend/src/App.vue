@@ -542,6 +542,14 @@
                   <button class="add-to-cart-btn btn-out-of-stock" disabled>
                     🚫 {{ t('out_of_stock') }}
                   </button>
+                  <button
+                    type="button"
+                    class="btn-notify-me"
+                    @click.stop="openNotifyModal(prod, getActiveVariant(prod))"
+                    style="margin-top: 6px; width: 100%; background: #ecfdf5; border: 1.5px solid #059669; color: #065f46; font-weight: 700; font-size: 0.82rem; padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease;"
+                  >
+                    {{ t('notify_me_btn') }}
+                  </button>
                 </div>
                 <div v-else-if="getCartItemQuantity(prod.id, getActiveVariant(prod).id) === 0">
                   <button
@@ -612,6 +620,13 @@
               title="Reset to default authentic Indian Kirana catalog"
             >
               🔄 {{ t('admin_reset_seed') }}
+            </button>
+            <button
+              @click="downloadDatabaseBackup"
+              style="background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              title="Download crash-safe hot SQLite WAL database snapshot (.db.gz)"
+            >
+              💾 {{ t('admin_backup_download_btn') }}
             </button>
           </div>
         </div>
@@ -700,6 +715,16 @@
             @click="adminActiveTab = 'zreport'; loadDailyZReport();"
           >
             {{ t('admin_tab_zreport') }}
+          </button>
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'restock' }"
+            @click="adminActiveTab = 'restock'; loadRestockAlerts();"
+          >
+            {{ t('admin_tab_restock') }}
+            <span v-if="pendingRestockCount > 0" class="tab-badge-warning" style="margin-left: 4px;">
+              {{ pendingRestockCount }}
+            </span>
           </button>
         </div>
 
@@ -1801,6 +1826,94 @@
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 7: RESTOCK ALERTS & CUSTOMER DEMAND INTELLIGENCE -->
+        <div v-if="adminActiveTab === 'restock'" style="margin-top: 14px;">
+          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+              <div>
+                <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                  🔔 {{ currentLang === 'en' ? 'Customer Restock Requests & Mandi Demand' : (currentLang === 'mr' ? 'ग्राहक मागणी व रिस्टॉक सूचना' : 'ग्राहक मांग व रिस्टॉक सूचनाएं') }}
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0 0;">
+                  {{ currentLang === 'en' ? 'Customers waiting for out-of-stock items. When you restock in Price Editor, notifications trigger automatically.' : (currentLang === 'mr' ? 'स्टॉक संपलेल्या सामानासाठी ग्राहकांची मागणी. तुम्ही प्राईस एडिटरमध्ये स्टॉक वाढवताच ग्राहकांना सूचना मिळते.' : 'स्टॉक समाप्त सामान के लिए ग्राहकों की मांग। जैसे ही आप स्टॉक बढ़ाते हैं, ग्राहकों को अलर्ट चला जाता है।') }}
+                </p>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="tab-badge-warning" style="padding: 6px 12px; font-size: 0.88rem; font-weight: 800;">
+                  {{ pendingRestockCount }} {{ currentLang === 'en' ? 'Pending Alerts' : (currentLang === 'mr' ? 'प्रलंबित मागण्या' : 'लंबित मांग') }}
+                </span>
+                <button
+                  type="button"
+                  @click="loadRestockAlerts"
+                  class="btn-secondary"
+                  style="padding: 8px 14px; font-size: 0.84rem; font-weight: 700; border-radius: 8px; cursor: pointer;"
+                >
+                  🔄 {{ currentLang === 'en' ? 'Refresh' : 'रीफ्रेश' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="restockAlertsList.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+              <div style="font-size: 2.5rem; margin-bottom: 10px;">✨</div>
+              <div style="font-weight: 800; font-size: 1.1rem; color: #334155;">
+                {{ currentLang === 'en' ? 'No pending restock requests!' : (currentLang === 'mr' ? 'सध्या कोणतीही प्रलंबित रिस्टॉक मागणी नाही!' : 'फ़िलहाल कोई लंबित रिस्टॉक मांग नहीं है!') }}
+              </div>
+              <div style="font-size: 0.85rem; margin-top: 4px;">
+                {{ currentLang === 'en' ? 'All products are currently adequately stocked or waiting customer alerts will appear here.' : (currentLang === 'mr' ? 'सर्व उत्पादने पुरेशा प्रमाणात उपलब्ध आहेत किंवा ग्राहकांची मागणी येथे दिसेल.' : 'सभी उत्पाद पर्याप्त स्टॉक में हैं या ग्राहकों की मांग यहाँ दिखेगी।') }}
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div v-else class="orders-table-wrapper" style="overflow-x: auto;">
+              <table class="admin-orders-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; font-size: 0.82rem; color: #475569;">
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Customer' : (currentLang === 'mr' ? 'ग्राहक' : 'ग्राहक') }}</th>
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Phone' : (currentLang === 'mr' ? 'मोबाईल' : 'मोबाइल') }}</th>
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Product Requested' : (currentLang === 'mr' ? 'मागितलेले सामान' : 'मांगा गया सामान') }}</th>
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Pack / Size' : (currentLang === 'mr' ? 'वजन / पॅक' : 'वजन / पैक') }}</th>
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Requested On' : (currentLang === 'mr' ? 'नोंदवलेली तारीख' : 'दर्ज तारीख') }}</th>
+                    <th style="padding: 12px 14px;">{{ currentLang === 'en' ? 'Status' : (currentLang === 'mr' ? 'स्थिती' : 'स्थिति') }}</th>
+                    <th style="padding: 12px 14px; text-align: center;">{{ currentLang === 'en' ? 'Action' : (currentLang === 'mr' ? 'कृती' : 'कार्रवाई') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="alert in restockAlertsList" :key="alert.id" style="border-bottom: 1px solid #f1f5f9; font-size: 0.88rem;">
+                    <td style="padding: 12px 14px; font-weight: 800; color: #1e293b;">{{ alert.customer_name }}</td>
+                    <td style="padding: 12px 14px; font-weight: 700; color: #065f46;">📞 {{ alert.customer_phone }}</td>
+                    <td style="padding: 12px 14px; font-weight: 700;">{{ alert.product_name }}</td>
+                    <td style="padding: 12px 14px;">
+                      <span v-if="alert.variant_label" style="background: #f1f5f9; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem;">
+                        {{ alert.variant_label }}
+                      </span>
+                      <span v-else style="color: #64748b;">-</span>
+                    </td>
+                    <td style="padding: 12px 14px; color: #64748b; font-size: 0.82rem;">{{ alert.created_at }}</td>
+                    <td style="padding: 12px 14px;">
+                      <span v-if="alert.is_notified" style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-weight: 800; font-size: 0.78rem;">
+                        ✅ {{ currentLang === 'en' ? 'Restocked & Notified' : (currentLang === 'mr' ? 'कळवले आहे' : 'सूचित किया गया') }}
+                      </span>
+                      <span v-else style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 6px; font-weight: 800; font-size: 0.78rem;">
+                        ⏳ {{ currentLang === 'en' ? 'Waiting / Pending' : (currentLang === 'mr' ? 'प्रलंबित' : 'प्रतीक्षारत') }}
+                      </span>
+                    </td>
+                    <td style="padding: 12px 14px; text-align: center;">
+                      <a
+                        :href="`https://wa.me/91${alert.customer_phone}?text=${encodeURIComponent(`नमस्ते ${alert.customer_name}! कोमल मार्ट (Komal Mart) वर तुम्ही विचारलेले सामान '${alert.product_name}' आता उपलब्ध आहे. लगेच ऑर्डर करण्यासाठी संपर्क करा.`)}`"
+                        target="_blank"
+                        style="background: #25d366; color: white; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;"
+                      >
+                        📲 WhatsApp
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -3791,6 +3904,98 @@
       </div>
     </div>
 
+    <!-- ================================================================= -->
+    <!-- RESTOCK NOTIFICATION MODAL (NOTIFY ME)                            -->
+    <!-- ================================================================= -->
+    <div class="modal-overlay" v-if="showNotifyModal" @click.self="showNotifyModal = false">
+      <div class="modal-card" style="max-width: 440px; border-radius: 16px;">
+        <div class="modal-header">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 900; color: #064e3b;">
+            🔔 {{ t('notify_me_title') }}
+          </div>
+          <button class="close-btn" @click="showNotifyModal = false">✕</button>
+        </div>
+
+        <div style="padding: 20px;">
+          <!-- Product Preview Card -->
+          <div v-if="notifyProduct" style="display: flex; gap: 14px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 16px; align-items: center;">
+            <img :src="notifyProduct.image_url" style="width: 58px; height: 58px; object-fit: cover; border-radius: 8px;" />
+            <div>
+              <div style="font-weight: 800; font-size: 0.95rem; color: #1e293b;">
+                {{ getLocalizedProductName(notifyProduct, currentLang) }}
+              </div>
+              <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
+                <span v-if="notifyVariant" style="background: #e2e8f0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #334155;">
+                  {{ notifyVariant.unit_size }}
+                </span>
+                <span v-else style="color: #ef4444; font-weight: 700;">
+                  🚫 {{ t('out_of_stock') }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p style="font-size: 0.88rem; color: #475569; line-height: 1.45; margin-bottom: 16px;">
+            {{ t('notify_me_desc') }}
+          </p>
+
+          <div v-if="notifyMessage" :class="notifySuccess ? 'auth-success-banner' : 'auth-error-banner'" style="margin-bottom: 14px; font-size: 0.88rem; padding: 10px 14px; border-radius: 8px;">
+            {{ notifyMessage }}
+          </div>
+
+          <form v-if="!notifySuccess" @submit.prevent="submitNotifyMe">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="text-align: left; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">
+                {{ currentLang === 'en' ? 'Customer Name' : (currentLang === 'mr' ? 'ग्राहकाचे नाव' : 'ग्राहक का नाम') }}
+              </label>
+              <input
+                type="text"
+                class="form-input"
+                v-model="notifyForm.customer_name"
+                :placeholder="t('notify_me_name_placeholder')"
+                style="width: 100%; box-sizing: border-box;"
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 18px;">
+              <label class="form-label" style="text-align: left; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">
+                {{ currentLang === 'en' ? 'Mobile Number (10 digits)' : (currentLang === 'mr' ? 'मोबाईल नंबर (१० अंक)' : 'मोबाइल नंबर (१० अंक)') }} <span style="color: #ef4444;">*</span>
+              </label>
+              <input
+                type="tel"
+                class="form-input"
+                v-model="notifyForm.customer_phone"
+                maxlength="10"
+                required
+                :placeholder="t('notify_me_phone_placeholder')"
+                style="width: 100%; box-sizing: border-box; font-weight: 700; letter-spacing: 1px;"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="checkout-btn"
+              :disabled="notifySubmitting"
+              style="width: 100%; padding: 12px; font-size: 0.95rem; font-weight: 800; border-radius: 8px; background: #059669; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;"
+            >
+              <span v-if="notifySubmitting">⏳...</span>
+              <span v-else>{{ t('notify_me_submit') }}</span>
+            </button>
+          </form>
+
+          <div v-else style="text-align: center; margin-top: 10px;">
+            <button
+              class="btn-secondary"
+              @click="showNotifyModal = false"
+              style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer;"
+            >
+              OK 👍
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Floating Sticky Cart Pill (Blinkit / Zepto Style) -->
     <div
       v-if="!isAdminLoggedIn && cart.length > 0 && !isCartOpen"
@@ -4073,6 +4278,14 @@
                   <button class="add-to-cart-btn btn-out-of-stock" style="padding: 12px 24px; font-size: 1rem;" disabled>
                     🚫 {{ t('out_of_stock') }}
                   </button>
+                  <button
+                    type="button"
+                    class="btn-notify-me"
+                    @click="openNotifyModal(selectedProductQuickView, getActiveVariant(selectedProductQuickView))"
+                    style="margin-top: 10px; width: 100%; background: #ecfdf5; border: 1.5px solid #059669; color: #065f46; font-weight: 700; font-size: 0.92rem; padding: 10px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;"
+                  >
+                    {{ t('notify_me_btn') }}
+                  </button>
                 </div>
                 <div v-else-if="getCartItemQuantity(selectedProductQuickView.id, getActiveVariant(selectedProductQuickView).id) === 0">
                   <button
@@ -4299,6 +4512,18 @@ const dismissInstallBanner = () => {
 // Mobile Navigation & Floating Cart State
 const currentBottomTab = ref('home');
 const showMobileCategorySheet = ref(false);
+
+// --- RESTOCK ALERTS & HOT BACKUPS STATE ---
+const showNotifyModal = ref(false);
+const notifyProduct = ref(null);
+const notifyVariant = ref(null);
+const notifyForm = ref({ customer_name: '', customer_phone: '' });
+const notifySubmitting = ref(false);
+const notifyMessage = ref('');
+const notifySuccess = ref(false);
+
+const restockAlertsList = ref([]);
+const pendingRestockCount = ref(0);
 
 function handleBottomNav(tab) {
   currentBottomTab.value = tab;
@@ -6698,6 +6923,116 @@ function getCategoryEmoji(slug) {
     'household-cleaning': '🧼'
   };
   return map[slug] || '📦';
+}
+
+// --- RESTOCK ALERTS & HOT BACKUPS ACTION METHODS ---
+
+function openNotifyModal(prod, variant) {
+  if (!prod) return;
+  notifyProduct.value = prod;
+  notifyVariant.value = variant || null;
+  notifyMessage.value = '';
+  notifySuccess.value = false;
+  notifyForm.value = {
+    customer_name: currentUser.value ? currentUser.value.name : '',
+    customer_phone: currentUser.value ? currentUser.value.phone : ''
+  };
+  showNotifyModal.value = true;
+}
+
+async function submitNotifyMe() {
+  if (!notifyProduct.value) return;
+  const phone = (notifyForm.value.customer_phone || '').trim();
+  if (!phone || phone.length !== 10) {
+    notifyMessage.value = currentLang.value === 'en' ? 'Please enter a valid 10-digit mobile number' : (currentLang.value === 'mr' ? 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका' : 'कृपया १० अंकों का वैध मोबाइल नंबर लिखें');
+    notifySuccess.value = false;
+    return;
+  }
+  notifySubmitting.value = true;
+  notifyMessage.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/products/${notifyProduct.value.id}/notify-me`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken.value ? { 'Authorization': `Bearer ${authToken.value}` } : {})
+      },
+      body: JSON.stringify({
+        customer_name: notifyForm.value.customer_name.trim(),
+        customer_phone: phone,
+        variant_id: notifyVariant.value ? notifyVariant.value.id : null
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      notifySuccess.value = true;
+      notifyMessage.value = data.message || t('notify_me_success');
+      showToast(notifyMessage.value);
+    } else {
+      notifySuccess.value = false;
+      notifyMessage.value = data.error || 'Failed to register notification alert.';
+    }
+  } catch (err) {
+    notifySuccess.value = false;
+    notifyMessage.value = 'Network error. Please try again.';
+  } finally {
+    notifySubmitting.value = false;
+  }
+}
+
+async function loadRestockAlerts() {
+  if (!authToken.value) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/restock-alerts`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      restockAlertsList.value = data.alerts || [];
+      pendingRestockCount.value = data.pending_count || 0;
+    }
+  } catch (err) {
+    console.error('Failed to load restock alerts:', err);
+  }
+}
+
+async function downloadDatabaseBackup() {
+  if (!authToken.value) {
+    showToast('Admin login required');
+    return;
+  }
+  try {
+    showToast(currentLang.value === 'en' ? '⏳ Generating safe hot database backup...' : (currentLang.value === 'mr' ? '⏳ सुरक्षित हॉट बॅकअप तयार होत आहे...' : '⏳ सुरक्षित हॉट बैकअप तैयार हो रहा है...'));
+    const res = await fetch(`${API_BASE}/admin/backup/download?compress=true`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Backup download failed');
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = res.headers.get('Content-Disposition');
+    let filename = `kirana_backup_${new Date().toISOString().replace(/[-:T]/g, '_').slice(0, 15)}.db.gz`;
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+      const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+      if (matches != null && matches[1]) {
+        filename = matches[1].replace(/['"]/g, '');
+      }
+    }
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    showToast(currentLang.value === 'en' ? '✅ Database snapshot downloaded!' : (currentLang.value === 'mr' ? '✅ डेटाबेस बॅकअप डाऊनलोड झाला!' : '✅ डेटाबेस बैकअप डाउनलोड हो गया!'));
+  } catch (err) {
+    console.error('Backup download error:', err);
+    showToast('Failed to download database backup');
+  }
 }
 
 // --- 1-CLICK DOWNLOADABLE PDF BILL & DAILY Z-REPORT METHODS ---

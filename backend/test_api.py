@@ -159,4 +159,86 @@ print("Admin Users Directory:", users_res.status_code, "Registered Customers:", 
 assert users_res.status_code == 200
 assert len(users_res.get_json()) > 0
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, DYNAMIC CATEGORIES & SECURITY TESTS PASSED 100%!")
+# 11. SQLite WAL Mode Concurrency Verification
+with app.app_context():
+    from models import db
+    import sqlalchemy as sa
+    with db.engine.connect() as conn:
+        res = conn.execute(sa.text("PRAGMA journal_mode")).fetchone()
+        journal_mode = res[0].lower() if res else ''
+        print(f"SQLite Journal Mode: {journal_mode} (Expected: wal)")
+        assert journal_mode == 'wal', f"Expected wal, got {journal_mode}"
+
+# 12. "Notify Me" Restock Alert System Test
+# Step A: Mark variant 1 as out of stock
+patch_stock_zero = client.patch(
+    '/api/variants/1',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'stock_quantity': 0, 'is_available': False}
+)
+assert patch_stock_zero.status_code == 200
+
+# Step B: Customer registers restock alert
+notify_res = client.post('/api/products/1', json={
+    'customer_name': 'Santosh Patil',
+    'customer_phone': '9820011223',
+    'variant_id': 1
+})
+# Product 1 notify-me endpoint
+notify_res = client.post('/api/products/1/notify-me', json={
+    'customer_name': 'Santosh Patil',
+    'customer_phone': '9820011223',
+    'variant_id': 1
+})
+print("Restock Alert Registration:", notify_res.status_code, notify_res.get_json().get('message'))
+assert notify_res.status_code == 201
+
+# Step C: Duplicate registration prevention
+dup_notify = client.post('/api/products/1/notify-me', json={
+    'customer_name': 'Santosh Patil',
+    'customer_phone': '9820011223',
+    'variant_id': 1
+})
+assert dup_notify.status_code == 200
+assert dup_notify.get_json().get('already_registered') == True
+print("Duplicate Restock Alert Prevention:", dup_notify.status_code, "Already Registered Flag: True")
+
+# Step D: Admin views restock alerts
+alerts_res = client.get('/api/admin/restock-alerts', headers={'Authorization': f'Bearer {admin_token}'})
+assert alerts_res.status_code == 200
+assert alerts_res.get_json()['pending_count'] >= 1
+print("Admin Pending Restock Alerts Count:", alerts_res.get_json()['pending_count'])
+
+# Step E: Admin restocks variant 1 (triggers notification)
+restock_res = client.patch(
+    '/api/variants/1',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'stock_quantity': 50, 'is_available': True}
+)
+assert restock_res.status_code == 200
+notified_count = restock_res.get_json().get('notified_count', 0)
+print("Admin Restock Action:", restock_res.status_code, "Notified Customers:", notified_count)
+assert notified_count >= 1
+
+# 13. Safe SQLite Hot Backup Engine Test
+backup_create_res = client.post(
+    '/api/admin/backup/create',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'compress': True}
+)
+print("Admin Backup Create API:", backup_create_res.status_code, backup_create_res.get_json().get('message'))
+assert backup_create_res.status_code == 201
+assert backup_create_res.get_json().get('integrity_ok') == True
+
+backup_list_res = client.get('/api/admin/backup/list', headers={'Authorization': f'Bearer {admin_token}'})
+print("Admin Backup List API:", backup_list_res.status_code, "Total Snapshots:", backup_list_res.get_json().get('count'))
+assert backup_list_res.status_code == 200
+assert backup_list_res.get_json()['count'] >= 1
+
+backup_dl_res = client.get('/api/admin/backup/download?compress=true', headers={'Authorization': f'Bearer {admin_token}'})
+print("Admin 1-Click Backup Download API:", backup_dl_res.status_code, "Content-Length:", len(backup_dl_res.data), "bytes")
+assert backup_dl_res.status_code == 200
+assert len(backup_dl_res.data) > 1000
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS & HOT BACKUP TESTS PASSED 100%!")
+
