@@ -1,6 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Indian Standard Time (IST = UTC + 05:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_time():
+    return datetime.now(IST).replace(tzinfo=None)
 
 db = SQLAlchemy()
 
@@ -15,7 +21,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     address = db.Column(db.Text, nullable=True)
     role = db.Column(db.String(20), default='customer') # 'customer' or 'admin'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
 
     orders = db.relationship('Order', backref='customer', lazy=True)
 
@@ -72,7 +78,7 @@ class Product(db.Model):
     is_loose = db.Column(db.Boolean, default=False)
     description = db.Column(db.Text, nullable=True)
     image_url = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
 
     variants = db.relationship('ProductVariant', backref='product', lazy=True, cascade="all, delete-orphan")
 
@@ -140,7 +146,7 @@ class Order(db.Model):
     payment_method = db.Column(db.String(50), default='Cash on Delivery')
     payment_status = db.Column(db.String(30), default='Unpaid') # 'Paid' or 'Unpaid / Khata'
     status = db.Column(db.String(30), default='Placed') # Placed, Packed, Out for Delivery, Delivered
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 

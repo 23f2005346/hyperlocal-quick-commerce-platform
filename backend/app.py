@@ -12,7 +12,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from models import db, User, Category, Product, ProductVariant, Order, OrderItem
+from models import db, User, Category, Product, ProductVariant, Order, OrderItem, get_ist_time
 from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
 
 # Ensure UTF-8 stdout encoding on Windows consoles to prevent charmap crashes
@@ -187,7 +187,7 @@ def create_app():
         try:
             data = serializer.loads(token, max_age=86400 * 30) # 30 days
             user_id = data.get('user_id')
-            return User.query.get(user_id)
+            return db.session.get(User, user_id)
         except (SignatureExpired, BadSignature, Exception):
             return None
 
@@ -373,7 +373,7 @@ def create_app():
 
         # OTP valid! Issue Admin JWT Token
         ADMIN_2FA_STORE.pop(email, None)
-        user = User.query.get(record['user_id'])
+        user = db.session.get(User, record['user_id'])
         if not user or user.role != 'admin':
             return jsonify({'error': 'Unauthorized admin account', 'code': 'UNAUTHORIZED_ADMIN'}), 403
 
@@ -540,7 +540,7 @@ def create_app():
         else:
             payment_status = 'Unpaid'
 
-        order_number = f"KRN-{datetime.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+        order_number = f"KRN-{get_ist_time().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
 
         total_mrp = 0.0
         final_amount = 0.0
@@ -550,7 +550,7 @@ def create_app():
             # Support both standard variant and custom loose weight items
             if item.get('is_custom_weight'):
                 prod_id = item.get('product_id')
-                product = Product.query.get(prod_id)
+                product = db.session.get(Product, prod_id) if prod_id else None
                 prod_name = product.name if product else item.get('product_name', 'Kirana Item')
                 unit_label = item.get('unit_size', '1kg')
                 unit_price = float(item.get('unit_price', 30.0))
@@ -574,7 +574,7 @@ def create_app():
                 variant_id = item.get('variant_id')
                 qty = int(item.get('quantity', 1))
 
-                variant = ProductVariant.query.get(variant_id)
+                variant = db.session.get(ProductVariant, variant_id) if variant_id else None
                 if not variant:
                     continue
 
@@ -871,11 +871,11 @@ def create_app():
         # Link to customer account if user_id given or phone matches
         linked_user = None
         if data.get('user_id'):
-            linked_user = User.query.get(data['user_id'])
+            linked_user = db.session.get(User, data['user_id'])
         elif customer_phone and customer_phone != '9999999999':
             linked_user = User.query.filter_by(phone=customer_phone).first()
 
-        order_number = f"KRN-{datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+        order_number = f"KRN-{get_ist_time().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
 
         total_mrp = 0.0
         final_amount = 0.0
@@ -885,7 +885,7 @@ def create_app():
             is_custom = item.get('is_custom_weight', False)
             if is_custom:
                 prod_id = item.get('product_id')
-                product = Product.query.get(prod_id) if prod_id else None
+                product = db.session.get(Product, prod_id) if prod_id else None
                 prod_name = product.name if product else item.get('product_name', 'किराना सामान')
                 unit_label = item.get('unit_size', '1kg')
                 unit_price = float(item.get('unit_price', 30.0))
@@ -909,7 +909,7 @@ def create_app():
                 variant_id = item.get('variant_id')
                 qty = int(item.get('quantity', 1))
 
-                variant = ProductVariant.query.get(variant_id) if variant_id else None
+                variant = db.session.get(ProductVariant, variant_id) if variant_id else None
                 if variant:
                     if variant.stock_quantity >= qty:
                         variant.stock_quantity -= qty
