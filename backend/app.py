@@ -1142,5 +1142,5 @@ def seed_database():
 
 if __name__ == '__main__':
     app = create_app()
-    print("Starting Apna Desi Kirana Store Backend API on http://127.0.0.1:5000 ...")
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    print("Starting Apna Desi Kirana Store Backend API on http://0.0.0.0:5000 ...")
+    app.run(host='0.0.0.0', port=5000, debug=True)

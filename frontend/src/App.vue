@@ -101,6 +101,9 @@
           </div>
         </div>
         <div class="pwa-banner-right">
+          <button class="pwa-btn-qr" @click="showQRModal = true" title="Scan with Phone">
+            📱 Phone QR
+          </button>
           <button class="pwa-btn-install" @click="triggerInstall">
             📲 {{ t('pwa_install_btn') }}
           </button>
@@ -173,6 +176,11 @@
             <!-- PWA Install Button in Header -->
             <button v-if="canInstallPWA && !isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')">
               📲 <span>{{ t('pwa_install_btn') }}</span>
+            </button>
+
+            <!-- QR Code Button to Open on Phone -->
+            <button class="qr-header-btn" @click="showQRModal = true" title="Scan to open on Phone">
+              📱 <span>Scan on Phone</span>
             </button>
 
             <!-- Shopping Cart (Only for Customers / Guests) -->
@@ -3453,6 +3461,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Phone QR Code Modal -->
+    <div class="modal-overlay" v-if="showQRModal" @click.self="showQRModal = false">
+      <div class="modal-card" style="max-width: 440px; text-align: center; padding: 28px;">
+        <div style="font-size: 2.5rem; margin-bottom: 8px;">📱</div>
+        <h3 style="font-size: 1.35rem; font-weight: 800; color: #064e3b; margin-bottom: 6px;">
+          Open & Install on Phone
+        </h3>
+        <p style="font-size: 0.88rem; color: #64748b; line-height: 1.4; margin-bottom: 16px;">
+          Scan this QR code with your phone's camera or Google Lens to open <strong>Komal Mart</strong> directly on your mobile!
+        </p>
+
+        <div style="background: #f8fafc; border: 2.5px dashed #059669; border-radius: 16px; padding: 14px; display: inline-block; margin-bottom: 16px;">
+          <img src="/phone-qr.png" alt="Scan to open on phone" width="220" height="220" style="display: block; border-radius: 8px;" />
+        </div>
+
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 0.84rem; color: #065f46; text-align: left;">
+          <strong>💡 3 Quick Steps:</strong>
+          <ol style="margin: 6px 0 0 16px; padding: 0; line-height: 1.5;">
+            <li>Ensure phone & laptop are on the same Wi-Fi.</li>
+            <li>Scan the QR code with phone camera / Lens.</li>
+            <li>Tap <strong>"Install App"</strong> on phone to add the app icon!</li>
+          </ol>
+        </div>
+
+        <button class="submit-btn" @click="showQRModal = false" style="width: 100%;">
+          Close
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -3460,13 +3498,14 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { translations, marathiProductNames, getLocalizedProductName, getLocalizedCategoryName } from './i18n.js';
 
-const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:5000/api' : '/api';
+const API_BASE = '/api';
 
 // PWA Installation State
 const deferredInstallPrompt = ref(null);
 const showInstallBanner = ref(false);
 const isAppInstalled = ref(false);
 const showIOSModal = ref(false);
+const showQRModal = ref(false);
 
 const isIOS = () => {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
