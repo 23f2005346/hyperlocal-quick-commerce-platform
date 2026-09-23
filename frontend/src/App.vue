@@ -709,11 +709,11 @@
             <input
               type="text"
               v-model="adminSearch"
-              placeholder="सामान खोजें (Filter items)..."
+              :placeholder="currentLang === 'en' ? 'Filter items...' : (currentLang === 'mr' ? 'सामान शोधा...' : 'सामान खोजें...')"
               style="padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; min-width: 300px;"
             />
             <span style="font-size: 0.88rem; color: var(--text-muted);">
-              कुल सामान: <strong>{{ filteredAdminProducts.length }}</strong>
+              {{ currentLang === 'en' ? 'Total Items:' : (currentLang === 'mr' ? 'एकूण सामान:' : 'कुल सामान:') }} <strong>{{ filteredAdminProducts.length }}</strong>
             </span>
           </div>
 
@@ -743,10 +743,10 @@
                     </td>
                     <td>
                       <span v-if="prod.is_loose" style="background: #fffbeb; color: #b45309; padding: 2px 7px; border-radius: 4px; font-size: 0.76rem; font-weight: 800;">
-                        खुला
+                        {{ currentLang === 'en' ? 'Loose' : 'खुला' }}
                       </span>
                       <span v-else style="background: #eff6ff; color: #1d4ed8; padding: 2px 7px; border-radius: 4px; font-size: 0.76rem; font-weight: 800;">
-                        पैकेट
+                        {{ currentLang === 'en' ? 'Packed' : 'पैकेट' }}
                       </span>
                     </td>
                     <td style="font-size: 0.84rem; color: var(--text-muted);">{{ prod.brand }}</td>
@@ -785,7 +785,7 @@
                         class="stock-toggle-pill"
                         :class="(v.is_in_stock !== false && v.is_available) ? 'stock-in' : 'stock-out'"
                         @click="toggleVariantStock(v)"
-                        :title="(v.is_in_stock !== false && v.is_available) ? 'क्लिक करून आउट-ऑफ-स्टॉक करा' : 'क्लिक करून इन-स्टॉक करा'"
+                        :title="currentLang === 'en' ? 'Click to toggle stock status' : ((v.is_in_stock !== false && v.is_available) ? 'क्लिक करून आउट-ऑफ-स्टॉक करा' : 'क्लिक करून इन-स्टॉक करा')"
                       >
                         <span class="stock-dot"></span>
                         {{ (v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn') }}
@@ -798,21 +798,21 @@
                           class="save-chip-btn photo-edit-btn"
                           style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;"
                           @click="openEditPhotosModal(prod)"
-                          title="सामान के 3-अँगल फोटो बदलें / जोड़ें"
+                          :title="currentLang === 'en' ? 'Change / Add 3-angle photos' : 'सामान के 3-अँगल फोटो बदलें / जोड़ें'"
                         >
-                          📸 फोटो ({{ prod.images ? prod.images.length : 1 }})
+                          📸 {{ currentLang === 'en' ? 'Photos' : 'फोटो' }} ({{ prod.images ? prod.images.length : 1 }})
                         </button>
                         <button
                           class="save-chip-btn"
                           @click="saveVariantPrice(v)"
-                          title="Save changed price to SQLite"
+                          :title="currentLang === 'en' ? 'Save changed price to SQLite' : 'बदलेली किंमत सेव्ह करा'"
                         >
-                          💾 सेव करें
+                          💾 {{ currentLang === 'en' ? 'Save' : (currentLang === 'mr' ? 'सेव्ह करा' : 'सेव करें') }}
                         </button>
                         <button
                           class="delete-product-btn"
                           @click="deleteAdminProduct(prod.id, prod.name)"
-                          title="इस सामान को दुकान से हटाएं"
+                          :title="currentLang === 'en' ? 'Delete this item from store' : 'इस सामान को दुकान से हटाएं'"
                         >
                           🗑️
                         </button>
@@ -831,14 +831,14 @@
             <!-- Left Column: Customer & Item Builder -->
             <div class="pos-card">
               <div class="pos-card-title">
-                <span>⚡ {{ currentLang === 'mr' ? 'नवीन काउंटर बिल तपशील (Walk-in / Phone Order)' : 'नया काउंटर बिल विवरण (Walk-in / Phone Order)' }}</span>
+                <span>⚡ {{ currentLang === 'en' ? 'New Counter Bill Details (Walk-in / Phone Order)' : (currentLang === 'mr' ? 'नवीन काउंटर बिल तपशील (Walk-in / Phone Order)' : 'नया काउंटर बिल विवरण (Walk-in / Phone Order)') }}</span>
               </div>
 
               <!-- Customer Info -->
               <div class="pos-form-grid">
                 <!-- Select Existing Customer -->
                 <div class="pos-input-group" style="grid-column: 1 / -1;">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'नोंदणीकृत ग्राहक निवडा (किंवा खाली नवीन नाव लिहा)' : 'पंजीकृत ग्राहक चुनें (या नीचे नया नाम लिखें)' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Select Registered Customer (or type new name below)' : (currentLang === 'mr' ? 'नोंदणीकृत ग्राहक निवडा (किंवा खाली नवीन नाव लिहा)' : 'पंजीकृत ग्राहक चुनें (या नीचे नया नाम लिखें)') }}</label>
                   <select
                     class="pos-select"
                     @change="(e) => {
@@ -847,9 +847,9 @@
                       selectRegisteredCustomerForPos(cust);
                     }"
                   >
-                    <option value="">-- {{ currentLang === 'mr' ? 'नोंदणीकृत ग्राहक शोधा / निवडा' : 'पंजीकृत ग्राहक खोजें / चुनें' }} --</option>
+                    <option value="">-- {{ currentLang === 'en' ? 'Search / Select Registered Customer' : (currentLang === 'mr' ? 'नोंदणीकृत ग्राहक शोधा / निवडा' : 'पंजीकृत ग्राहक खोजें / चुनें') }} --</option>
                     <option v-for="c in adminCustomers" :key="c.id" :value="c.id">
-                      {{ c.name }} (📞 {{ c.phone }}) {{ c.unpaid_balance > 0 ? `[🔴 बाकी ₹${c.unpaid_balance}]` : '' }}
+                      {{ c.name }} (📞 {{ c.phone }}) {{ c.unpaid_balance > 0 ? (currentLang === 'en' ? `[🔴 Due ₹${c.unpaid_balance}]` : `[🔴 बाकी ₹${c.unpaid_balance}]`) : '' }}
                     </option>
                   </select>
                 </div>
@@ -865,23 +865,23 @@
                       <input type="checkbox" v-model="posUseStoreCredit" style="width: 16px; height: 16px; accent-color: #059669;" />
                       <span>{{ t('use_store_credit') }} (-₹{{ posAppliedCredit.toFixed(2) }})</span>
                     </label>
-                    <span v-else style="font-size: 0.76rem; color: #b45309;">(शिल्लक ० आहे)</span>
+                    <span v-else style="font-size: 0.76rem; color: #b45309;">({{ currentLang === 'en' ? 'Balance is 0' : (currentLang === 'mr' ? 'शिल्लक ० आहे' : 'शेष ० है') }})</span>
                   </div>
                 </div>
 
                 <div class="pos-input-group">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'ग्राहकाचे नाव *' : 'ग्राहक का नाम *' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Customer Name *' : (currentLang === 'mr' ? 'ग्राहकाचे नाव *' : 'ग्राहक का नाम *') }}</label>
                   <input
                     type="text"
                     v-model="counterOrder.customer_name"
                     @input="onPosCustomerManualEdit"
                     class="pos-input"
-                    placeholder="उदा. रमेश हॉटेल / राहुल पाटील"
+                    :placeholder="currentLang === 'en' ? 'e.g. Ramesh Hotel / Rahul Patil' : (currentLang === 'mr' ? 'उदा. रमेश हॉटेल / राहुल पाटील' : 'उदा. रमेश होटल / राहुल पाटिल')"
                   />
                 </div>
 
                 <div class="pos-input-group">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'मोबाईल नंबर *' : 'मोबाइल नंबर *' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Mobile Number *' : (currentLang === 'mr' ? 'मोबाईल नंबर *' : 'मोबाइल नंबर *') }}</label>
                   <input
                     type="text"
                     v-model="counterOrder.customer_phone"
@@ -892,12 +892,12 @@
                 </div>
 
                 <div class="pos-input-group" style="grid-column: 1 / -1;">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'पत्ता / डिलिव्हरी ठिकाण' : 'पता / डिलीवरी स्थान' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Address / Delivery Location' : (currentLang === 'mr' ? 'पत्ता / डिलिव्हरी ठिकाण' : 'पता / डिलीवरी स्थान') }}</label>
                   <input
                     type="text"
                     v-model="counterOrder.customer_address"
                     class="pos-input"
-                    placeholder="दुकान काउंटर / टेबल / हॉटेल पत्ता"
+                    :placeholder="currentLang === 'en' ? 'Counter / Hotel / Home address' : (currentLang === 'mr' ? 'दुकान काउंटर / टेबल / हॉटेल पत्ता' : 'दुकान काउंटर / टेबल / होटल पता')"
                   />
                 </div>
               </div>
@@ -905,25 +905,25 @@
               <!-- Order & Payment Type -->
               <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="pos-input-group">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'ऑर्डर प्रकार' : 'ऑर्डर प्रकार' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Order Type' : (currentLang === 'mr' ? 'ऑर्डर प्रकार' : 'ऑर्डर प्रकार') }}</label>
                   <select v-model="counterOrder.order_type" class="pos-select">
-                    <option value="counter">🏬 दुकानातून घेतला (In-Store)</option>
-                    <option value="delivery">🚚 होम डिलिव्हरी (Home Delivery)</option>
-                    <option value="restaurant">🍽️ हॉटेल/रेस्टॉरंट सप्लाय (Commercial)</option>
+                    <option value="counter">{{ currentLang === 'en' ? '🏬 In-Store / Counter' : (currentLang === 'mr' ? '🏬 दुकानातून घेतला (In-Store)' : '🏬 दुकान से लिया (In-Store)') }}</option>
+                    <option value="delivery">{{ currentLang === 'en' ? '🚚 Home Delivery' : (currentLang === 'mr' ? '🚚 होम डिलिव्हरी (Home Delivery)' : '🚚 होम डिलीवरी (Home Delivery)') }}</option>
+                    <option value="restaurant">{{ currentLang === 'en' ? '🍽️ Hotel / Commercial Supply' : (currentLang === 'mr' ? '🍽️ हॉटेल/रेस्टॉरंट सप्लाय (Commercial)' : '🍽️ होटल/रेस्टोरेंट सप्लाई (Commercial)') }}</option>
                   </select>
                 </div>
 
                 <div class="pos-input-group">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'भुगतान पद्धत' : 'भुगतान माध्यम' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Payment Method' : (currentLang === 'mr' ? 'भुगतान पद्धत' : 'भुगतान माध्यम') }}</label>
                   <select v-model="counterOrder.payment_method" class="pos-select">
-                    <option value="Cash on Counter">💵 रोख नकद (Cash)</option>
-                    <option value="UPI Instant">📱 ऑनलाइन UPI (GPay/PhonePe)</option>
-                    <option value="Kirana Khata (Credit)">🔴 मासिक उधारी खाते (Credit)</option>
+                    <option value="Cash on Counter">{{ currentLang === 'en' ? '💵 Cash' : (currentLang === 'mr' ? '💵 रोख नकद (Cash)' : '💵 नकद (Cash)') }}</option>
+                    <option value="UPI Instant">{{ currentLang === 'en' ? '📱 Online UPI (GPay/PhonePe)' : (currentLang === 'mr' ? '📱 ऑनलाइन UPI (GPay/PhonePe)' : '📱 ऑनलाइन UPI (GPay/PhonePe)') }}</option>
+                    <option value="Kirana Khata (Credit)">{{ currentLang === 'en' ? '🔴 Monthly Khata Credit' : (currentLang === 'mr' ? '🔴 मासिक उधारी खाते (Credit)' : '🔴 मासिक उधारी खाता (Credit)') }}</option>
                   </select>
                 </div>
 
                 <div class="pos-input-group" style="grid-column: 1 / -1;">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'पेमेंट स्थिती' : 'पेमेंट स्थिति' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Payment Status' : (currentLang === 'mr' ? 'पेमेंट स्थिती' : 'पेमेंट स्थिति') }}</label>
                   <div class="pos-type-chips">
                     <button
                       type="button"
@@ -931,7 +931,7 @@
                       :class="{ active: counterOrder.payment_status === 'Paid' }"
                       @click="counterOrder.payment_status = 'Paid'"
                     >
-                      🟢 चुकता (Paid)
+                      🟢 {{ currentLang === 'en' ? 'Paid' : 'चुकता (Paid)' }}
                     </button>
                     <button
                       type="button"
@@ -940,7 +940,7 @@
                       @click="counterOrder.payment_status = 'Unpaid'"
                       style="color: #b91c1c;"
                     >
-                      🔴 बाकी उधारी (Unpaid / Khata)
+                      🔴 {{ currentLang === 'en' ? 'Unpaid / Khata' : 'बाकी उधारी (Unpaid / Khata)' }}
                     </button>
                   </div>
                 </div>
@@ -949,19 +949,19 @@
               <!-- Item Selector -->
               <div class="pos-item-selector">
                 <div style="font-weight: 800; font-size: 0.95rem; color: #064e3b; margin-bottom: 10px;">
-                  🛒 {{ currentLang === 'mr' ? 'सामान निवडा व जोडा' : 'सामान चुनें व जोड़ें' }}
+                  🛒 {{ currentLang === 'en' ? 'Select & Add Items' : (currentLang === 'mr' ? 'सामान निवडा व जोडा' : 'सामान चुनें व जोड़ें') }}
                 </div>
 
                 <div class="pos-input-group">
-                  <label class="pos-label">{{ currentLang === 'mr' ? 'सामान शोधा (Product Name)' : 'सामान खोजें (Product Name)' }}</label>
+                  <label class="pos-label">{{ currentLang === 'en' ? 'Search Product' : (currentLang === 'mr' ? 'सामान शोधा (Product Name)' : 'सामान खोजें (Product Name)') }}</label>
                   <select
                     class="pos-select"
                     v-model="posSelectedProduct"
                     @change="onPosProductSelect(posSelectedProduct)"
                   >
-                    <option :value="null">-- {{ currentLang === 'mr' ? 'सामान निवडा...' : 'सामान चुनें...' }} --</option>
+                    <option :value="null">-- {{ currentLang === 'en' ? 'Select Product...' : (currentLang === 'mr' ? 'सामान निवडा...' : 'सामान चुनें...') }} --</option>
                     <option v-for="p in products" :key="p.id" :value="p">
-                      {{ getLocalizedTitle(p) }} {{ p.brand ? `(${p.brand})` : '' }} - {{ p.is_loose ? 'मोकळा (Loose)' : 'पॅक (Packed)' }}
+                      {{ getLocalizedTitle(p) }} {{ p.brand ? `(${p.brand})` : '' }} - {{ p.is_loose ? (currentLang === 'en' ? 'Loose' : (currentLang === 'mr' ? 'मोकळा (Loose)' : 'खुला (Loose)')) : (currentLang === 'en' ? 'Packed' : (currentLang === 'mr' ? 'पॅक (Packed)' : 'पैकेट (Packed)')) }}
                     </option>
                   </select>
                 </div>
@@ -971,11 +971,11 @@
                   <!-- Loose Custom Weight Mode -->
                   <div v-if="posSelectedProduct.is_loose || isLooseProduct(posSelectedProduct)">
                     <div style="font-size: 0.82rem; color: #059669; font-weight: 800; margin-bottom: 6px;">
-                      🌾 मोकळा माल (Loose Mandi Commodity - Custom kg)
+                      🌾 {{ currentLang === 'en' ? 'Loose Mandi Commodity (Custom kg)' : (currentLang === 'mr' ? 'मोकळा माल (Loose Mandi Commodity - Custom kg)' : 'खुला राशन (Loose Mandi Commodity - Custom kg)') }}
                     </div>
                     <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
                       <div class="pos-input-group" style="flex: 1; min-width: 120px;">
-                        <label class="pos-label">{{ currentLang === 'mr' ? 'वजन (किलो / kg)' : 'वजन (किलो / kg)' }}</label>
+                        <label class="pos-label">{{ currentLang === 'en' ? 'Weight (kg)' : 'वजन (किलो / kg)' }}</label>
                         <input
                           type="number"
                           step="0.25"
@@ -986,7 +986,7 @@
                         />
                       </div>
                       <div class="pos-input-group" style="flex: 1; min-width: 120px;">
-                        <label class="pos-label">{{ currentLang === 'mr' ? 'दर (₹ प्रति किलो)' : 'दर (₹ प्रति किलो)' }}</label>
+                        <label class="pos-label">{{ currentLang === 'en' ? 'Rate (₹ per kg)' : (currentLang === 'mr' ? 'दर (₹ प्रति किलो)' : 'दर (₹ प्रति किलो)') }}</label>
                         <input
                           type="number"
                           v-model.number="posCustomRate"
@@ -995,16 +995,16 @@
                       </div>
                     </div>
                     <div v-if="getMatchingTierInfo(posSelectedProduct, posCustomWeight)" style="margin-top: 6px; font-size: 0.8rem; color: #047857; font-weight: 800;">
-                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posCustomWeight).tier_label }} लागू झाला! (₹{{ posCustomRate }}/kg)
+                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posCustomWeight).tier_label }} {{ currentLang === 'en' ? 'applied!' : (currentLang === 'mr' ? 'लागू झाला!' : 'लागू हुआ!') }} (₹{{ posCustomRate }}/kg)
                     </div>
                     <!-- Quick Weight Chips -->
                     <div class="pos-type-chips" style="margin-top: 8px;">
                       <button type="button" class="pos-type-chip" @click="posCustomWeight = 1.0; updatePosTierRate();">1 kg</button>
                       <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.0; updatePosTierRate();">2 kg</button>
                       <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.5; updatePosTierRate();">2.5 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 5.0; updatePosTierRate();">5 kg (होलसेल)</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 5.0; updatePosTierRate();">5 kg ({{ currentLang === 'en' ? 'Wholesale' : 'होलसेल' }})</button>
                       <button type="button" class="pos-type-chip" @click="posCustomWeight = 10.0; updatePosTierRate();">10 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 25.0; updatePosTierRate();">25 kg बोरी</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 25.0; updatePosTierRate();">25 kg {{ currentLang === 'en' ? 'Sack' : 'बोरी' }}</button>
                     </div>
                   </div>
 
@@ -1012,7 +1012,7 @@
                   <div v-else>
                     <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
                       <div class="pos-input-group" style="flex: 1.5; min-width: 150px;">
-                        <label class="pos-label">{{ currentLang === 'mr' ? 'पॅक / वजन प्रकार' : 'पैक / वजन प्रकार' }}</label>
+                        <label class="pos-label">{{ currentLang === 'en' ? 'Pack / Variant' : (currentLang === 'mr' ? 'पॅक / वजन प्रकार' : 'पैक / वजन प्रकार') }}</label>
                         <select
                           v-model="posSelectedVariant"
                           class="pos-select"
@@ -1024,7 +1024,7 @@
                         </select>
                       </div>
                       <div class="pos-input-group" style="flex: 1; min-width: 90px;">
-                        <label class="pos-label">{{ currentLang === 'mr' ? 'नग (Quantity)' : 'नग (Quantity)' }}</label>
+                        <label class="pos-label">{{ currentLang === 'en' ? 'Quantity' : (currentLang === 'mr' ? 'नग (Quantity)' : 'नग (Quantity)') }}</label>
                         <input
                           type="number"
                           min="1"
@@ -1034,7 +1034,7 @@
                         />
                       </div>
                       <div class="pos-input-group" style="flex: 1; min-width: 110px;">
-                        <label class="pos-label">{{ currentLang === 'mr' ? 'दर (₹ Unit Rate)' : 'दर (₹ Unit Rate)' }}</label>
+                        <label class="pos-label">{{ currentLang === 'en' ? 'Unit Rate (₹)' : (currentLang === 'mr' ? 'दर (₹ Unit Rate)' : 'दर (₹ Unit Rate)') }}</label>
                         <input
                           type="number"
                           v-model.number="posCustomRate"
@@ -1043,7 +1043,7 @@
                       </div>
                     </div>
                     <div v-if="getMatchingTierInfo(posSelectedProduct, posQuantity)" style="margin-top: 6px; font-size: 0.8rem; color: #047857; font-weight: 800;">
-                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posQuantity).tier_label }} लागू झाला! (₹{{ posCustomRate }}/unit)
+                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posQuantity).tier_label }} {{ currentLang === 'en' ? 'applied!' : (currentLang === 'mr' ? 'लागू झाला!' : 'लागू हुआ!') }} (₹{{ posCustomRate }}/unit)
                     </div>
                   </div>
 
@@ -1053,7 +1053,7 @@
                     @click="addPosItem"
                     style="margin-top: 12px; width: 100%; padding: 10px; background: #065f46; color: white; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;"
                   >
-                    ➕ {{ currentLang === 'mr' ? 'बिलात जोडा (Add to Bill)' : 'बिल में जोड़ें (Add to Bill)' }}
+                    ➕ {{ currentLang === 'en' ? 'Add to Bill' : (currentLang === 'mr' ? 'बिलात जोडा (Add to Bill)' : 'बिल में जोड़ें (Add to Bill)') }}
                   </button>
                 </div>
               </div>
@@ -1062,9 +1062,9 @@
             <!-- Right Column: Current Bill Summary & Quick Actions -->
             <div class="pos-card" style="display: flex; flex-direction: column;">
               <div class="pos-card-title">
-                <span>🧾 {{ currentLang === 'mr' ? 'चालू बिलाची यादी (Current Bill Parcha)' : 'चालू बिल सूची (Current Bill Parcha)' }}</span>
+                <span>🧾 {{ currentLang === 'en' ? 'Current Bill Parcha' : (currentLang === 'mr' ? 'चालू बिलाची यादी (Current Bill Parcha)' : 'चालू बिल सूची (Current Bill Parcha)') }}</span>
                 <span style="font-size: 0.82rem; color: #047857; margin-left: auto;">
-                  {{ counterOrder.items.length }} {{ currentLang === 'mr' ? 'सामान' : 'सामान' }}
+                  {{ counterOrder.items.length }} {{ currentLang === 'en' ? 'items' : 'सामान' }}
                 </span>
               </div>
 
@@ -1072,17 +1072,17 @@
               <div style="flex: 1; max-height: 380px; overflow-y: auto;">
                 <div v-if="counterOrder.items.length === 0" style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
                   <div style="font-size: 2.5rem; margin-bottom: 8px;">🛒</div>
-                  <p>{{ currentLang === 'mr' ? 'बिलात कोणतेही सामान जोडलेले नाही. डावीकडून सामान जोडा.' : 'बिल में कोई सामान नहीं है। बाईं ओर से सामान जोड़ें।' }}</p>
+                  <p>{{ currentLang === 'en' ? 'No items in the bill yet. Add items from the left.' : (currentLang === 'mr' ? 'बिलात कोणतेही सामान जोडलेले नाही. डावीकडून सामान जोडा.' : 'बिल में कोई सामान नहीं है। बाईं ओर से सामान जोड़ें।') }}</p>
                 </div>
 
                 <table v-else class="pos-item-table">
                   <thead>
                     <tr>
-                      <th>सामान</th>
-                      <th>वजन / पॅक</th>
-                      <th>दर</th>
-                      <th>नग</th>
-                      <th>रक्कम</th>
+                      <th>{{ currentLang === 'en' ? 'Item' : 'सामान' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Weight / Pack' : (currentLang === 'mr' ? 'वजन / पॅक' : 'वजन / पैक') }}</th>
+                      <th>{{ currentLang === 'en' ? 'Rate' : 'दर' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Qty' : 'नग' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Amount' : (currentLang === 'mr' ? 'रक्कम' : 'रकम') }}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -1098,7 +1098,7 @@
                           type="button"
                           @click="removePosItem(idx)"
                           style="background: none; border: none; color: #ef4444; font-size: 1rem; cursor: pointer;"
-                          title="काढून टाका"
+                          :title="currentLang === 'en' ? 'Remove' : 'काढून टाका'"
                         >
                           ✕
                         </button>
@@ -1111,11 +1111,11 @@
               <!-- Bill Totals -->
               <div class="pos-bill-summary" v-if="counterOrder.items.length > 0">
                 <div class="pos-bill-row">
-                  <span>{{ currentLang === 'mr' ? 'एकूण एमआरपी (MRP Total):' : 'कुल एमआरपी (MRP Total):' }}</span>
+                  <span>{{ currentLang === 'en' ? 'MRP Total:' : (currentLang === 'mr' ? 'एकूण एमआरपी (MRP Total):' : 'कुल एमआरपी (MRP Total):') }}</span>
                   <span>₹{{ counterOrderTotals.mrp }}</span>
                 </div>
                 <div class="pos-bill-row" style="color: #047857; font-weight: 700;">
-                  <span>{{ currentLang === 'mr' ? 'किराणा बचत (Discount):' : 'किराना बचत (Discount):' }}</span>
+                  <span>{{ currentLang === 'en' ? 'Store Savings (Discount):' : (currentLang === 'mr' ? 'किराणा बचत (Discount):' : 'किराना बचत (Discount):') }}</span>
                   <span>-₹{{ counterOrderTotals.savings }}</span>
                 </div>
                 <div v-if="posUseStoreCredit && posAppliedCredit > 0" class="pos-bill-row" style="color: #047857; font-weight: 700;">
@@ -1123,11 +1123,11 @@
                   <span>-₹{{ posAppliedCredit.toFixed(2) }}</span>
                 </div>
                 <div class="pos-bill-total">
-                  <span>{{ currentLang === 'mr' ? 'एकूण देय रक्कम:' : 'कुल देय राशि:' }}</span>
+                  <span>{{ currentLang === 'en' ? 'Total Payable:' : (currentLang === 'mr' ? 'एकूण देय रक्कम:' : 'कुल देय राशि:') }}</span>
                   <span>₹{{ posFinalPayable }}</span>
                 </div>
                 <div v-if="posEstimatedCredit > 0" class="store-credit-earn-note" style="margin-top: 6px;">
-                  💳 {{ currentLang === 'mr' ? 'या बिलावर ग्राहक मिळवेल:' : 'इस बिल पर ग्राहक कमाएगा:' }} <strong>+₹{{ posEstimatedCredit.toFixed(2) }}</strong>
+                  💳 {{ currentLang === 'en' ? 'Customer will earn on this bill:' : (currentLang === 'mr' ? 'या बिलावर ग्राहक मिळवेल:' : 'इस बिल पर ग्राहक कमाएगा:') }} <strong>+₹{{ posEstimatedCredit.toFixed(2) }}</strong>
                 </div>
               </div>
 
@@ -1139,7 +1139,7 @@
                   :disabled="isPosSubmitting"
                   @click="submitCounterOrder('print')"
                 >
-                  🖨️ {{ currentLang === 'mr' ? 'सेव्ह व प्रिंट पावती' : 'सेव व प्रिंट बिल' }}
+                  🖨️ {{ currentLang === 'en' ? 'Save & Print Invoice' : (currentLang === 'mr' ? 'सेव्ह व प्रिंट पावती' : 'सेव व प्रिंट बिल') }}
                 </button>
 
                 <button
@@ -1148,14 +1148,14 @@
                   :disabled="isPosSubmitting"
                   @click="submitCounterOrder('whatsapp')"
                 >
-                  📲 {{ currentLang === 'mr' ? 'सेव्ह व WhatsApp' : 'सेव व WhatsApp' }}
+                  📲 {{ currentLang === 'en' ? 'Save & WhatsApp' : (currentLang === 'mr' ? 'सेव्ह व WhatsApp' : 'सेव व WhatsApp') }}
                 </button>
 
                 <button
                   type="button"
                   @click="counterOrder.items = []"
                   style="padding: 10px; background: #f1f5f9; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; font-weight: 700; cursor: pointer;"
-                  title="बिल रिकामे करा"
+                  :title="currentLang === 'en' ? 'Clear bill' : 'बिल रिकामे करा'"
                 >
                   🗑️
                 </button>
@@ -1172,33 +1172,33 @@
               :class="{ active: adminOrderFilter === 'all' }"
               @click="adminOrderFilter = 'all'"
             >
-              सभी ऑर्डर ({{ adminOrders.length }})
+              {{ currentLang === 'en' ? 'All Orders' : (currentLang === 'mr' ? 'सर्व ऑर्डर्स' : 'सभी ऑर्डर') }} ({{ adminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'unpaid' }"
               @click="adminOrderFilter = 'unpaid'"
               style="color: #b91c1c; font-weight: 800;"
             >
-              🔴 बाकी / उधारी ({{ unpaidAdminOrders.length }})
+              🔴 {{ currentLang === 'en' ? 'Unpaid / Khata' : (currentLang === 'mr' ? 'बाकी / उधारी' : 'बाकी / उधारी') }} ({{ unpaidAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'paid' }"
               @click="adminOrderFilter = 'paid'"
               style="color: #15803d; font-weight: 800;"
             >
-              🟢 चुकता ({{ paidAdminOrders.length }})
+              🟢 {{ currentLang === 'en' ? 'Paid' : (currentLang === 'mr' ? 'चुकता' : 'चुकता') }} ({{ paidAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'cod' }"
               @click="adminOrderFilter = 'cod'"
             >
-              💵 नकद COD ({{ codAdminOrders.length }})
+              💵 {{ currentLang === 'en' ? 'Cash COD' : (currentLang === 'mr' ? 'नकद COD' : 'नकद COD') }} ({{ codAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'upi' }"
               @click="adminOrderFilter = 'upi'"
             >
-              📱 UPI QR ({{ upiAdminOrders.length }})
+              📱 {{ currentLang === 'en' ? 'UPI QR' : 'UPI QR' }} ({{ upiAdminOrders.length }})
             </button>
           </div>
 
@@ -1229,7 +1229,7 @@
           </div>
 
           <div v-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
-            इस फ़िल्टर में कोई ऑर्डर नहीं मिला।
+            {{ currentLang === 'en' ? 'No orders found matching this filter.' : (currentLang === 'mr' ? 'या फिल्टरमध्ये कोणतीही ऑर्डर सापडली नाही.' : 'इस फ़िल्टर में कोई ऑर्डर नहीं मिला।') }}
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 16px;">
             <div
@@ -1244,7 +1244,7 @@
                     :value="ord.id"
                     v-model="selectedAdminOrderIds"
                     class="order-select-checkbox"
-                    title="या ऑर्डरचा पर्चा निवडा"
+                    :title="currentLang === 'en' ? 'Select this invoice' : 'या ऑर्डरचा पर्चा निवडा'"
                   />
                   <div>
                     <span style="font-weight: 900; color: #064e3b; font-size: 1.05rem;">
@@ -1262,10 +1262,10 @@
                     @change="updateAdminOrderStatus(ord)"
                     style="padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; font-size: 0.82rem;"
                   >
-                    <option value="Placed">Placed (ऑर्डर दर्ज)</option>
-                    <option value="Packed">Packed (पैक तैयार)</option>
-                    <option value="Out for Delivery">Out for Delivery (रास्ते में)</option>
-                    <option value="Delivered">Delivered (सफलतापूर्वक दिया)</option>
+                    <option value="Placed">{{ currentLang === 'en' ? 'Placed' : (currentLang === 'mr' ? 'Placed (नोंदवली)' : 'Placed (ऑर्डर दर्ज)') }}</option>
+                    <option value="Packed">{{ currentLang === 'en' ? 'Packed' : (currentLang === 'mr' ? 'Packed (पॅक तयार)' : 'Packed (पैक तैयार)') }}</option>
+                    <option value="Out for Delivery">{{ currentLang === 'en' ? 'Out for Delivery' : (currentLang === 'mr' ? 'Out for Delivery (निघाले)' : 'Out for Delivery (रास्ते में)') }}</option>
+                    <option value="Delivered">{{ currentLang === 'en' ? 'Delivered' : (currentLang === 'mr' ? 'Delivered (दिले)' : 'Delivered (सफलतापूर्वक दिया)') }}</option>
                   </select>
 
                   <!-- Payment Status Dropdown -->
@@ -1275,8 +1275,8 @@
                     style="padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 800; font-size: 0.82rem;"
                     :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : 'color: #991b1b; background: #fee2e2;'"
                   >
-                    <option value="Paid">🟢 चुकता (Paid)</option>
-                    <option value="Unpaid">🔴 बाकी उधारी (Unpaid)</option>
+                    <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
+                    <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
                   </select>
 
                   <!-- 1-Click Mark as Paid Button for COD/Unpaid Orders -->
@@ -1284,9 +1284,9 @@
                     v-if="ord.payment_status !== 'Paid'"
                     @click="markOrderAsPaid(ord)"
                     class="admin-mark-paid-btn"
-                    title="ग्राहक से नकद/UPI मिलते ही चुकता मार्क करें"
+                    :title="currentLang === 'en' ? 'Mark order as paid upon cash receipt' : 'ग्राहक से नकद/UPI मिलते ही चुकता मार्क करें'"
                   >
-                    ✅ नकद मिला (Mark Paid)
+                    ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
                   </button>
 
                   <span style="font-weight: 900; font-size: 1.2rem; color: #1c1917;">
@@ -1297,18 +1297,18 @@
 
               <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 0.88rem; color: var(--text-main); flex-wrap: wrap; gap: 10px;">
                 <div>
-                  <strong>ग्राहक:</strong> {{ ord.customer_name }} (📞 {{ ord.customer_phone }})<br />
-                  <strong>पता:</strong> {{ ord.customer_address }}
+                  <strong>{{ currentLang === 'en' ? 'Customer:' : (currentLang === 'mr' ? 'ग्राहक:' : 'ग्राहक:') }}</strong> {{ ord.customer_name }} (📞 {{ ord.customer_phone }})<br />
+                  <strong>{{ currentLang === 'en' ? 'Address:' : (currentLang === 'mr' ? 'पत्ता:' : 'पता:') }}</strong> {{ ord.customer_address }}
                 </div>
                 <div style="text-align: right;">
-                  <strong>भुगतान तरीका:</strong> {{ ord.payment_method }}<br />
-                  <span style="color: #047857; font-weight: 800;">किराना बचत: ₹{{ ord.total_savings }}</span>
+                  <strong>{{ currentLang === 'en' ? 'Payment Method:' : (currentLang === 'mr' ? 'पेमेंट पद्धत:' : 'भुगतान तरीका:') }}</strong> {{ ord.payment_method }}<br />
+                  <span style="color: #047857; font-weight: 800;">{{ currentLang === 'en' ? 'Store Savings:' : (currentLang === 'mr' ? 'किराणा बचत:' : 'किराना बचत:') }} ₹{{ ord.total_savings }}</span>
                 </div>
               </div>
 
               <!-- Order Items Preview -->
               <div style="margin-top: 12px; background: white; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.84rem;">
-                <strong>सामान सूची:</strong>
+                <strong>{{ currentLang === 'en' ? 'Items List:' : (currentLang === 'mr' ? 'सामान सूची:' : 'सामान सूची:') }}</strong>
                 <span v-for="(it, idx) in ord.items" :key="idx" style="margin-left: 8px; color: var(--text-muted);">
                   {{ it.product_name }} ({{ it.variant_label }}) × {{ it.quantity }} = ₹{{ it.subtotal }}{{ idx < ord.items.length - 1 ? ' | ' : '' }}
                 </span>
@@ -1353,7 +1353,7 @@
           <div class="customer-stats-strip">
             <div class="customer-card-box">
               <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 700;">
-                👥 {{ currentLang === 'mr' ? 'एकूण नोंदणीकृत ग्राहक' : 'कुल पंजीकृत ग्राहक' }}
+                👥 {{ currentLang === 'en' ? 'Total Registered Customers' : (currentLang === 'mr' ? 'एकूण नोंदणीकृत ग्राहक' : 'कुल पंजीकृत ग्राहक') }}
               </div>
               <div style="font-size: 1.6rem; font-weight: 900; color: #064e3b; margin-top: 4px;">
                 {{ adminCustomers.length }}
@@ -1362,7 +1362,7 @@
 
             <div class="customer-card-box">
               <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 700;">
-                🔴 {{ currentLang === 'mr' ? 'उधारी असलेले ग्राहक' : 'उधारी वाले ग्राहक' }}
+                🔴 {{ currentLang === 'en' ? 'Customers with Khata Dues' : (currentLang === 'mr' ? 'उधारी असलेले ग्राहक' : 'उधारी वाले ग्राहक') }}
               </div>
               <div style="font-size: 1.6rem; font-weight: 900; color: #dc2626; margin-top: 4px;">
                 {{ khataCustomersCount }}
@@ -1371,7 +1371,7 @@
 
             <div class="customer-card-box">
               <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 700;">
-                💰 {{ currentLang === 'mr' ? 'बाजारातील एकूण बाकी उधारी' : 'बाजार में कुल बाकी उधारी' }}
+                💰 {{ currentLang === 'en' ? 'Total Market Outstanding Credit' : (currentLang === 'mr' ? 'बाजारातील एकूण बाकी उधारी' : 'बाजार में कुल बाकी उधारी') }}
               </div>
               <div style="font-size: 1.6rem; font-weight: 900; color: #b91c1c; margin-top: 4px;">
                 ₹{{ totalKhataOutstanding }}
@@ -1384,11 +1384,11 @@
             <input
               type="text"
               v-model="customerSearch"
-              :placeholder="currentLang === 'mr' ? 'नाव किंवा फोन नंबरने ग्राहक शोधा...' : 'नाम या फोन नंबर से ग्राहक खोजें...'"
+              :placeholder="currentLang === 'en' ? 'Search customers by name or phone...' : (currentLang === 'mr' ? 'नाव किंवा फोन नंबरने ग्राहक शोधा...' : 'नाम या फोन नंबर से ग्राहक खोजें...')"
               style="padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; min-width: 320px;"
             />
             <span style="font-size: 0.88rem; color: var(--text-muted);">
-              {{ currentLang === 'mr' ? 'दाखवलेले ग्राहक:' : 'दिखाए गए ग्राहक:' }} <strong>{{ filteredAdminCustomers.length }}</strong>
+              {{ currentLang === 'en' ? 'Shown Customers:' : (currentLang === 'mr' ? 'दाखवलेले ग्राहक:' : 'दिखाए गए ग्राहक:') }} <strong>{{ filteredAdminCustomers.length }}</strong>
             </span>
           </div>
 
@@ -1397,20 +1397,20 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>{{ currentLang === 'mr' ? 'ग्राहक नाव' : 'ग्राहक नाम' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'मोबाईल नंबर' : 'मोबाइल नंबर' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'नोंदणी दिनांक' : 'रजिस्टर दिनांक' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'एकूण ऑर्डर्स' : 'कुल ऑर्डर' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'एकूण खरेदी' : 'कुल खरीदारी' }}</th>
+                  <th>{{ currentLang === 'en' ? 'Customer Name' : (currentLang === 'mr' ? 'ग्राहक नाव' : 'ग्राहक नाम') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Mobile Number' : (currentLang === 'mr' ? 'मोबाईल नंबर' : 'मोबाइल नंबर') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Registration Date' : (currentLang === 'mr' ? 'नोंदणी दिनांक' : 'रजिस्टर दिनांक') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Total Orders' : (currentLang === 'mr' ? 'एकूण ऑर्डर्स' : 'कुल ऑर्डर') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Total Spent' : (currentLang === 'mr' ? 'एकूण खरेदी' : 'कुल खरीदारी') }}</th>
                   <th>{{ t('store_credit') }}</th>
-                  <th>{{ currentLang === 'mr' ? 'उधारी स्थिती' : 'उधारी स्थिति' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'कृती (Action)' : 'कार्रवाई (Action)' }}</th>
+                  <th>{{ currentLang === 'en' ? 'Khata Status' : (currentLang === 'mr' ? 'उधारी स्थिती' : 'उधारी स्थिति') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Action' : (currentLang === 'mr' ? 'कृती (Action)' : 'कार्रवाई (Action)') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="filteredAdminCustomers.length === 0">
                   <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">
-                    {{ currentLang === 'mr' ? 'कोणताही ग्राहक सापडला नाही.' : 'कोई ग्राहक नहीं मिला।' }}
+                    {{ currentLang === 'en' ? 'No customers found.' : (currentLang === 'mr' ? 'कोणताही ग्राहक सापडला नाही.' : 'कोई ग्राहक नहीं मिला।') }}
                   </td>
                 </tr>
                 <tr v-for="c in filteredAdminCustomers" :key="c.id">
@@ -1425,10 +1425,10 @@
                   <td><strong style="color: #047857; font-weight: 800;">₹{{ (c.wallet_balance || 0).toFixed(2) }}</strong></td>
                   <td>
                     <span v-if="c.unpaid_balance > 0" class="cust-balance-danger">
-                      🔴 ₹{{ c.unpaid_balance }} बाकी
+                      🔴 ₹{{ c.unpaid_balance }} {{ currentLang === 'en' ? 'Due' : 'बाकी' }}
                     </span>
                     <span v-else class="cust-balance-success">
-                      🟢 ₹0 चुकता
+                      🟢 ₹0 {{ currentLang === 'en' ? 'Settled' : 'चुकता' }}
                     </span>
                   </td>
                   <td>
@@ -1436,9 +1436,9 @@
                       type="button"
                       @click="openCustomerAudit(c)"
                       style="background: #065f46; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                      title="ग्राहकाची मागील सर्व बिले व खरेदी इतिहास पहा"
+                      :title="currentLang === 'en' ? 'View customer past bills and purchase history' : 'ग्राहकाची मागील सर्व बिले व खरेदी इतिहास पहा'"
                     >
-                      🧾 {{ currentLang === 'mr' ? 'जुनी बिले पहा' : (currentLang === 'hi' ? 'पुराने बिल देखें' : 'See Past Bills') }}
+                      🧾 {{ currentLang === 'en' ? 'See Past Bills' : (currentLang === 'mr' ? 'जुनी बिले पहा' : 'पुराने बिल देखें') }}
                     </button>
                   </td>
                 </tr>
@@ -1454,21 +1454,21 @@
             <div class="stat-card stat-card-danger">
               <div class="stat-icon">🔴</div>
               <div class="stat-content">
-                <span class="stat-label">{{ currentLang === 'mr' ? 'एकूण बाजारात उधारी' : 'कुल बाजार उधारी' }}</span>
+                <span class="stat-label">{{ t('admin_khata_market_udhaar') }}</span>
                 <strong class="stat-val">₹{{ adminKhataSummary.total_market_udhaar }}</strong>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">👥</div>
               <div class="stat-content">
-                <span class="stat-label">{{ currentLang === 'mr' ? 'उधारी असलेले ग्राहक' : 'उधारी वाले ग्राहक' }}</span>
+                <span class="stat-label">{{ t('admin_khata_customers') }}</span>
                 <strong class="stat-val">{{ adminKhataSummary.total_khata_customers }}</strong>
               </div>
             </div>
             <div class="stat-card stat-card-success">
               <div class="stat-icon">🟢</div>
               <div class="stat-content">
-                <span class="stat-label">{{ currentLang === 'mr' ? 'या महिन्यात जमा वसुली' : 'इस माह की वसूली' }}</span>
+                <span class="stat-label">{{ t('admin_khata_recovered_month') }}</span>
                 <strong class="stat-val">₹{{ adminKhataSummary.total_recovered_month }}</strong>
               </div>
             </div>
@@ -1480,7 +1480,7 @@
               <input
                 type="text"
                 v-model="khataSearch"
-                placeholder="ग्राहक नाव किंवा फोन नंबरने शोधा..."
+                :placeholder="t('admin_khata_search_placeholder')"
                 style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.9rem;"
               />
             </div>
@@ -1488,7 +1488,7 @@
               @click="loadAdminKhata"
               style="background: #065f46; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;"
             >
-              🔄 रीफ्रेश करा
+              {{ t('admin_khata_refresh') }}
             </button>
           </div>
 
@@ -1497,18 +1497,18 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>{{ currentLang === 'mr' ? 'ग्राहक नाव' : 'ग्राहक नाम' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'मोबाईल नंबर' : 'मोबाइल नंबर' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'उधारी बिले' : 'उधारी बिल' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'शेवटची खरेदी' : 'आखिरी खरीदारी' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'एकूण बाकी (Net Due)' : 'कुल बकाया (Net Due)' }}</th>
-                  <th>{{ currentLang === 'mr' ? 'कृती (Actions)' : 'कार्रवाई (Actions)' }}</th>
+                  <th>{{ t('admin_khata_col_name') }}</th>
+                  <th>{{ t('admin_khata_col_phone') }}</th>
+                  <th>{{ t('admin_khata_col_bills') }}</th>
+                  <th>{{ t('admin_khata_col_last_purchase') }}</th>
+                  <th>{{ t('admin_khata_col_net_due') }}</th>
+                  <th>{{ t('admin_khata_col_actions') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="filteredKhataList.length === 0">
                   <td colspan="6" style="text-align: center; padding: 36px; color: var(--text-muted);">
-                    {{ khataLoading ? 'खाते बही लोड होत आहे...' : (currentLang === 'mr' ? 'कोणतीही उधारी बाकी नाही! सर्व बिले चुकता आहेत. 🎉' : 'कोई उधारी बाकी नहीं है!') }}
+                    {{ khataLoading ? (currentLang === 'en' ? 'Loading ledger...' : (currentLang === 'mr' ? 'खाते बही लोड होत आहे...' : 'खाता बही लोड हो रही है...')) : (currentLang === 'en' ? 'Zero dues outstanding! All bills are settled. 🎉' : (currentLang === 'mr' ? 'कोणतीही उधारी बाकी नाही! सर्व बिले चुकता आहेत. 🎉' : 'कोई उधारी बाकी नहीं है! सभी बिल चुकता हैं। 🎉')) }}
                   </td>
                 </tr>
                 <tr v-for="c in filteredKhataList" :key="c.customer_phone">
@@ -1519,7 +1519,7 @@
                   <td>📞 {{ c.customer_phone }}</td>
                   <td>
                     <span class="status-badge unpaid" style="font-size: 0.76rem;">
-                      {{ c.unpaid_orders.length }} बिले बाकी
+                      {{ c.unpaid_orders.length }} {{ t('admin_khata_bills_due_suffix') }}
                     </span>
                   </td>
                   <td><small>{{ c.last_order_date }}</small></td>
@@ -1534,25 +1534,25 @@
                         type="button"
                         @click="openKhataPay(c)"
                         style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-                        title="पेमेंट जमा करा"
+                        :title="currentLang === 'en' ? 'Deposit Payment' : 'पेमेंट जमा करा'"
                       >
-                        💰 जमा करा
+                        {{ t('admin_khata_btn_pay') }}
                       </button>
                       <button
                         type="button"
                         @click="sendKhataWhatsAppReminder(c)"
                         style="background: #25d366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-                        title="WhatsApp वर स्मरणपत्र पाठवा"
+                        :title="currentLang === 'en' ? 'Send WhatsApp Reminder' : 'WhatsApp वर स्मरणपत्र पाठवा'"
                       >
-                        📲 तगादा
+                        {{ t('admin_khata_btn_remind') }}
                       </button>
                       <button
                         type="button"
                         @click="openKhataStatement(c.customer_phone)"
                         style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;"
-                        title="संपूर्ण खाते बही स्टेटमेंट पहा"
+                        :title="currentLang === 'en' ? 'View Full Statement' : 'संपूर्ण खाते बही स्टेटमेंट पहा'"
                       >
-                        📄 बही
+                        {{ t('admin_khata_btn_statement') }}
                       </button>
                     </div>
                   </td>
@@ -1567,7 +1567,9 @@
           <!-- Top Control Header: Date Selector & Actions -->
           <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span style="font-weight: 800; color: #064e3b; font-size: 0.95rem;">📅 तारीख निवडा:</span>
+              <span style="font-weight: 800; color: #064e3b; font-size: 0.95rem;">
+                {{ currentLang === 'en' ? '📅 Select Date:' : (currentLang === 'mr' ? '📅 तारीख निवडा:' : '📅 तारीख चुनें:') }}
+              </span>
               <input
                 type="date"
                 v-model="zReportDate"
@@ -1579,14 +1581,14 @@
                 @click="setZReportQuickDate(0)"
                 style="padding: 6px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
               >
-                आज (Today)
+                {{ currentLang === 'en' ? 'Today' : 'आज (Today)' }}
               </button>
               <button
                 type="button"
                 @click="setZReportQuickDate(-1)"
                 style="padding: 6px 12px; background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
               >
-                काल (Yesterday)
+                {{ currentLang === 'en' ? 'Yesterday' : (currentLang === 'mr' ? 'काल (Yesterday)' : 'कल (Yesterday)') }}
               </button>
             </div>
 
@@ -1596,21 +1598,21 @@
                 @click="shareDailyZReportWhatsApp"
                 style="background: #25d366; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
               >
-                📲 WhatsApp हिशोब पाठवा
+                {{ currentLang === 'en' ? '📲 WhatsApp Z-Report' : (currentLang === 'mr' ? '📲 WhatsApp हिशोब पाठवा' : '📲 WhatsApp हिसाब भेजें') }}
               </button>
               <button
                 type="button"
                 @click="downloadZReportPdf"
                 style="background: #047857; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
               >
-                📥 PDF डाऊनलोड
+                {{ currentLang === 'en' ? '📥 Download PDF' : (currentLang === 'mr' ? '📥 PDF डाऊनलोड' : '📥 PDF डाउनलोड') }}
               </button>
               <button
                 type="button"
                 @click="printZReport"
                 style="background: #1c1917; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
               >
-                🖨️ प्रिंट करा
+                {{ currentLang === 'en' ? '🖨️ Print Report' : (currentLang === 'mr' ? '🖨️ प्रिंट करा' : '🖨️ प्रिंट करें') }}
               </button>
             </div>
           </div>
@@ -1621,10 +1623,10 @@
             <div style="border-bottom: 2px solid #064e3b; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
               <div>
                 <h2 style="margin: 0; color: #064e3b; font-size: 1.4rem; font-weight: 900;">
-                  🏪 कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)
+                  {{ currentLang === 'en' ? '🏪 Komal Mart — Daily Financial Closing (Z-Report)' : (currentLang === 'mr' ? '🏪 कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)' : '🏪 कोमल मार्ट (Komal Mart) — दैनिक हिसाब (Daily Z-Report)') }}
                 </h2>
                 <div style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">
-                  दुकानदार दैनिक गल्ला, ऑनलाइन बँक जमा व उधारी ताळेबंद अहवाल
+                  {{ currentLang === 'en' ? 'Storekeeper daily cash drawer, bank settlements, and udhaar reconciliation' : (currentLang === 'mr' ? 'दुकानदार दैनिक गल्ला, ऑनलाइन बँक जमा व उधारी ताळेबंद अहवाल' : 'दुकानदार दैनिक गल्ला, ऑनलाइन बैंक जमा व उधारी समाधान रिपोर्ट') }}
                 </div>
               </div>
               <div style="text-align: right;">
@@ -1639,18 +1641,18 @@
               <!-- 1. Physical Cash in Drawer -->
               <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 16px;">
                 <div style="font-size: 0.82rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 6px;">
-                  💵 रोख गल्ला (Cash in Drawer)
+                  💵 {{ currentLang === 'en' ? 'Cash in Drawer (Hand)' : (currentLang === 'mr' ? 'रोख गल्ला (Cash in Drawer)' : 'नकद गल्ला (Cash in Drawer)') }}
                 </div>
                 <div style="font-size: 1.7rem; font-weight: 900; color: #15803d; margin-top: 6px;">
                   ₹{{ zReport.total_cash_in_drawer }}
                 </div>
                 <div style="font-size: 0.78rem; color: #166534; margin-top: 8px; border-top: 1px dashed #86efac; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>रोख विक्री (Cash Orders):</span>
+                    <span>{{ currentLang === 'en' ? 'Cash Orders:' : (currentLang === 'mr' ? 'रोख विक्री (Cash Orders):' : 'नकद बिक्री (Cash Orders):') }}</span>
                     <strong>₹{{ zReport.cash_paid_amount }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>उधारी वसुली रोख (Khata Cash):</span>
+                    <span>{{ currentLang === 'en' ? 'Khata Cash Recovered:' : (currentLang === 'mr' ? 'उधारी वसुली रोख (Khata Cash):' : 'उधारी वसूली नकद (Khata Cash):') }}</span>
                     <strong>₹{{ zReport.khata_cash_recovered }}</strong>
                   </div>
                 </div>
@@ -1659,18 +1661,18 @@
               <!-- 2. Bank UPI Settlements -->
               <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 16px;">
                 <div style="font-size: 0.82rem; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
-                  📲 बँक व UPI जमा (Digital Settlements)
+                  📲 {{ currentLang === 'en' ? 'Bank / UPI Settlements' : (currentLang === 'mr' ? 'बँक व UPI जमा (Digital Settlements)' : 'बैंक व UPI जमा (Digital Settlements)') }}
                 </div>
                 <div style="font-size: 1.7rem; font-weight: 900; color: #1d4ed8; margin-top: 6px;">
                   ₹{{ zReport.total_upi_received }}
                 </div>
                 <div style="font-size: 0.78rem; color: #1e40af; margin-top: 8px; border-top: 1px dashed #93c5fd; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>ऑनलाइन UPI विक्री:</span>
+                    <span>{{ currentLang === 'en' ? 'Online UPI Orders:' : (currentLang === 'mr' ? 'ऑनलाइन UPI विक्री:' : 'ऑनलाइन UPI बिक्री:') }}</span>
                     <strong>₹{{ zReport.upi_paid_amount }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>उधारी वसुली UPI (Khata UPI):</span>
+                    <span>{{ currentLang === 'en' ? 'Khata UPI Recovered:' : (currentLang === 'mr' ? 'उधारी वसुली UPI (Khata UPI):' : 'उधारी वसूली UPI (Khata UPI):') }}</span>
                     <strong>₹{{ zReport.khata_upi_recovered }}</strong>
                   </div>
                 </div>
@@ -1679,18 +1681,18 @@
               <!-- 3. Total Liquid Money Realized -->
               <div style="background: #fdf4ff; border: 1.5px solid #f0abfc; border-radius: 10px; padding: 16px;">
                 <div style="font-size: 0.82rem; font-weight: 800; color: #86198f; display: flex; align-items: center; gap: 6px;">
-                  ✨ एकूण प्रत्यक्ष जमा रक्कम (Liquid Total)
+                  ✨ {{ currentLang === 'en' ? 'Total Liquid Collected' : (currentLang === 'mr' ? 'एकूण प्रत्यक्ष जमा रक्कम (Liquid Total)' : 'कुल प्रत्यक्ष जमा राशि (Liquid Total)') }}
                 </div>
                 <div style="font-size: 1.7rem; font-weight: 900; color: #a21caf; margin-top: 6px;">
                   ₹{{ zReport.total_liquid_collected }}
                 </div>
                 <div style="font-size: 0.78rem; color: #86198f; margin-top: 8px; border-top: 1px dashed #f0abfc; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>रोख गल्ला + बँक UPI:</span>
+                    <span>{{ currentLang === 'en' ? 'Cash in Hand + Bank UPI:' : (currentLang === 'mr' ? 'रोख गल्ला + बँक UPI:' : 'नकद गल्ला + बैंक UPI:') }}</span>
                     <strong>₹{{ zReport.total_cash_in_drawer }} + ₹{{ zReport.total_upi_received }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>वापरलेले स्टोअर क्रेडिट:</span>
+                    <span>{{ currentLang === 'en' ? 'Store Credit Redeemed:' : (currentLang === 'mr' ? 'वापरलेले स्टोअर क्रेडिट:' : 'इस्तेमाल स्टोर क्रेडिट:') }}</span>
                     <strong>₹{{ zReport.store_credit_redeemed }}</strong>
                   </div>
                 </div>
@@ -1702,27 +1704,27 @@
               <!-- Sales Summary -->
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
                 <div style="font-weight: 800; color: #1e293b; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">
-                  🛒 विक्री व ऑर्डर कामगिरी (Sales Breakdown)
+                  🛒 {{ currentLang === 'en' ? 'Sales & Orders Performance' : (currentLang === 'mr' ? 'विक्री व ऑर्डर कामगिरी (Sales Breakdown)' : 'बिक्री व ऑर्डर प्रदर्शन (Sales Breakdown)') }}
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>एकूण ऑर्डर्स:</span>
-                    <strong>{{ zReport.total_orders_count }} ऑर्डर्स</strong>
+                    <span>{{ currentLang === 'en' ? 'Total Orders:' : (currentLang === 'mr' ? 'एकूण ऑर्डर्स:' : 'कुल ऑर्डर:') }}</span>
+                    <strong>{{ zReport.total_orders_count }} {{ currentLang === 'en' ? 'orders' : 'ऑर्डर्स' }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>एकूण विक्री रक्कम (Net Sales):</span>
+                    <span>{{ currentLang === 'en' ? 'Net Sales Revenue:' : (currentLang === 'mr' ? 'एकूण विक्री रक्कम (Net Sales):' : 'कुल बिक्री रकम (Net Sales):') }}</span>
                     <strong>₹{{ zReport.net_sales }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>एमआरपी बेरीज (Gross MRP):</span>
+                    <span>{{ currentLang === 'en' ? 'Gross MRP Total:' : (currentLang === 'mr' ? 'एमआरपी बेरीज (Gross MRP):' : 'एमआरपी जोड़ (Gross MRP):') }}</span>
                     <span>₹{{ zReport.gross_sales_mrp }}</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; color: #059669;">
-                    <span>ग्राहकांना दिलेली थेट सूट:</span>
+                    <span>{{ currentLang === 'en' ? 'Store Discounts Given:' : (currentLang === 'mr' ? 'ग्राहकांना दिलेली थेट सूट:' : 'ग्राहकों को दी गई छूट:') }}</span>
                     <strong>- ₹{{ zReport.total_savings_given }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>सरासरी बिल किंमत (AOV):</span>
+                    <span>{{ currentLang === 'en' ? 'Average Order Value (AOV):' : (currentLang === 'mr' ? 'सरासरी बिल किंमत (AOV):' : 'औसत बिल राशि (AOV):') }}</span>
                     <strong>₹{{ zReport.avg_basket_value }}</strong>
                   </div>
                 </div>
@@ -1731,19 +1733,19 @@
               <!-- Khata Movement Summary -->
               <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 14px;">
                 <div style="font-weight: 800; color: #854d0e; font-size: 0.92rem; border-bottom: 1px solid #fde047; padding-bottom: 6px; margin-bottom: 8px;">
-                  📒 उधारी बही हालचाल (Khata Udhaar Ledger)
+                  📒 {{ currentLang === 'en' ? 'Khata Udhaar Ledger Movement' : (currentLang === 'mr' ? 'उधारी बही हालचाल (Khata Udhaar Ledger)' : 'उधारी बही हलचल (Khata Udhaar Ledger)') }}
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
                   <div style="display: flex; justify-content: space-between; color: #dc2626;">
-                    <span>आज दिलेली नवीन उधारी:</span>
-                    <strong>+ ₹{{ zReport.khata_new_amount }} ({{ zReport.khata_new_count }} बिले)</strong>
+                    <span>{{ currentLang === 'en' ? 'New Udhaar Issued Today:' : (currentLang === 'mr' ? 'आज दिलेली नवीन उधारी:' : 'आज दी गई नई उधारी:') }}</span>
+                    <strong>+ ₹{{ zReport.khata_new_amount }} ({{ zReport.khata_new_count }} {{ currentLang === 'en' ? 'bills' : 'बिले' }})</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between; color: #16a34a;">
-                    <span>आज वसूल झालेली उधारी:</span>
+                    <span>{{ currentLang === 'en' ? 'Udhaar Recovered Today:' : (currentLang === 'mr' ? 'आज वसूल झालेली उधारी:' : 'आज वसूल हुई उधारी:') }}</span>
                     <strong>- ₹{{ zReport.total_khata_recovered }}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between; border-top: 1px dashed #fde047; padding-top: 4px; font-weight: 800; color: #991b1b;">
-                    <span>एकूण बाजार थकबाकी (Market Udhaar):</span>
+                    <span>{{ currentLang === 'en' ? 'Total Market Outstanding Credit:' : (currentLang === 'mr' ? 'एकूण बाजार थकबाकी (Market Udhaar):' : 'कुल बाजार उधारी (Market Udhaar):') }}</span>
                     <strong>₹{{ zReport.total_market_udhaar }}</strong>
                   </div>
                 </div>
@@ -1753,22 +1755,22 @@
             <!-- Detailed Transactions of Selected Day -->
             <div style="margin-top: 20px;">
               <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">
-                📝 या दिवसाच्या सर्व ऑर्डर्स व व्यवहार ({{ zReport.orders?.length || 0 }})
+                📝 {{ currentLang === 'en' ? `Transactions & Orders for this Date (${zReport.orders?.length || 0})` : (currentLang === 'mr' ? `या दिवसाच्या सर्व ऑर्डर्स व व्यवहार (${zReport.orders?.length || 0})` : `इस दिन के सभी ऑर्डर व लेनदेन (${zReport.orders?.length || 0})`) }}
               </h4>
               <div v-if="!zReport.orders || zReport.orders.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 0.88rem; background: #f8fafc; border-radius: 8px;">
-                या तारखेला कोणतीही ऑर्डर नोंदवलेली नाही.
+                {{ currentLang === 'en' ? 'No orders recorded on this date.' : (currentLang === 'mr' ? 'या तारखेला कोणतीही ऑर्डर नोंदवलेली नाही.' : 'इस तारीख को कोई ऑर्डर दर्ज नहीं है।') }}
               </div>
               <div v-else style="overflow-x: auto;">
                 <table class="admin-products-table" style="width: 100%; font-size: 0.82rem;">
                   <thead>
                     <tr>
-                      <th>ऑर्डर नं</th>
-                      <th>ग्राहक</th>
-                      <th>वेळ</th>
-                      <th>पेमेंट पद्धत</th>
-                      <th>स्थिती</th>
-                      <th style="text-align: right;">रक्कम</th>
-                      <th style="text-align: center;">कृती</th>
+                      <th>{{ currentLang === 'en' ? 'Order #' : 'ऑर्डर नं' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Customer' : 'ग्राहक' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Date & Time' : 'वेळ' }}</th>
+                      <th>{{ currentLang === 'en' ? 'Payment Mode' : (currentLang === 'mr' ? 'पेमेंट पद्धत' : 'भुगतान विधि') }}</th>
+                      <th>{{ currentLang === 'en' ? 'Status' : (currentLang === 'mr' ? 'स्थिती' : 'स्थिति') }}</th>
+                      <th style="text-align: right;">{{ currentLang === 'en' ? 'Amount' : (currentLang === 'mr' ? 'रक्कम' : 'रकम') }}</th>
+                      <th style="text-align: center;">{{ currentLang === 'en' ? 'Action' : (currentLang === 'mr' ? 'कृती' : 'कार्रवाई') }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1782,7 +1784,7 @@
                       <td>{{ ord.payment_method }}</td>
                       <td>
                         <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : 'unpaid'">
-                          {{ ord.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी' }}
+                          {{ ord.payment_status === 'Paid' ? (currentLang === 'en' ? '🟢 Paid' : '🟢 चुकता') : (currentLang === 'en' ? '🔴 Unpaid' : '🔴 बाकी') }}
                         </span>
                       </td>
                       <td style="text-align: right; font-weight: 800;">₹{{ ord.final_amount }}</td>
@@ -1813,10 +1815,10 @@
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
           <div>
             <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
-              👥 {{ activeAuditedCustomer.name }} — {{ currentLang === 'mr' ? 'खरेदी इतिहास व जुनी बिले' : (currentLang === 'hi' ? 'खरीदारी इतिहास व पुराने बिल' : 'Purchase History & Past Bills') }}
+              👥 {{ activeAuditedCustomer.name }} — {{ currentLang === 'en' ? 'Purchase History & Past Bills' : (currentLang === 'mr' ? 'खरेदी इतिहास व जुनी बिले' : 'खरीदारी इतिहास व पुराने बिल') }}
             </h3>
             <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-              📞 {{ activeAuditedCustomer.phone }} | ✉️ {{ activeAuditedCustomer.email || 'ईमेल नाही' }} | 📍 {{ activeAuditedCustomer.address || 'पत्ता नोंदवलेला नाही' }}
+              📞 {{ activeAuditedCustomer.phone }} | ✉️ {{ activeAuditedCustomer.email || (currentLang === 'en' ? 'No email registered' : (currentLang === 'mr' ? 'ईमेल नोंदवलेला नाही' : 'ईमेल दर्ज नहीं')) }} | 📍 {{ activeAuditedCustomer.address || (currentLang === 'en' ? 'No address registered' : (currentLang === 'mr' ? 'पत्ता नोंदवलेला नाही' : 'पता दर्ज नहीं')) }}
             </div>
           </div>
           <button class="close-btn" @click="activeAuditedCustomer = null">✕</button>
@@ -1827,7 +1829,7 @@
           :style="activeAuditedCustomer.unpaid_balance > 0 ? 'background: #fef2f2; border: 1.5px solid #fecaca;' : 'background: #f0fdf4; border: 1.5px solid #bbf7d0;'">
           <div>
             <div style="font-size: 0.84rem; font-weight: 800;" :style="activeAuditedCustomer.unpaid_balance > 0 ? 'color: #991b1b;' : 'color: #166534;'">
-              {{ activeAuditedCustomer.unpaid_balance > 0 ? '⚠️ चालू बाकी उधारी रक्कम (Current Outstanding Khata Dues):' : '✅ सर्व रकमा पूर्ण चुकता आहेत (All Bills Settled):' }}
+              {{ activeAuditedCustomer.unpaid_balance > 0 ? (currentLang === 'en' ? '⚠️ Current Outstanding Khata Dues:' : (currentLang === 'mr' ? '⚠️ चालू बाकी उधारी रक्कम:' : '⚠️ चालू बकाया उधारी रकम:')) : (currentLang === 'en' ? '✅ All Bills Settled:' : (currentLang === 'mr' ? '✅ सर्व रकमा पूर्ण चुकता आहेत:' : '✅ सभी बिल चुकता हैं:')) }}
             </div>
             <div style="font-size: 1.5rem; font-weight: 900; margin-top: 2px;" :style="activeAuditedCustomer.unpaid_balance > 0 ? 'color: #dc2626;' : 'color: #15803d;'">
               ₹{{ activeAuditedCustomer.unpaid_balance }}
@@ -1842,7 +1844,7 @@
               class="pos-btn-whatsapp"
               style="padding: 8px 14px; font-size: 0.85rem;"
             >
-              📲 {{ currentLang === 'mr' ? 'उधारी रिमाइंडर पाठवा' : 'उधारी रिमाइंडर भेजें' }}
+              📲 {{ currentLang === 'en' ? 'Send Udhaar Reminder' : (currentLang === 'mr' ? 'उधारी रिमाइंडर पाठवा' : 'उधारी रिमाइंडर भेजें') }}
             </button>
           </div>
         </div>
@@ -1850,11 +1852,11 @@
         <!-- Orders Timeline & Proof -->
         <div style="margin-top: 20px;">
           <h4 style="font-size: 1rem; font-weight: 800; color: var(--text-main); margin-bottom: 10px;">
-            📦 {{ currentLang === 'mr' ? 'खरेदी केलेल्या सर्व ऑर्डर्सचा इतिहास' : 'खरीदे गए सभी ऑर्डर का इतिहास' }} ({{ activeAuditedCustomer.orders.length }})
+            📦 {{ currentLang === 'en' ? 'Customer Purchase Order History' : (currentLang === 'mr' ? 'खरेदी केलेल्या सर्व ऑर्डर्सचा इतिहास' : 'खरीदे गए सभी ऑर्डर का इतिहास') }} ({{ activeAuditedCustomer.orders.length }})
           </h4>
 
           <div v-if="activeAuditedCustomer.orders.length === 0" style="padding: 20px; text-align: center; color: var(--text-muted);">
-            {{ currentLang === 'mr' ? 'या ग्राहकाने अद्याप कोणतीही ऑर्डर केलेली नाही.' : 'इस ग्राहक ने अभी तक कोई ऑर्डर नहीं किया है।' }}
+            {{ currentLang === 'en' ? 'This customer has not placed any orders yet.' : (currentLang === 'mr' ? 'या ग्राहकाने अद्याप कोणतीही ऑर्डर केलेली नाही.' : 'इस ग्राहक ने अभी तक कोई ऑर्डर नहीं किया है।') }}
           </div>
 
           <div v-else style="display: flex; flex-direction: column; gap: 12px;">
@@ -1880,10 +1882,10 @@
                     @change="updateAdminOrderStatus(ord)"
                     style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-weight: 700; font-size: 0.8rem;"
                   >
-                    <option value="Placed">Placed (ऑर्डर दर्ज)</option>
-                    <option value="Packed">Packed (पॅक)</option>
-                    <option value="Out for Delivery">Out for Delivery (रास्ते में)</option>
-                    <option value="Delivered">Delivered (दिला)</option>
+                    <option value="Placed">{{ currentLang === 'en' ? 'Placed' : (currentLang === 'mr' ? 'Placed (नोंदवली)' : 'Placed (ऑर्डर दर्ज)') }}</option>
+                    <option value="Packed">{{ currentLang === 'en' ? 'Packed' : (currentLang === 'mr' ? 'Packed (पॅक)' : 'Packed (पैक तैयार)') }}</option>
+                    <option value="Out for Delivery">{{ currentLang === 'en' ? 'Out for Delivery' : (currentLang === 'mr' ? 'Out for Delivery (निघाले)' : 'Out for Delivery (रास्ते में)') }}</option>
+                    <option value="Delivered">{{ currentLang === 'en' ? 'Delivered' : (currentLang === 'mr' ? 'Delivered (दिले)' : 'Delivered (सफलतापूर्वक दिया)') }}</option>
                   </select>
 
                   <!-- Payment Status Select -->
@@ -1893,8 +1895,8 @@
                     style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-weight: 800; font-size: 0.8rem;"
                     :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : 'color: #991b1b; background: #fee2e2;'"
                   >
-                    <option value="Paid">🟢 चुकता (Paid)</option>
-                    <option value="Unpaid">🔴 बाकी उधारी (Unpaid)</option>
+                    <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
+                    <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
                   </select>
 
                   <button
@@ -1903,7 +1905,7 @@
                     class="admin-mark-paid-btn"
                     style="padding: 4px 10px; font-size: 0.78rem;"
                   >
-                    ✅ नकद मिला
+                    ✅ {{ currentLang === 'en' ? 'Mark Cash Paid' : (currentLang === 'mr' ? 'रोख मिळाली' : 'नकद मिला') }}
                   </button>
 
                   <strong style="font-size: 1.1rem; color: #1c1917; margin-left: 6px;">
@@ -1914,7 +1916,7 @@
 
               <!-- Itemized List Proof -->
               <div style="margin-top: 10px; background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.82rem;">
-                <strong>सामान तपशील:</strong>
+                <strong>{{ currentLang === 'en' ? 'Item Details:' : (currentLang === 'mr' ? 'सामान तपशील:' : 'सामग्री विवरण:') }}</strong>
                 <span v-for="(it, idx) in ord.items" :key="idx" style="margin-left: 6px; color: var(--text-muted);">
                   {{ it.product_name }} ({{ it.variant_label }}) × {{ it.quantity }} = ₹{{ it.subtotal }}{{ idx < ord.items.length - 1 ? ' | ' : '' }}
                 </span>
@@ -1950,7 +1952,7 @@
       <div class="modal-card" style="max-width: 480px; width: 95%;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 16px;">
           <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
-            💰 {{ currentLang === 'mr' ? 'उधारी रक्कम जमा करा' : 'उधारी रकम जमा करें' }}
+            💰 {{ currentLang === 'en' ? 'Deposit Khata Repayment' : (currentLang === 'mr' ? 'उधारी रक्कम जमा करा' : 'उधारी रकम जमा करें') }}
           </h3>
           <button class="close-btn" @click="showKhataPayModal = false">✕</button>
         </div>
@@ -1962,7 +1964,7 @@
               <div style="font-size: 0.8rem; color: #64748b;">📞 {{ activeKhataCustomer.customer_phone }}</div>
             </div>
             <div style="text-align: right;">
-              <span style="font-size: 0.75rem; color: #991b1b; font-weight: 700;">एकूण येणे बाकी:</span>
+              <span style="font-size: 0.75rem; color: #991b1b; font-weight: 700;">{{ currentLang === 'en' ? 'Net Due Balance:' : (currentLang === 'mr' ? 'एकूण येणे बाकी:' : 'कुल बकाया:') }}</span>
               <div style="font-size: 1.25rem; font-weight: 900; color: #dc2626;">₹{{ activeKhataCustomer.net_balance_due }}</div>
             </div>
           </div>
@@ -1971,7 +1973,7 @@
         <form @submit.prevent="submitKhataPayment">
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
-              {{ currentLang === 'mr' ? 'जमा करावयाची रक्कम (₹) *' : 'जमा करने की रकम (₹) *' }}
+              {{ currentLang === 'en' ? 'Amount to Deposit (₹) *' : (currentLang === 'mr' ? 'जमा करावयाची रक्कम (₹) *' : 'जमा करने की रकम (₹) *') }}
             </label>
             <input
               type="number"
@@ -1986,24 +1988,24 @@
 
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
-              {{ currentLang === 'mr' ? 'पेमेंट पद्धत' : 'भुगतान माध्यम' }}
+              {{ currentLang === 'en' ? 'Payment Method' : (currentLang === 'mr' ? 'पेमेंट पद्धत' : 'भुगतान माध्यम') }}
             </label>
             <select v-model="khataPayForm.payment_method" class="pos-select">
-              <option value="Cash">💵 रोख (Cash)</option>
-              <option value="UPI">📱 फोन पे / गुगल पे / UPI</option>
-              <option value="Bank Transfer">🏦 बँक ट्रान्सफर (NEFT/IMPS)</option>
-              <option value="Cheque">📜 चेक (Cheque)</option>
+              <option value="Cash">{{ currentLang === 'en' ? '💵 Cash' : (currentLang === 'mr' ? '💵 रोख (Cash)' : '💵 नकद (Cash)') }}</option>
+              <option value="UPI">{{ currentLang === 'en' ? '📱 PhonePe / Google Pay / UPI' : '📱 फोन पे / गुगल पे / UPI' }}</option>
+              <option value="Bank Transfer">{{ currentLang === 'en' ? '🏦 Bank Transfer (NEFT/IMPS)' : (currentLang === 'mr' ? '🏦 बँक ट्रान्सफर (NEFT/IMPS)' : '🏦 बैंक ट्रांसफर (NEFT/IMPS)') }}</option>
+              <option value="Cheque">{{ currentLang === 'en' ? '📜 Cheque' : (currentLang === 'mr' ? '📜 चेक (Cheque)' : '📜 चेक (Cheque)') }}</option>
             </select>
           </div>
 
           <div style="margin-bottom: 18px;">
             <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
-              {{ currentLang === 'mr' ? 'टीप / पावती संदर्भ (पर्यायी)' : 'नोट / संदर्भ' }}
+              {{ currentLang === 'en' ? 'Note / Reference (Optional)' : (currentLang === 'mr' ? 'टीप / पावती संदर्भ (पर्यायी)' : 'नोट / संदर्भ') }}
             </label>
             <input
               type="text"
               v-model="khataPayForm.note"
-              placeholder="उदा. माहे सप्टेंबर बिल आंशिक पेमेंट"
+              :placeholder="currentLang === 'en' ? 'e.g. Month bill partial payment' : (currentLang === 'mr' ? 'उदा. माहे सप्टेंबर बिल आंशिक पेमेंट' : 'उदा. सितम्बर बिल आंशिक भुगतान')"
               class="pos-input"
             />
           </div>
@@ -2014,14 +2016,14 @@
               :disabled="isSubmittingKhataPay"
               style="flex: 1; padding: 12px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 0.95rem; cursor: pointer;"
             >
-              {{ isSubmittingKhataPay ? 'नोंद होत आहे...' : '✅ पेमेंट जमा करा व बिले चुकता करा' }}
+              {{ isSubmittingKhataPay ? (currentLang === 'en' ? 'Recording...' : (currentLang === 'mr' ? 'नोंद होत आहे...' : 'दर्ज हो रहा है...')) : (currentLang === 'en' ? '✅ Deposit Payment & Settle Bills' : (currentLang === 'mr' ? '✅ पेमेंट जमा करा व बिले चुकता करा' : '✅ भुगतान जमा करें व बिल चुकता करें')) }}
             </button>
             <button
               type="button"
               @click="showKhataPayModal = false"
               style="padding: 12px 18px; background: #e2e8f0; color: #334155; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;"
             >
-              रद्द
+              {{ currentLang === 'en' ? 'Cancel' : (currentLang === 'mr' ? 'रद्द' : 'रद्द करें') }}
             </button>
           </div>
         </form>
@@ -2034,28 +2036,28 @@
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
           <div>
             <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
-              📒 {{ activeKhataStatement?.customer_name }} — {{ currentLang === 'mr' ? 'खाते बही स्टेटमेंट' : 'खाता बही स्टेटमेंट' }}
+              📒 {{ activeKhataStatement?.customer_name }} — {{ currentLang === 'en' ? 'Khata Ledger Statement' : (currentLang === 'mr' ? 'खाते बही स्टेटमेंट' : 'खाता बही स्टेटमेंट') }}
             </h3>
             <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-              📞 {{ activeKhataStatement?.customer_phone }} | एकूण बाकी: <strong style="color: #dc2626;">₹{{ activeKhataStatement?.unpaid_total }}</strong> | एकूण भरलेली रक्कम: <strong style="color: #059669;">₹{{ activeKhataStatement?.paid_total }}</strong>
+              📞 {{ activeKhataStatement?.customer_phone }} | {{ currentLang === 'en' ? 'Total Due:' : (currentLang === 'mr' ? 'एकूण बाकी:' : 'कुल बकाया:') }} <strong style="color: #dc2626;">₹{{ activeKhataStatement?.unpaid_total }}</strong> | {{ currentLang === 'en' ? 'Total Paid:' : (currentLang === 'mr' ? 'एकूण भरलेली रक्कम:' : 'कुल भुगतान:') }} <strong style="color: #059669;">₹{{ activeKhataStatement?.paid_total }}</strong>
             </div>
           </div>
           <button class="close-btn" @click="showKhataStatementModal = false">✕</button>
         </div>
 
         <div v-if="khataStatementLoading" style="text-align: center; padding: 30px;">
-          स्टेटमेंट लोड होत आहे...
+          {{ currentLang === 'en' ? 'Loading statement...' : (currentLang === 'mr' ? 'स्टेटमेंट लोड होत आहे...' : 'स्टेटमेंट लोड हो रहा है...') }}
         </div>
         <div v-else style="margin-top: 16px;">
-          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">📋 सर्व ऑर्डर्स व बिले</h4>
+          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">📋 {{ currentLang === 'en' ? 'All Orders & Invoices' : (currentLang === 'mr' ? 'सर्व ऑर्डर्स व बिले' : 'सभी ऑर्डर व बिल') }}</h4>
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>बिल क्र.</th>
-                  <th>दिनांक</th>
-                  <th>रक्कम</th>
-                  <th>स्थिती</th>
+                  <th>{{ currentLang === 'en' ? 'Bill No.' : (currentLang === 'mr' ? 'बिल क्र.' : 'बिल नं.') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Date' : (currentLang === 'mr' ? 'दिनांक' : 'दिनांक') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Amount' : (currentLang === 'mr' ? 'रक्कम' : 'रकम') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Status' : (currentLang === 'mr' ? 'स्थिती' : 'स्थिति') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2065,7 +2067,7 @@
                   <td><strong>₹{{ ord.final_amount }}</strong></td>
                   <td>
                     <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : 'unpaid'">
-                      {{ ord.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी' }}
+                      {{ ord.payment_status === 'Paid' ? (currentLang === 'en' ? '🟢 Paid' : '🟢 चुकता') : (currentLang === 'en' ? '🔴 Due' : (currentLang === 'mr' ? '🔴 बाकी' : '🔴 बकाया')) }}
                     </span>
                   </td>
                 </tr>
@@ -2073,20 +2075,20 @@
             </table>
           </div>
 
-          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin: 20px 0 10px;">💰 जमा केलेल्या रकमा (Repayments History)</h4>
+          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin: 20px 0 10px;">💰 {{ currentLang === 'en' ? 'Repayments History' : (currentLang === 'mr' ? 'जमा केलेल्या रकमा (Repayments History)' : 'जमा की गई रकमें (Repayments History)') }}</h4>
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>दिनांक</th>
-                  <th>जमा रक्कम</th>
-                  <th>माध्यम</th>
-                  <th>टीप</th>
+                  <th>{{ currentLang === 'en' ? 'Date' : (currentLang === 'mr' ? 'दिनांक' : 'दिनांक') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Deposit Amount' : (currentLang === 'mr' ? 'जमा रक्कम' : 'जमा रकम') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Method' : (currentLang === 'mr' ? 'माध्यम' : 'माध्यम') }}</th>
+                  <th>{{ currentLang === 'en' ? 'Note' : (currentLang === 'mr' ? 'टीप' : 'नोट') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="!activeKhataStatement?.payments || activeKhataStatement?.payments.length === 0">
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 18px;">अद्याप कोणतीही रक्कम जमा केलेली नाही.</td>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 18px;">{{ currentLang === 'en' ? 'No repayments recorded yet.' : (currentLang === 'mr' ? 'अद्याप कोणतीही रक्कम जमा केलेली नाही.' : 'अभी तक कोई रकम जमा नहीं की गई है।') }}</td>
                 </tr>
                 <tr v-for="p in activeKhataStatement?.payments" :key="p.id">
                   <td>{{ p.created_at }}</td>
@@ -2138,7 +2140,7 @@
             :class="{ active: customerActiveTab === 'khata' }"
             @click="customerActiveTab = 'khata'; loadCustomerKhata();"
           >
-            📒 {{ currentLang === 'mr' ? 'माझे खाते' : 'मेरा खाता' }}
+            📒 {{ currentLang === 'en' ? 'My Khata' : (currentLang === 'mr' ? 'माझे खाते' : 'मेरा खाता') }}
             <span v-if="customerKhataData && customerKhataData.net_balance_due > 0" class="tab-badge-danger" style="margin-left: 4px;">
               ₹{{ customerKhataData.net_balance_due }}
             </span>
@@ -2162,11 +2164,11 @@
         <!-- CUSTOMER TAB 1: MY ORDERS -->
         <div v-if="customerActiveTab === 'orders'">
           <div v-if="customerOrdersLoading" style="text-align: center; padding: 30px;">
-            ऑर्डर लोड हो रहे हैं...
+            {{ currentLang === 'en' ? 'Loading orders...' : (currentLang === 'mr' ? 'ऑर्डर्स लोड होत आहेत...' : 'ऑर्डर लोड हो रहे हैं...') }}
           </div>
           <div v-else-if="customerOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
             <div style="font-size: 2.5rem; margin-bottom: 8px;">🧺</div>
-            <p style="font-weight: 700;">आपने अभी तक कोई ऑर्डर नहीं दिया है।</p>
+            <p style="font-weight: 700;">{{ currentLang === 'en' ? 'You have not placed any orders yet.' : (currentLang === 'mr' ? 'तुम्ही अद्याप कोणतीही ऑर्डर केलेली नाही.' : 'आपने अभी तक कोई ऑर्डर नहीं दिया है।') }}</p>
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 14px;">
             <div
@@ -2182,14 +2184,14 @@
                 <div style="text-align: right;">
                   <span style="font-weight: 900; font-size: 1.1rem; color: #1c1917;">₹{{ ord.final_amount }}</span>
                   <div v-if="ord.credit_used > 0" style="font-size: 0.74rem; color: #047857; font-weight: 700;">
-                    💳 छूट: -₹{{ ord.credit_used }}
+                    💳 {{ currentLang === 'en' ? 'Discount:' : (currentLang === 'mr' ? 'सूट:' : 'छूट:') }} -₹{{ ord.credit_used }}
                   </div>
                   <div v-if="ord.credit_earned > 0" style="font-size: 0.74rem; font-weight: 700;">
                     <span v-if="ord.payment_status === 'Paid'" style="color: #059669;">
-                      🎉 {{ currentLang === 'mr' ? 'क्रेडिट जमा:' : 'क्रेडिट जमा:' }} +₹{{ ord.credit_earned }}
+                      🎉 {{ currentLang === 'en' ? 'Credit Earned:' : 'क्रेडिट जमा:' }} +₹{{ ord.credit_earned }}
                     </span>
                     <span v-else style="color: #d97706;">
-                      ⏳ +₹{{ ord.credit_earned }} {{ currentLang === 'mr' ? '(पेमेंट झाल्यावर मिळेल)' : '(पेमेंट पर अनलॉक होगा)' }}
+                      ⏳ +₹{{ ord.credit_earned }} {{ currentLang === 'en' ? '(Unlocked on full payment)' : (currentLang === 'mr' ? '(पेमेंट झाल्यावर मिळेल)' : '(पेमेंट पर अनलॉक होगा)') }}
                     </span>
                   </div>
                 </div>
@@ -2202,7 +2204,7 @@
                     📦 {{ ord.status }}
                   </span>
                   <span class="pay-badge" :class="ord.payment_status.toLowerCase().includes('paid') && !ord.payment_status.toLowerCase().includes('unpaid') ? 'paid' : 'unpaid'">
-                    {{ ord.payment_status === 'Paid' ? '🟢 चुकता (Paid)' : '🔴 बाकी उधारी (Unpaid)' }}
+                    {{ ord.payment_status === 'Paid' ? (currentLang === 'en' ? '🟢 Paid' : '🟢 चुकता (Paid)') : (currentLang === 'en' ? '🔴 Unpaid Khata' : '🔴 बाकी उधारी (Unpaid)') }}
                   </span>
                 </div>
 
@@ -2212,19 +2214,19 @@
                     @click="openUpiPayForCustomerOrder(ord)"
                     style="background: #047857; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
                   >
-                    💳 UPI से भुगतान करें
+                    💳 {{ currentLang === 'en' ? 'Pay via UPI' : (currentLang === 'mr' ? 'UPI ने भरा' : 'UPI से भुगतान करें') }}
                   </button>
                   <button
                     @click="viewOrderReceipt(ord)"
                     style="background: white; border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;"
                   >
-                    🧾 पर्चा देखें
+                    🧾 {{ currentLang === 'en' ? 'View Bill' : (currentLang === 'mr' ? 'पर्चा पहा' : 'पर्चा देखें') }}
                   </button>
                   <button
                     @click="downloadOrderPdf(ord)"
                     style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
                   >
-                    📥 PDF बिल
+                    📥 {{ currentLang === 'en' ? 'PDF Bill' : 'PDF बिल' }}
                   </button>
                 </div>
               </div>
@@ -2243,23 +2245,23 @@
         <div v-if="customerActiveTab === 'profile'">
           <form @submit.prevent="updateCustomerProfile">
             <div class="form-group">
-              <label class="form-label">पूरा नाम (Full Name) *</label>
+              <label class="form-label">{{ currentLang === 'en' ? 'Full Name *' : (currentLang === 'mr' ? 'पूर्ण नाव (Full Name) *' : 'पूरा नाम (Full Name) *') }}</label>
               <input type="text" v-model="profileForm.name" required class="form-input" />
             </div>
             <div class="form-group">
-              <label class="form-label">ईमेल (Email ID - Read Only)</label>
+              <label class="form-label">{{ currentLang === 'en' ? 'Email ID (Read Only)' : (currentLang === 'mr' ? 'ईमेल (Email ID - फक्त वाचण्यासाठी)' : 'ईमेल (Email ID - Read Only)') }}</label>
               <input type="email" :value="profileForm.email" disabled class="form-input" style="background: #f5f0e8; cursor: not-allowed;" />
             </div>
             <div class="form-group">
-              <label class="form-label">मोबाइल नंबर (Phone Number) *</label>
+              <label class="form-label">{{ currentLang === 'en' ? 'Mobile / WhatsApp Number *' : (currentLang === 'mr' ? 'मोबाईल नंबर (Phone Number) *' : 'मोबाइल नंबर (Phone Number) *') }}</label>
               <input type="tel" v-model="profileForm.phone" required class="form-input" />
             </div>
             <div class="form-group">
-              <label class="form-label">डिफ़ॉल्ट डिलीवरी का पता (Delivery Address) *</label>
-              <textarea v-model="profileForm.address" rows="3" required class="form-input" placeholder="मकान नं, बिल्डिंग, गली, मोहल्ला / लैंडमार्क"></textarea>
+              <label class="form-label">{{ currentLang === 'en' ? 'Default Delivery Address *' : (currentLang === 'mr' ? 'डिफॉल्ट डिलिव्हरी पत्ता (Delivery Address) *' : 'डिफ़ॉल्ट डिलीवरी का पता (Delivery Address) *') }}</label>
+              <textarea v-model="profileForm.address" rows="3" required class="form-input" :placeholder="currentLang === 'en' ? 'House / Flat No., Building, Street, Landmark, Pincode' : (currentLang === 'mr' ? 'घर क्र., इमारत, रस्ता, लँडमार्क' : 'मकान नं, बिल्डिंग, गली, मोहल्ला / लैंडमार्क')"></textarea>
             </div>
             <button type="submit" class="checkout-btn">
-              💾 पता व सेटिंग्स सेव करें
+              💾 {{ currentLang === 'en' ? 'Save Address & Settings' : (currentLang === 'mr' ? 'पत्ता व सेटिंग्ज सेव्ह करा' : 'पता व सेटिंग्स सेव करें') }}
             </button>
           </form>
         </div>
@@ -2318,14 +2320,14 @@
         <!-- CUSTOMER TAB 4: MY KHATA -->
         <div v-if="customerActiveTab === 'khata'">
           <div v-if="customerKhataLoading" style="text-align: center; padding: 30px;">
-            खाते लोड होत आहे...
+            {{ currentLang === 'en' ? 'Loading khata account...' : (currentLang === 'mr' ? 'खाते लोड होत आहे...' : 'खाता लोड हो रहा है...') }}
           </div>
           <div v-else>
             <!-- Khata Balance Card -->
             <div style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <span style="font-size: 0.82rem; color: #991b1b; font-weight: 800;">
-                  {{ currentLang === 'mr' ? 'एकूण बाकी उधारी रक्कम (Net Balance Due):' : 'कुल बकाया उधारी रकम (Net Balance Due):' }}
+                  {{ currentLang === 'en' ? 'Net Outstanding Khata Dues:' : (currentLang === 'mr' ? 'एकूण बाकी उधारी रक्कम (Net Balance Due):' : 'कुल बकाया उधारी रकम (Net Balance Due):') }}
                 </span>
                 <div style="font-size: 1.7rem; font-weight: 900; color: #dc2626; margin-top: 2px;">
                   ₹{{ customerKhataData ? customerKhataData.net_balance_due : 0 }}
@@ -2336,17 +2338,17 @@
                 @click="openUpiPayForCustomerOrder(customerKhataData.unpaid_orders[0])"
                 style="background: #047857; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer;"
               >
-                💳 UPI ने भरा
+                💳 {{ currentLang === 'en' ? 'Pay via UPI' : (currentLang === 'mr' ? 'UPI ने भरा' : 'UPI से भरें') }}
               </button>
             </div>
 
             <!-- Unpaid Orders List -->
             <div v-if="!customerKhataData || customerKhataData.unpaid_orders.length === 0" style="text-align: center; padding: 30px 10px; color: var(--text-muted);">
               <div style="font-size: 2rem; margin-bottom: 6px;">🎉</div>
-              <strong>{{ currentLang === 'mr' ? 'तुमचे खाते पूर्णपणे चुकता आहे! कोणतीही बाकी नाही.' : 'आपका खाता पूरी तरह चुकता है! कोई बकाया नहीं।' }}</strong>
+              <strong>{{ currentLang === 'en' ? 'Your account is completely clear! No dues pending.' : (currentLang === 'mr' ? 'तुमचे खाते पूर्णपणे चुकता आहे! कोणतीही बाकी नाही.' : 'आपका खाता पूरी तरह चुकता है! कोई बकाया नहीं।') }}</strong>
             </div>
             <div v-else style="display: flex; flex-direction: column; gap: 10px;">
-              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 4px 0 2px;">📋 बाकी राहिलेली बिले</h4>
+              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 4px 0 2px;">📋 {{ currentLang === 'en' ? 'Unpaid Invoices' : (currentLang === 'mr' ? 'बाकी राहिलेली बिले' : 'बकाया बिल') }}</h4>
               <div
                 v-for="ord in customerKhataData.unpaid_orders"
                 :key="ord.id"
@@ -2363,7 +2365,7 @@
                       @click="openUpiPayForCustomerOrder(ord)"
                       style="background: #059669; color: white; border: none; padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; font-weight: 800; cursor: pointer;"
                     >
-                      चुकता करा
+                      {{ currentLang === 'en' ? 'Pay Now' : (currentLang === 'mr' ? 'चुकता करा' : 'चुकता करें') }}
                     </button>
                   </div>
                 </div>
@@ -2679,7 +2681,7 @@
               <button
                 class="addon-quick-add-btn"
                 @click="addToCart(addon, addon.variants[0])"
-                title="थैलीत जोडा"
+                :title="currentLang === 'en' ? 'Add to cart' : (currentLang === 'mr' ? 'थैलीत जोडा' : 'थैली में जोड़ें')"
               >
                 + {{ currentLang === 'mr' ? 'जोडा' : (currentLang === 'hi' ? 'जोड़ें' : 'Add') }}
               </button>
@@ -2817,15 +2819,15 @@
                 v-for="slot in deliverySlotOptions"
                 :key="slot.id"
                 class="delivery-slot-card"
-                :class="{ active: customerForm.deliverySlot === slot.label }"
-                @click="customerForm.deliverySlot = slot.label"
+                :class="{ active: customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label }"
+                @click="customerForm.deliverySlot = slot.id"
               >
                 <div class="slot-icon">{{ slot.icon }}</div>
                 <div class="slot-details">
                   <div class="slot-label">{{ slot.title }}</div>
                   <div class="slot-desc">{{ slot.desc }}</div>
                 </div>
-                <div class="slot-check-icon" v-if="customerForm.deliverySlot === slot.label">✓</div>
+                <div class="slot-check-icon" v-if="customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label">✓</div>
               </div>
             </div>
           </div>
@@ -3041,7 +3043,7 @@
               🎉 {{ t('store_credit_earned') }}: +₹{{ lastOrderReceipt.credit_earned }}!
             </div>
             <div v-else-if="lastOrderReceipt.credit_earned > 0" style="margin-top: 6px; background: #fffbeb; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #b45309; font-weight: bold; text-align: center; border: 1px dashed #f59e0b;">
-              ⏳ {{ currentLang === 'mr' ? `₹${lastOrderReceipt.credit_earned} स्टोअर क्रेडिट (पेमेंट चुकता झाल्यावर वॉलेटमध्ये जमा होईल)` : `₹${lastOrderReceipt.credit_earned} स्टोर क्रेडिट (पेमेंट पूरा होने पर वॉलेट में जुड़ेगा)` }}
+              ⏳ {{ currentLang === 'en' ? `₹${lastOrderReceipt.credit_earned} Store Credit (Will be credited to wallet upon full payment)` : (currentLang === 'mr' ? `₹${lastOrderReceipt.credit_earned} स्टोअर क्रेडिट (पेमेंट चुकता झाल्यावर वॉलेटमध्ये जमा होईल)` : `₹${lastOrderReceipt.credit_earned} स्टोर क्रेडिट (पेमेंट पूरा होने पर वॉलेट में जुड़ेगा)`) }}
             </div>
           </div>
 
@@ -3208,7 +3210,7 @@
         <form @submit.prevent="submitNewProduct">
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="form-label" style="margin-bottom: 0;">{{ currentLang === 'mr' ? 'सामान श्रेणी (Category) *' : 'कैटेगरी (Category) *' }}</label>
+              <label class="form-label" style="margin-bottom: 0;">{{ currentLang === 'en' ? 'Category *' : (currentLang === 'mr' ? 'सामान श्रेणी (Category) *' : 'कैटेगरी (Category) *') }}</label>
               <div style="display: flex; gap: 4px;">
                 <button
                   type="button"
@@ -3216,7 +3218,7 @@
                   :style="!newProductForm.is_new_category ? 'background: #065f46; color: white;' : 'background: #f1f5f9; color: var(--text-muted);'"
                   style="border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;"
                 >
-                  📁 {{ currentLang === 'mr' ? 'अस्तित्वात असलेली' : 'मौजूदा' }}
+                  📁 {{ currentLang === 'en' ? 'Existing' : (currentLang === 'mr' ? 'अस्तित्वात असलेली' : 'मौजूदा') }}
                 </button>
                 <button
                   type="button"
@@ -3224,7 +3226,7 @@
                   :style="newProductForm.is_new_category ? 'background: #d97706; color: white;' : 'background: #f1f5f9; color: var(--text-muted);'"
                   style="border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;"
                 >
-                  ➕ {{ currentLang === 'mr' ? 'नवीन श्रेणी बनवा' : 'नई कैटेगरी' }}
+                  ➕ {{ currentLang === 'en' ? 'Create New' : (currentLang === 'mr' ? 'नवीन श्रेणी बनवा' : 'नई कैटेगरी') }}
                 </button>
               </div>
             </div>
@@ -3244,22 +3246,22 @@
             <!-- New Custom Category Inputs -->
             <div v-else style="background: #fffbeb; border: 1.5px solid #fef3c7; padding: 12px; border-radius: 8px;">
               <div style="font-size: 0.82rem; font-weight: 800; color: #92400e; margin-bottom: 8px;">
-                ✨ {{ currentLang === 'mr' ? 'नवीन श्रेणी थेट तयार करा (कॅटलॉगमध्ये नवीन विभाग बनेल)' : 'नई कैटेगरी बनाएं (स्टोर में अलग सेक्शन बनेगा)' }}
+                ✨ {{ currentLang === 'en' ? 'Create new category directly (creates a new catalog aisle)' : (currentLang === 'mr' ? 'नवीन श्रेणी थेट तयार करा (कॅटलॉगमध्ये नवीन विभाग बनेल)' : 'नई कैटेगरी बनाएं (स्टोर में अलग सेक्शन बनेगा)') }}
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                 <div>
-                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">इंग्रजी नाव (English) *</label>
+                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">{{ currentLang === 'en' ? 'English Name *' : (currentLang === 'mr' ? 'इंग्रजी नाव (English) *' : 'अंग्रेजी नाम (English) *') }}</label>
                   <input
                     type="text"
                     v-model="newProductForm.new_category_name"
                     required
                     class="form-input"
-                    placeholder="उदा. Dry Fruits & Nuts"
+                    :placeholder="currentLang === 'en' ? 'e.g. Dry Fruits & Nuts' : 'उदा. Dry Fruits & Nuts'"
                     style="margin-top: 2px;"
                   />
                 </div>
                 <div>
-                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">मराठी/हिंदी नाव</label>
+                  <label style="font-size: 0.74rem; font-weight: 700; color: #78350f;">{{ currentLang === 'en' ? 'Marathi / Hindi Name' : (currentLang === 'mr' ? 'मराठी नाव' : 'हिंदी नाम') }}</label>
                   <input
                     type="text"
                     v-model="newProductForm.new_category_name_hi"
@@ -3273,44 +3275,44 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">अंग्रेजी नाम (English Name) *</label>
+            <label class="form-label">{{ currentLang === 'en' ? 'English Name *' : (currentLang === 'mr' ? 'इंग्रजी नाव (English Name) *' : 'अंग्रेजी नाम (English Name) *') }}</label>
             <input type="text" v-model="newProductForm.name" required class="form-input" placeholder="e.g. Masoor Dal Malka" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">हिंदी नाम (Hindi Name) *</label>
-            <input type="text" v-model="newProductForm.name_hi" required class="form-input" placeholder="जैसे: मलका मसूर दाल" />
+            <label class="form-label">{{ currentLang === 'en' ? 'Regional / Local Name *' : (currentLang === 'mr' ? 'मराठी/हिंदी नाव (Local Name) *' : 'हिंदी नाम (Hindi Name) *') }}</label>
+            <input type="text" v-model="newProductForm.name_hi" required class="form-input" :placeholder="currentLang === 'en' ? 'e.g. Malaka Masoor Dal' : (currentLang === 'mr' ? 'उदा. मलका मसूर डाळ' : 'जैसे: मलका मसूर दाल')" />
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label class="form-label">ब्रांड (Brand)</label>
+              <label class="form-label">{{ currentLang === 'en' ? 'Brand' : (currentLang === 'mr' ? 'ब्रँड (Brand)' : 'ब्रांड (Brand)') }}</label>
               <input type="text" v-model="newProductForm.brand" class="form-input" placeholder="e.g. Tata, Local, Loose" />
             </div>
             <div class="form-group">
-              <label class="form-label">प्रकार (Type)</label>
+              <label class="form-label">{{ currentLang === 'en' ? 'Type' : (currentLang === 'mr' ? 'प्रकार (Type)' : 'प्रकार (Type)') }}</label>
               <select v-model="newProductForm.is_loose" class="form-input">
-                <option :value="true">🌾 खुला राशन (Loose)</option>
-                <option :value="false">📦 पैकेट (Packaged)</option>
+                <option :value="true">{{ currentLang === 'en' ? '🌾 Loose / Bulk' : (currentLang === 'mr' ? '🌾 सुट्टे किराणा (Loose)' : '🌾 खुला राशन (Loose)') }}</option>
+                <option :value="false">{{ currentLang === 'en' ? '📦 Packaged' : (currentLang === 'mr' ? '📦 पाकीटबंद (Packaged)' : '📦 पैकेट (Packaged)') }}</option>
               </select>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">विवरण (Description)</label>
+            <label class="form-label">{{ currentLang === 'en' ? 'Description' : (currentLang === 'mr' ? 'विवरण (Description)' : 'विवरण (Description)') }}</label>
             <textarea v-model="newProductForm.description" rows="2" class="form-input"></textarea>
           </div>
 
           <!-- 3-ANGLE PRODUCT PHOTOS SECTION -->
           <div style="background: #f0fdf4; border: 1.5px solid #86efac; padding: 14px; border-radius: 10px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 800; font-size: 0.9rem; color: #065f46;">📸 ३-अँगल सामान फोटो (Product Photos)</span>
-              <span style="font-size: 0.72rem; color: #047857;">१-टॅप प्रिसेट किंवा URL टाका</span>
+              <span style="font-weight: 800; font-size: 0.9rem; color: #065f46;">📸 {{ currentLang === 'en' ? '3-Angle Product Photos' : (currentLang === 'mr' ? '३-अँगल सामान फोटो (Product Photos)' : '३-एंगल प्रोडक्ट फोटो (Product Photos)') }}</span>
+              <span style="font-size: 0.72rem; color: #047857;">{{ currentLang === 'en' ? '1-tap preset or enter URL' : (currentLang === 'mr' ? '१-टॅप प्रिसेट किंवा URL टाका' : '१-टैप प्रीसेट या URL डालें') }}</span>
             </div>
 
             <!-- 1-Tap Presets Bar -->
             <div style="margin-bottom: 10px;">
-              <span style="font-size: 0.72rem; font-weight: 700; color: #374151; display: block; margin-bottom: 4px;">⚡ झटपट किराना प्रिसेट्स (Quick Presets):</span>
+              <span style="font-size: 0.72rem; font-weight: 700; color: #374151; display: block; margin-bottom: 4px;">⚡ {{ currentLang === 'en' ? 'Quick Presets:' : (currentLang === 'mr' ? 'झटपट किराना प्रिसेट्स:' : 'झटपट किराना प्रीसेट्स:') }}</span>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <button
                   v-for="(preset, pIdx) in kiranaImagePresets"
@@ -4754,34 +4756,34 @@ const customerForm = ref({
   name: '',
   phone: '',
   address: '',
-  deliverySlot: '⚡ 30 मिनट में (Instant - 30 Mins)',
+  deliverySlot: 'instant',
   paymentMethod: 'Cash on Delivery (COD)',
   upiConfirmed: false
 });
 
-const deliverySlotOptions = [
+const deliverySlotOptions = computed(() => [
   {
     id: 'instant',
     icon: '⚡',
-    title: '30 मिनट में (Instant Delivery)',
-    desc: 'ताज़ा व तुरंत आपके दरवाज़े पर',
-    label: '⚡ 30 मिनट में (Instant - 30 Mins)'
+    title: currentLang.value === 'en' ? '30 Mins (Instant Delivery)' : (currentLang.value === 'mr' ? '३० मिनिटांत (Instant Delivery)' : '30 मिनट में (Instant Delivery)'),
+    desc: currentLang.value === 'en' ? 'Fresh & fast right to your doorstep' : (currentLang.value === 'mr' ? 'ताजे व त्वरित तुमच्या दारात' : 'ताज़ा व तुरंत आपके दरवाज़े पर'),
+    label: currentLang.value === 'en' ? '⚡ 30 Mins (Instant - 30 Mins)' : (currentLang.value === 'mr' ? '⚡ ३० मिनिटांत (Instant - 30 Mins)' : '⚡ 30 मिनट में (Instant - 30 Mins)')
   },
   {
     id: 'morning',
     icon: '🌅',
-    title: 'सुबह का स्लॉट (7:00 - 10:00 AM)',
-    desc: 'ताज़ी चाय, दूध व सुबह का नाश्ता',
-    label: '🌅 सुबह (7:00 AM - 10:00 AM)'
+    title: currentLang.value === 'en' ? 'Morning Slot (7:00 - 10:00 AM)' : (currentLang.value === 'mr' ? 'सकाळचा स्लॉट (7:00 - 10:00 AM)' : 'सुबह का स्लॉट (7:00 - 10:00 AM)'),
+    desc: currentLang.value === 'en' ? 'Fresh breakfast, milk & daily essentials' : (currentLang.value === 'mr' ? 'ताजा चहा, दूध व सकाळचा नाश्ता' : 'ताज़ी चाय, दूध व सुबह का नाश्ता'),
+    label: currentLang.value === 'en' ? '🌅 Morning (7:00 AM - 10:00 AM)' : (currentLang.value === 'mr' ? '🌅 सकाळ (7:00 AM - 10:00 AM)' : '🌅 सुबह (7:00 AM - 10:00 AM)')
   },
   {
     id: 'evening',
     icon: '🌆',
-    title: 'शाम का स्लॉट (6:00 - 9:00 PM)',
-    desc: 'रात के खाने व अगले दिन का राशन',
-    label: '🌆 शाम (6:00 PM - 9:00 PM)'
+    title: currentLang.value === 'en' ? 'Evening Slot (6:00 - 9:00 PM)' : (currentLang.value === 'mr' ? 'संध्याकाळचा स्लॉट (6:00 - 9:00 PM)' : 'शाम का स्लॉट (6:00 - 9:00 PM)'),
+    desc: currentLang.value === 'en' ? 'Dinner preparation & daily staples' : (currentLang.value === 'mr' ? 'रात्रीच्या जेवणासाठी व रोजचा किराणा' : 'रात के खाने व अगले दिन का राशन'),
+    label: currentLang.value === 'en' ? '🌆 Evening (6:00 PM - 9:00 PM)' : (currentLang.value === 'mr' ? '🌆 संध्याकाळ (6:00 PM - 9:00 PM)' : '🌆 शाम (6:00 PM - 9:00 PM)')
   }
-];
+]);
 
 // Monthly Ration Checklist State
 const showMonthlyParchaModal = ref(false);
@@ -5650,8 +5652,13 @@ async function submitOrder() {
       headers['Authorization'] = `Bearer ${authToken.value}`;
     }
 
-    const deliveryAddressWithSlot = customerForm.value.deliverySlot
-      ? `${customerForm.value.address} [⏰ समय: ${customerForm.value.deliverySlot}]`
+    const activeSlot = deliverySlotOptions.value.find(s => s.id === customerForm.value.deliverySlot)
+      || deliverySlotOptions.value.find(s => s.label === customerForm.value.deliverySlot)
+      || deliverySlotOptions.value[0];
+    const slotLabel = activeSlot ? activeSlot.label : customerForm.value.deliverySlot;
+    const slotPrefix = currentLang.value === 'en' ? '⏰ Slot:' : (currentLang.value === 'mr' ? '⏰ वेळ:' : '⏰ समय:');
+    const deliveryAddressWithSlot = slotLabel
+      ? `${customerForm.value.address} [${slotPrefix} ${slotLabel}]`
       : customerForm.value.address;
 
     const payload = {
@@ -6005,7 +6012,7 @@ function addPosItem() {
   posCustomWeight.value = 1.0;
   posQuantity.value = 1;
   posCustomRate.value = null;
-  showToast(currentLang.value === 'mr' ? 'सामान बिलात जोडले!' : 'सामान बिल में जोड़ा!');
+  showToast(currentLang.value === 'en' ? 'Item added to bill!' : (currentLang.value === 'mr' ? 'सामान बिलात जोडले!' : 'सामान बिल में जोड़ा!'));
 }
 
 function removePosItem(index) {
@@ -6049,15 +6056,15 @@ function selectRegisteredCustomerForPos(cust) {
   if (!cust) {
     counterOrder.value.customer_name = '';
     counterOrder.value.customer_phone = '';
-    counterOrder.value.customer_address = 'दुकान काउंटर (In-Store Pickup)';
+    counterOrder.value.customer_address = currentLang.value === 'en' ? 'Store Counter (In-Store Pickup)' : (currentLang.value === 'mr' ? 'दुकान काउंटर (In-Store Pickup)' : 'दुकान काउंटर (In-Store Pickup)');
     counterOrder.value.user_id = null;
     return;
   }
   counterOrder.value.customer_name = cust.name;
   counterOrder.value.customer_phone = cust.phone;
-  counterOrder.value.customer_address = cust.address || 'दुकान काउंटर (In-Store Pickup)';
+  counterOrder.value.customer_address = cust.address || (currentLang.value === 'en' ? 'Store Counter (In-Store Pickup)' : (currentLang.value === 'mr' ? 'दुकान काउंटर (In-Store Pickup)' : 'दुकान काउंटर (In-Store Pickup)'));
   counterOrder.value.user_id = cust.id;
-  showToast(`${cust.name} निवडले!`);
+  showToast(currentLang.value === 'en' ? `${cust.name} selected!` : (currentLang.value === 'mr' ? `${cust.name} निवडले!` : `${cust.name} चुना गया!`));
 }
 
 function onPosCustomerManualEdit() {
@@ -6073,11 +6080,11 @@ function onPosCustomerManualEdit() {
 
 async function submitCounterOrder(action = 'view') {
   if (counterOrder.value.items.length === 0) {
-    showToast(currentLang.value === 'mr' ? 'बिलात किमान १ सामान जोडा!' : 'बिल में कम से कम 1 सामान जोड़ें!', 'error');
+    showToast(currentLang.value === 'en' ? 'Add at least 1 item to bill!' : (currentLang.value === 'mr' ? 'बिलात किमान १ सामान जोडा!' : 'बिल में कम से कम 1 सामान जोड़ें!'), 'error');
     return;
   }
   if (!counterOrder.value.customer_name.trim()) {
-    counterOrder.value.customer_name = 'काउंटर ग्राहक (Walk-in)';
+    counterOrder.value.customer_name = currentLang.value === 'en' ? 'Counter Customer (Walk-in)' : (currentLang.value === 'mr' ? 'काउंटर ग्राहक (Walk-in)' : 'काउंटर ग्राहक (Walk-in)');
   }
 
   isPosSubmitting.value = true;
@@ -6092,7 +6099,7 @@ async function submitCounterOrder(action = 'view') {
     const payload = {
       customer_name: counterOrder.value.customer_name.trim(),
       customer_phone: counterOrder.value.customer_phone.trim() || '9999999999',
-      customer_address: counterOrder.value.customer_address.trim() || 'दुकान काउंटर (In-Store Pickup)',
+      customer_address: counterOrder.value.customer_address.trim() || (currentLang.value === 'en' ? 'Store Counter (In-Store Pickup)' : (currentLang.value === 'mr' ? 'दुकान काउंटर (In-Store Pickup)' : 'दुकान काउंटर (In-Store Pickup)')),
       order_type: counterOrder.value.order_type,
       payment_method: counterOrder.value.payment_method,
       payment_status: counterOrder.value.payment_status,
@@ -6113,7 +6120,7 @@ async function submitCounterOrder(action = 'view') {
 
     const data = await res.json();
     if (res.ok && data.order) {
-      showToast(currentLang.value === 'mr' ? `बिल #${data.order.order_number} तयार झाले!` : `बिल #${data.order.order_number} बन गया!`);
+      showToast(currentLang.value === 'en' ? `Bill #${data.order.order_number} created!` : (currentLang.value === 'mr' ? `बिल #${data.order.order_number} तयार झाले!` : `बिल #${data.order.order_number} बन गया!`));
       // Reload admin orders & customers in background
       loadAdminOrders();
       loadAdminCustomers();
@@ -6124,7 +6131,7 @@ async function submitCounterOrder(action = 'view') {
       counterOrder.value = {
         customer_name: '',
         customer_phone: '',
-        customer_address: 'दुकान काउंटर (In-Store Pickup)',
+        customer_address: currentLang.value === 'en' ? 'Store Counter (In-Store Pickup)' : (currentLang.value === 'mr' ? 'दुकान काउंटर (In-Store Pickup)' : 'दुकान काउंटर (In-Store Pickup)'),
         order_type: 'counter',
         payment_method: 'Cash on Counter',
         payment_status: 'Paid',
@@ -6143,11 +6150,11 @@ async function submitCounterOrder(action = 'view') {
         viewOrderReceipt(createdOrder);
       }
     } else {
-      showToast(data.error || 'बिल सेव्ह करताना त्रुटी आली', 'error');
+      showToast(data.error || (currentLang.value === 'en' ? 'Error saving bill' : (currentLang.value === 'mr' ? 'बिल सेव्ह करताना त्रुटी आली' : 'बिल सहेजने में त्रुटि आई')), 'error');
     }
   } catch (err) {
     console.error('POS order error:', err);
-    showToast('Network error while saving bill', 'error');
+    showToast(currentLang.value === 'en' ? 'Network error while saving bill' : (currentLang.value === 'mr' ? 'बिल सेव्ह करताना नेटवर्क त्रुटी आली' : 'बिल सहेजते समय नेटवर्क त्रुटि आई'), 'error');
   } finally {
     isPosSubmitting.value = false;
   }
@@ -6194,7 +6201,39 @@ function sendKhataReminderWhatsApp(customer) {
   const rawPhone = customer.phone.replace(/\D/g, '');
   const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
 
-  const text =
+  let text = '';
+  if (currentLang.value === 'en') {
+    text =
+`🌾 *Komal Mart - Customer Khata & Due Statement*
+━━━━━━━━━━━━━━━━━━━━
+👤 *Customer Name:* ${customer.name}
+📞 *Mobile:* ${customer.phone}
+🧾 *Total Orders:* ${customer.total_orders}
+💰 *Total Purchases:* ₹${customer.total_spent}
+━━━━━━━━━━━━━━━━━━━━
+⚠️ *Current Due Balance:* *₹${customer.unpaid_balance}*
+
+Kindly clear your balance via UPI or cash at store:
+📲 *UPI ID:* komalmart@upi
+📍 *Komal Mart*, Main Bazaar, Station Road
+Thank you! 🙏`;
+  } else if (currentLang.value === 'hi') {
+    text =
+`🌾 *कोमल मार्ट (Komal Mart) - ग्राहक खाता व उधारी बहीखाता*
+━━━━━━━━━━━━━━━━━━━━
+👤 *ग्राहक नाम:* ${customer.name}
+📞 *मोबाइल:* ${customer.phone}
+🧾 *कुल ऑर्डर्स:* ${customer.total_orders}
+💰 *कुल खरीदारी:* ₹${customer.total_spent}
+━━━━━━━━━━━━━━━━━━━━
+⚠️ *वर्तमान बकाया उधारी राशि:* *₹${customer.unpaid_balance}*
+
+कृपया नीचे दिए UPI या दुकान पर आकर नकद भुगतान करें:
+📲 *UPI ID:* komalmart@upi
+📍 *कोमल मार्ट*, मेन बाज़ार, स्टेशन रोड
+धन्यवाद! 🙏`;
+  } else {
+    text =
 `🌾 *कोमल मार्ट (Komal Mart) - मासिक खाते व उधारी बहीखाता*
 ━━━━━━━━━━━━━━━━━━━━
 👤 *ग्राहक नाव:* ${customer.name}
@@ -6208,6 +6247,7 @@ function sendKhataReminderWhatsApp(customer) {
 📲 *UPI ID:* komalmart@upi
 📍 *कोमल मार्ट*, मेन बाजार, स्टेशन रोड
 धन्यवाद! 🙏`;
+  }
 
   const encoded = encodeURIComponent(text);
   window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`, '_blank');
@@ -6255,7 +6295,7 @@ async function submitKhataPayment() {
   if (!activeKhataCustomer.value) return;
   const amt = parseFloat(khataPayForm.value.amount);
   if (!amt || amt <= 0) {
-    showToast('कृपया वैध रक्कम टाका!', 'error');
+    showToast(currentLang.value === 'en' ? 'Please enter a valid amount!' : (currentLang.value === 'mr' ? 'कृपया वैध रक्कम टाका!' : 'कृपया वैध राशि दर्ज करें!'), 'error');
     return;
   }
   isSubmittingKhataPay.value = true;
@@ -6276,17 +6316,17 @@ async function submitKhataPayment() {
     });
     const data = await res.json();
     if (res.ok) {
-      showToast(data.message || 'पेमेंट यशस्वीरित्या नोंदवले गेले!');
+      showToast(data.message || (currentLang.value === 'en' ? 'Payment recorded successfully!' : (currentLang.value === 'mr' ? 'पेमेंट यशस्वीरित्या नोंदवले गेले!' : 'भुगतान सफलतापूर्वक दर्ज किया गया!')));
       showKhataPayModal.value = false;
       loadAdminKhata();
       loadAdminOrders();
       loadAdminCustomers();
     } else {
-      showToast(data.error || 'पेमेंट नोंदवता आले नाही', 'error');
+      showToast(data.error || (currentLang.value === 'en' ? 'Could not record payment.' : (currentLang.value === 'mr' ? 'पेमेंट नोंदवता आले नाही' : 'भुगतान दर्ज नहीं किया जा सका।')), 'error');
     }
   } catch (e) {
     console.error(e);
-    showToast('सर्व्हर त्रुटी.', 'error');
+    showToast(currentLang.value === 'en' ? 'Server error.' : (currentLang.value === 'mr' ? 'सर्व्हर त्रुटी.' : 'सर्वर त्रुटि।'), 'error');
   } finally {
     isSubmittingKhataPay.value = false;
   }
@@ -6311,11 +6351,52 @@ async function openKhataStatement(phone) {
 
 function sendKhataWhatsAppReminder(cust) {
   if (!cust || !cust.customer_phone) return;
+  const billWord = currentLang.value === 'en' ? 'Bill' : (currentLang.value === 'mr' ? 'बिल' : 'बिल');
   const billsText = (cust.unpaid_orders || []).map((o, idx) => {
-    return `${idx + 1}. बिल #${o.order_number} (${o.created_at}) — ₹${o.final_amount}`;
+    return `${idx + 1}. ${billWord} #${o.order_number} (${o.created_at}) — ₹${o.final_amount}`;
   }).join('\n');
 
-  const text = 
+  let text = '';
+  if (currentLang.value === 'en') {
+    text = 
+`🌾 *Komal Mart - Khata / Due Balance Reminder*
+━━━━━━━━━━━━━━━━━━━━
+Hello *${cust.customer_name}*,
+Here is the summary of your outstanding balance at Komal Mart:
+
+📋 *Pending Bills:*
+${billsText}
+
+🔴 *Total Balance Due (Net Due):* ₹${cust.net_balance_due}
+
+Kindly pay the balance amount via UPI or at the counter:
+💳 *UPI ID:* 9820088888@upi
+📞 *Contact:* +91 98200 88888
+
+🙏 Thank you! We appreciate your business.
+━━━━━━━━━━━━━━━━━━━━
+*Komal Mart*`;
+  } else if (currentLang.value === 'hi') {
+    text = 
+`🌾 *कोमल मार्ट (Komal Mart) - खाता बही / उधारी बकाया स्मरणपत्र*
+━━━━━━━━━━━━━━━━━━━━
+नमस्ते *${cust.customer_name}* जी,
+आपकी दुकान की बकाया उधारी का विवरण निम्नलिखित है:
+
+📋 *बाकी रहे बिल:*
+${billsText}
+
+🔴 *कुल बकाया (Net Due):* ₹${cust.net_balance_due}
+
+कृपया यह राशि नीचे दिए गए UPI या दुकान पर आकर जल्द से जल्द जमा करें:
+💳 *UPI ID:* 9820088888@upi
+📞 *संपर्क:* +91 98200 88888
+
+🙏 धन्यवाद! आपका सहयोग बहुमूल्य है।
+━━━━━━━━━━━━━━━━━━━━
+*कोमल मार्ट (Komal Mart)*`;
+  } else {
+    text = 
 `🌾 *कोमल मार्ट (Komal Mart) - खाते बही / उधारी बाकी स्मरणपत्र*
 ━━━━━━━━━━━━━━━━━━━━
 नमस्कार *${cust.customer_name}* जी,
@@ -6333,6 +6414,7 @@ ${billsText}
 🙏 धन्यवाद! आपले सहकार्य मोलाचे आहे.
 ━━━━━━━━━━━━━━━━━━━━
 *कोमल मार्ट (Komal Mart)*`;
+  }
 
   const cleanPhone = cust.customer_phone.replace(/\D/g, '');
   const url = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(text)}`;
@@ -6434,7 +6516,7 @@ const chunkedBatchOrders = computed(() => {
 
 function openBatchPrintModal() {
   if (selectedAdminOrderIds.value.length === 0) {
-    showToast('कृपया प्रिंटसाठी आधी किमान १ ऑर्डर निवडा.');
+    showToast(currentLang.value === 'en' ? 'Please select at least 1 order for batch printing.' : (currentLang.value === 'mr' ? 'कृपया प्रिंटसाठी आधी किमान १ ऑर्डर निवडा.' : 'कृपया प्रिंट के लिए पहले कम से कम 1 ऑर्डर चुनें।'));
     return;
   }
   showBatchPrintModal.value = true;
@@ -6465,10 +6547,10 @@ async function markOrderAsPaid(order) {
     });
     if (res.ok) {
       order.payment_status = 'Paid';
-      showToast(`✅ ऑर्डर ${order.order_number} चुकता (Paid) दर्ज कर दिया गया!`);
+      showToast(currentLang.value === 'en' ? `✅ Order #${order.order_number} marked as Paid!` : (currentLang.value === 'mr' ? `✅ ऑर्डर #${order.order_number} चुकता (Paid) नोंदवले गेले!` : `✅ ऑर्डर #${order.order_number} चुकता (Paid) दर्ज कर दिया गया!`));
     } else {
       const err = await res.json();
-      alert(err.error || 'त्रुटि हुई');
+      alert(err.error || 'Error updating order status');
     }
   } catch (err) {
     console.error('Status update error:', err);
@@ -6476,18 +6558,19 @@ async function markOrderAsPaid(order) {
 }
 
 async function deleteAdminProduct(productId, productName) {
-  if (confirm(`क्या आप सच में '${productName}' को दुकान से हटाना चाहते हैं?`)) {
+  const confirmMsg = currentLang.value === 'en' ? `Are you sure you want to remove '${productName}' from store?` : (currentLang.value === 'mr' ? `तुम्हाला नक्की '${productName}' दुकानातून काढून टाकायचे आहे का?` : `क्या आप सच में '${productName}' को दुकान से हटाना चाहते हैं?`);
+  if (confirm(confirmMsg)) {
     try {
       const res = await fetch(`${API_BASE}/products/${productId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${authToken.value}` }
       });
       if (res.ok) {
-        showToast(`🗑️ '${productName}' दुकान से हटा दिया गया!`);
+        showToast(currentLang.value === 'en' ? `🗑️ '${productName}' removed from store!` : (currentLang.value === 'mr' ? `🗑️ '${productName}' दुकानातून काढून टाकले!` : `🗑️ '${productName}' दुकान से हटा दिया गया!`));
         fetchProducts();
       } else {
         const err = await res.json();
-        alert(err.error || 'त्रुटि हुई');
+        alert(err.error || 'Error removing product');
       }
     } catch (err) {
       console.error('Delete product error:', err);
@@ -6509,7 +6592,7 @@ async function updateAdminOrderStatus(order) {
       })
     });
     if (res.ok) {
-      showToast(`✅ ऑर्डर ${order.order_number} का स्टेटस अपडेट हुआ!`);
+      showToast(currentLang.value === 'en' ? `✅ Order #${order.order_number} status updated!` : (currentLang.value === 'mr' ? `✅ ऑर्डर #${order.order_number} स्टेटस अपडेट झाले!` : `✅ ऑर्डर #${order.order_number} का स्टेटस अपडेट हुआ!`));
     }
   } catch (err) {
     console.error('Status update error:', err);
@@ -6563,7 +6646,7 @@ async function submitNewProduct() {
     });
 
     if (res.ok) {
-      showToast(`✅ नवीन सामान '${newProductForm.value.name}' यशस्वीरीत्या जोडले!`);
+      showToast(currentLang.value === 'en' ? `✅ New item '${newProductForm.value.name}' added successfully!` : (currentLang.value === 'mr' ? `✅ नवीन सामान '${newProductForm.value.name}' यशस्वीरीत्या जोडले!` : `✅ नया सामान '${newProductForm.value.name}' सफलतापूर्वक जोड़ा गया!`));
       showAddProductModal.value = false;
       newProductForm.value.name = '';
       newProductForm.value.name_hi = '';
@@ -6582,14 +6665,17 @@ async function submitNewProduct() {
 }
 
 async function confirmResetSeed() {
-  if (confirm('क्या आप सच में पूरे स्टोर को डिफ़ॉल्ट देसी किराना सामान पर रीसेट करना चाहते हैं?')) {
+  const confirmMsg = currentLang.value === 'en' 
+    ? 'Are you sure you want to reset the store catalog to default items?' 
+    : (currentLang.value === 'mr' ? 'तुम्हाला नक्की सर्व स्टोअर डीफॉल्ट किराणा मालावर रीसेट करायचे आहे का?' : 'क्या आप सच में पूरे स्टोर को डिफ़ॉल्ट देसी किराना सामान पर रीसेट करना चाहते हैं?');
+  if (confirm(confirmMsg)) {
     try {
       const res = await fetch(`${API_BASE}/reset-seed`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken.value}` }
       });
       if (res.ok) {
-        showToast('🔄 स्टोर सफलतापूर्वक रीसेट हो गया!');
+        showToast(currentLang.value === 'en' ? '🔄 Store reset successfully!' : (currentLang.value === 'mr' ? '🔄 दुकान यशस्वीरीत्या रीसेट झाले!' : '🔄 स्टोर सफलतापूर्वक रीसेट हो गया!'));
         fetchCategories();
         fetchProducts();
       }
@@ -6624,11 +6710,11 @@ async function downloadOrderPdf(order) {
   setTimeout(async () => {
     const el = document.getElementById('printable-parcha-slip');
     if (!el) {
-      showToast('पावती लोड होत आहे, पुन्हा प्रयत्न करा...', 'warning');
+      showToast(currentLang.value === 'en' ? 'Receipt is loading, please try again...' : (currentLang.value === 'mr' ? 'पावती लोड होत आहे, पुन्हा प्रयत्न करा...' : 'पर्चा लोड हो रहा है, पुन: प्रयास करें...'), 'warning');
       return;
     }
     try {
-      showToast('⏳ PDF तयार होत आहे...');
+      showToast(currentLang.value === 'en' ? '⏳ Generating PDF...' : (currentLang.value === 'mr' ? '⏳ PDF तयार होत आहे...' : '⏳ PDF तैयार हो रही है...'));
       const html2pdf = (await import('html2pdf.js')).default;
       const opt = {
         margin: [6, 6, 6, 6],
@@ -6638,10 +6724,10 @@ async function downloadOrderPdf(order) {
         jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
       };
       await html2pdf().from(el).set(opt).save();
-      showToast(`📥 PDF डाऊनलोड झाले: Komal_Mart_Bill_${order.order_number}.pdf`);
+      showToast(currentLang.value === 'en' ? `📥 PDF downloaded: Komal_Mart_Bill_${order.order_number}.pdf` : (currentLang.value === 'mr' ? `📥 PDF डाऊनलोड झाले: Komal_Mart_Bill_${order.order_number}.pdf` : `📥 PDF डाउनलोड हो गई: Komal_Mart_Bill_${order.order_number}.pdf`));
     } catch (err) {
       console.error('PDF error:', err);
-      showToast('PDF डाउनलोड करताना अडचण आली, प्रिंट वापरा', 'error');
+      showToast(currentLang.value === 'en' ? 'Error downloading PDF, please use Print' : (currentLang.value === 'mr' ? 'PDF डाउनलोड करताना अडचण आली, प्रिंट वापरा' : 'PDF डाउनलोड करने में त्रुटि आई, कृपया प्रिंट उपयोग करें'), 'error');
     }
   }, 120);
 }
@@ -6669,7 +6755,53 @@ function setZReportQuickDate(offsetDays) {
 function shareDailyZReportWhatsApp() {
   if (!zReport.value) return;
   const z = zReport.value;
-  const text =
+  let text = '';
+  if (currentLang.value === 'en') {
+    text =
+`🏪 *Komal Mart — Daily Financial Settlement (Z-Report)* 🏪
+📅 *Date:* ${z.formatted_date || z.date}
+━━━━━━━━━━━━━━━━━━
+💰 *Realized Cash & Bank Liquidity:*
+• 💵 Cash in Hand (Drawer): ₹${z.total_cash_in_drawer}
+• 📲 UPI / Bank Deposits: ₹${z.total_upi_received}
+• ✨ *Total Liquid Collected:* ₹${z.total_liquid_collected}
+
+🛒 *Sales & Basket Performance:*
+• Total Orders: ${z.total_orders_count} (Avg Basket: ₹${z.avg_basket_value})
+• Net Realized Sales: ₹${z.net_sales}
+• Customer Savings Delivered: ₹${z.total_savings_given}
+• Store Credits Redeemed: ₹${z.store_credit_redeemed}
+
+📒 *Market Khata & Credit Flow:*
+• Today's New Khata Given: ₹${z.khata_new_amount} (${z.khata_new_count} bills)
+• Today's Khata Recovered: ₹${z.total_khata_recovered} (Cash: ₹${z.khata_cash_recovered}, UPI: ₹${z.khata_upi_recovered})
+• Total Outstanding Market Udhaar: ₹${z.total_market_udhaar}
+━━━━━━━━━━━━━━━━━━
+📊 *Komal Mart ERP*`;
+  } else if (currentLang.value === 'hi') {
+    text =
+`🏪 *कोमल मार्ट (Komal Mart) — दैनिक हिसाब (Daily Z-Report)* 🏪
+📅 *तारीख:* ${z.formatted_date || z.date}
+━━━━━━━━━━━━━━━━━━
+💰 *गल्ला व बैंक जमा (Liquid Realized):*
+• 💵 नकद गल्ला (Cash in Hand): ₹${z.total_cash_in_drawer}
+• 📲 UPI / बैंक जमा: ₹${z.total_upi_received}
+• ✨ *कुल नकद+बैंक जमा:* ₹${z.total_liquid_collected}
+
+🛒 *बिक्री प्रदर्शन (Sales Performance):*
+• कुल ऑर्डर्स: ${z.total_orders_count} (औसत बिल: ₹${z.avg_basket_value})
+• वास्तविक बिक्री रकम: ₹${z.net_sales}
+• ग्राहकों की कुल बचत: ₹${z.total_savings_given}
+• उपयोग हुआ स्टोर क्रेडिट: ₹${z.store_credit_redeemed}
+
+📒 *उधारी बहीखाता (Khata Movement):*
+• आज दी गई नई उधारी: ₹${z.khata_new_amount} (${z.khata_new_count} बिल)
+• आज वसूल हुई उधारी: ₹${z.total_khata_recovered} (नकद: ₹${z.khata_cash_recovered}, UPI: ₹${z.khata_upi_recovered})
+• कुल बाजार बकाया उधारी: ₹${z.total_market_udhaar}
+━━━━━━━━━━━━━━━━━━
+📊 *Komal Mart ERP*`;
+  } else {
+    text =
 `🏪 *कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)* 🏪
 📅 *तारीख:* ${z.formatted_date || z.date}
 ━━━━━━━━━━━━━━━━━━
@@ -6690,6 +6822,7 @@ function shareDailyZReportWhatsApp() {
 • एकूण बाजार थकबाकी: ₹${z.total_market_udhaar}
 ━━━━━━━━━━━━━━━━━━
 📊 *Komal Mart ERP*`;
+  }
 
   const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
@@ -6699,7 +6832,7 @@ async function downloadZReportPdf() {
   const el = document.getElementById('printable-z-report');
   if (!el) return;
   try {
-    showToast('⏳ Z-Report PDF तयार होत आहे...');
+    showToast(currentLang.value === 'en' ? '⏳ Generating Z-Report PDF...' : (currentLang.value === 'mr' ? '⏳ Z-Report PDF तयार होत आहे...' : '⏳ Z-Report PDF तैयार हो रही है...'));
     const html2pdf = (await import('html2pdf.js')).default;
     const opt = {
       margin: [8, 8, 8, 8],
@@ -6709,10 +6842,10 @@ async function downloadZReportPdf() {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     await html2pdf().from(el).set(opt).save();
-    showToast(`📥 Z-Report PDF डाऊनलोड झाले: Komal_Mart_ZReport_${zReportDate.value}.pdf`);
+    showToast(currentLang.value === 'en' ? `📥 Z-Report PDF downloaded: Komal_Mart_ZReport_${zReportDate.value}.pdf` : (currentLang.value === 'mr' ? `📥 Z-Report PDF डाऊनलोड झाले: Komal_Mart_ZReport_${zReportDate.value}.pdf` : `📥 Z-Report PDF डाउनलोड हो गई: Komal_Mart_ZReport_${zReportDate.value}.pdf`));
   } catch (err) {
     console.error('Z-Report PDF error:', err);
-    showToast('PDF डाउनलोड करताना अडचण आली', 'error');
+    showToast(currentLang.value === 'en' ? 'Error downloading PDF' : (currentLang.value === 'mr' ? 'PDF डाउनलोड करताना अडचण आली' : 'PDF डाउनलोड करने में त्रुटि आई'), 'error');
   }
 }
 
@@ -6757,7 +6890,7 @@ onMounted(() => {
     isAppInstalled.value = true;
     showInstallBanner.value = false;
     deferredInstallPrompt.value = null;
-    showToast('🎉 कोमल मार्ट ॲप होम स्क्रीनवर जोडले गेले!');
+    showToast(currentLang.value === 'en' ? '🎉 Komal Mart app added to Home Screen!' : (currentLang.value === 'mr' ? '🎉 कोमल मार्ट ॲप होम स्क्रीनवर जोडले गेले!' : '🎉 कोमल मार्ट ऐप होम स्क्रीन पर जोड़ा गया!'));
   });
 });
 </script>
