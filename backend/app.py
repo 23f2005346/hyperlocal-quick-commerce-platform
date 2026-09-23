@@ -53,8 +53,8 @@ ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': 
 # SMTP configuration for real email delivery (Gmail App Password)
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-SMTP_USER = os.environ.get('SMTP_USER', 'thisisroushan01@gmail.com').strip()
-SMTP_PASS = os.environ.get('SMTP_PASS', 'emaiuwgdfqddjskg').replace(' ', '').strip()
+SMTP_USER = os.environ.get('SMTP_USER', '').strip()
+SMTP_PASS = os.environ.get('SMTP_PASS', '').replace(' ', '').strip()
 
 def send_admin_otp_email(to_email, otp):
     """

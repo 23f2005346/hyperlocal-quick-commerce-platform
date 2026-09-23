@@ -3019,7 +3019,6 @@
             <select v-model="customerForm.paymentMethod" class="form-input">
               <option value="Cash on Delivery (COD)">💵 {{ t('pay_cod') }}</option>
               <option value="UPI / QR Code">📱 {{ t('pay_upi') }}</option>
-              <option value="Kirana Khata (Pay Later)">📖 {{ t('pay_khata') }}</option>
             </select>
           </div>
 
@@ -3033,16 +3032,6 @@
             </div>
           </div>
 
-          <!-- Khata Notice -->
-          <div v-if="customerForm.paymentMethod === 'Kirana Khata (Pay Later)'" class="payment-notice-banner khata-banner">
-            <div style="font-weight: 800; color: #1e3a8a; font-size: 0.88rem; margin-bottom: 2px;">
-              📖 {{ t('khata_notice_title') }}
-            </div>
-            <div style="font-size: 0.8rem; color: #1e40af;">
-              {{ t('khata_notice_desc') }}
-            </div>
-          </div>
-
           <!-- Shop Owner UPI QR Code Display -->
           <div v-if="customerForm.paymentMethod === 'UPI / QR Code'" class="upi-qr-card">
             <div class="upi-header">
@@ -3050,40 +3039,20 @@
               <h4>{{ t('upi_qr_title') }}</h4>
             </div>
 
-            <div class="upi-qr-frame">
-              <div class="qr-code-svg-wrap">
-                <svg viewBox="0 0 200 200" width="145" height="145">
-                  <rect width="200" height="200" fill="#ffffff" rx="8" />
-                  <rect x="15" y="15" width="45" height="45" fill="#1c1917" rx="4" />
-                  <rect x="22" y="22" width="31" height="31" fill="#ffffff" rx="2" />
-                  <rect x="28" y="28" width="19" height="19" fill="#047857" rx="2" />
-                  <rect x="140" y="15" width="45" height="45" fill="#1c1917" rx="4" />
-                  <rect x="147" y="22" width="31" height="31" fill="#ffffff" rx="2" />
-                  <rect x="153" y="28" width="19" height="19" fill="#047857" rx="2" />
-                  <rect x="15" y="140" width="45" height="45" fill="#1c1917" rx="4" />
-                  <rect x="22" y="147" width="31" height="31" fill="#ffffff" rx="2" />
-                  <rect x="28" y="153" width="19" height="19" fill="#047857" rx="2" />
-                  <circle cx="75" cy="25" r="4" fill="#1c1917" /><circle cx="95" cy="25" r="4" fill="#1c1917" /><circle cx="115" cy="25" r="4" fill="#1c1917" />
-                  <circle cx="85" cy="40" r="4" fill="#1c1917" /><circle cx="105" cy="40" r="4" fill="#047857" /><circle cx="125" cy="40" r="4" fill="#1c1917" />
-                  <circle cx="25" cy="75" r="4" fill="#1c1917" /><circle cx="45" cy="75" r="4" fill="#1c1917" /><circle cx="25" cy="95" r="4" fill="#1c1917" />
-                  <circle cx="75" cy="75" r="4" fill="#047857" /><circle cx="90" cy="75" r="4" fill="#1c1917" /><circle cx="110" cy="75" r="4" fill="#1c1917" />
-                  <circle cx="75" cy="115" r="4" fill="#1c1917" /><circle cx="95" cy="115" r="4" fill="#047857" /><circle cx="115" cy="115" r="4" fill="#1c1917" />
-                  <circle cx="145" cy="75" r="4" fill="#1c1917" /><circle cx="165" cy="75" r="4" fill="#1c1917" /><circle cx="175" cy="95" r="4" fill="#047857" />
-                  <circle cx="145" cy="115" r="4" fill="#047857" /><circle cx="165" cy="115" r="4" fill="#1c1917" />
-                  <circle cx="75" cy="145" r="4" fill="#1c1917" /><circle cx="95" cy="145" r="4" fill="#1c1917" /><circle cx="115" cy="145" r="4" fill="#047857" />
-                  <circle cx="85" cy="165" r="4" fill="#047857" /><circle cx="105" cy="165" r="4" fill="#1c1917" /><circle cx="135" cy="175" r="4" fill="#1c1917" />
-                  <rect x="80" y="80" width="40" height="40" rx="8" fill="#d97706" />
-                  <text x="100" y="106" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="sans-serif">₹</text>
-                </svg>
+            <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 12px 0;">
+              <div class="qr-code-img-wrap" style="text-align: center;">
+                <img src="/komal-mart-upi-qr.jpeg" alt="Komal Mart UPI QR Code" style="width: 220px; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
               </div>
-              <div class="upi-details">
-                <div class="upi-shop-name">{{ t('store_name_full') }}</div>
-                <div class="upi-id-row"><span>UPI ID:</span> <code>komalmart@upi</code></div>
-                <div class="upi-amount-row">
-                  <span>{{ t('payable_amount') }}:</span>
-                  <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ finalPayableAmount }}</strong>
+              <div class="upi-details" style="margin-top: 12px; text-align: center; width: 100%;">
+                <div class="upi-shop-name" style="font-weight: 800; color: #0f172a; font-size: 1rem;">Komal Mart (Raushan Raj)</div>
+                <div class="upi-id-row" style="margin: 6px 0; font-size: 0.9rem;">
+                  <span>UPI ID:</span> <code style="font-weight: 800; color: #047857; background: #ecfdf5; padding: 3px 8px; border-radius: 6px;">thisisroushan01@okaxis</code>
                 </div>
-                <div class="upi-apps-icons">PhonePe • GPay • Paytm</div>
+                <div class="upi-amount-row" style="margin-top: 6px;">
+                  <span style="font-size: 0.9rem; color: #475569;">{{ t('payable_amount') }}:</span>
+                  <strong style="color: #064e3b; font-size: 1.35rem; margin-left: 6px;">₹{{ finalPayableAmount }}</strong>
+                </div>
+                <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
               </div>
             </div>
 
@@ -3925,40 +3894,20 @@
             <h4>दुकान का ऑफिशियल UPI QR कोड</h4>
           </div>
 
-          <div class="upi-qr-frame">
-            <div class="qr-code-svg-wrap">
-              <svg viewBox="0 0 200 200" width="140" height="140">
-                <rect width="200" height="200" fill="#ffffff" rx="8" />
-                <rect x="15" y="15" width="45" height="45" fill="#1c1917" rx="4" />
-                <rect x="22" y="22" width="31" height="31" fill="#ffffff" rx="2" />
-                <rect x="28" y="28" width="19" height="19" fill="#047857" rx="2" />
-                <rect x="140" y="15" width="45" height="45" fill="#1c1917" rx="4" />
-                <rect x="147" y="22" width="31" height="31" fill="#ffffff" rx="2" />
-                <rect x="153" y="28" width="19" height="19" fill="#047857" rx="2" />
-                <rect x="15" y="140" width="45" height="45" fill="#1c1917" rx="4" />
-                <rect x="22" y="147" width="31" height="31" fill="#ffffff" rx="2" />
-                <rect x="28" y="153" width="19" height="19" fill="#047857" rx="2" />
-                <circle cx="75" cy="25" r="4" fill="#1c1917" /><circle cx="95" cy="25" r="4" fill="#1c1917" /><circle cx="115" cy="25" r="4" fill="#1c1917" />
-                <circle cx="85" cy="40" r="4" fill="#1c1917" /><circle cx="105" cy="40" r="4" fill="#047857" /><circle cx="125" cy="40" r="4" fill="#1c1917" />
-                <circle cx="25" cy="75" r="4" fill="#1c1917" /><circle cx="45" cy="75" r="4" fill="#1c1917" /><circle cx="25" cy="95" r="4" fill="#1c1917" />
-                <circle cx="75" cy="75" r="4" fill="#047857" /><circle cx="90" cy="75" r="4" fill="#1c1917" /><circle cx="110" cy="75" r="4" fill="#1c1917" />
-                <circle cx="75" cy="115" r="4" fill="#1c1917" /><circle cx="95" cy="115" r="4" fill="#047857" /><circle cx="115" cy="115" r="4" fill="#1c1917" />
-                <circle cx="145" cy="75" r="4" fill="#1c1917" /><circle cx="165" cy="75" r="4" fill="#1c1917" /><circle cx="175" cy="95" r="4" fill="#047857" />
-                <circle cx="145" cy="115" r="4" fill="#047857" /><circle cx="165" cy="115" r="4" fill="#1c1917" />
-                <circle cx="75" cy="145" r="4" fill="#1c1917" /><circle cx="95" cy="145" r="4" fill="#1c1917" /><circle cx="115" cy="145" r="4" fill="#047857" />
-                <circle cx="85" cy="165" r="4" fill="#047857" /><circle cx="105" cy="165" r="4" fill="#1c1917" /><circle cx="135" cy="175" r="4" fill="#1c1917" />
-                <rect x="80" y="80" width="40" height="40" rx="8" fill="#d97706" />
-                <text x="100" y="106" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="sans-serif">₹</text>
-              </svg>
+          <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 12px 0;">
+            <div class="qr-code-img-wrap" style="text-align: center;">
+              <img src="/komal-mart-upi-qr.jpeg" alt="Komal Mart UPI QR Code" style="width: 200px; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
             </div>
-            <div class="upi-details">
-              <div class="upi-shop-name">{{ t('store_name_full') }}</div>
-              <div class="upi-id-row"><span>UPI ID:</span> <code>komalmart@upi</code></div>
-              <div class="upi-amount-row">
-                <span>बकाया राशि:</span>
-                <strong style="color: #b91c1c; font-size: 1.25rem;">₹{{ pendingUpiOrder.final_amount }}</strong>
+            <div class="upi-details" style="margin-top: 10px; text-align: center; width: 100%;">
+              <div class="upi-shop-name" style="font-weight: 800; color: #0f172a; font-size: 1rem;">Komal Mart (Raushan Raj)</div>
+              <div class="upi-id-row" style="margin: 4px 0; font-size: 0.9rem;">
+                <span>UPI ID:</span> <code style="font-weight: 800; color: #047857; background: #ecfdf5; padding: 3px 8px; border-radius: 6px;">thisisroushan01@okaxis</code>
               </div>
-              <div class="upi-apps-icons">PhonePe • GPay • Paytm</div>
+              <div class="upi-amount-row" style="margin-top: 4px;">
+                <span style="font-size: 0.9rem; color: #475569;">बकाया राशि:</span>
+                <strong style="color: #b91c1c; font-size: 1.35rem; margin-left: 6px;">₹{{ pendingUpiOrder.final_amount }}</strong>
+              </div>
+              <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 4px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
             </div>
           </div>
 
