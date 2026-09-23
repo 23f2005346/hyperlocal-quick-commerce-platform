@@ -1581,6 +1581,103 @@ def create_app():
         db.session.commit()
         return jsonify({'message': 'होलसेल स्लॅब हटवला!'})
 
+    # --- DUKANDAR DAILY Z-REPORT & CASH RECONCILER ROUTE ---
+
+    @app.route('/api/admin/reports/daily-z', methods=['GET'])
+    @admin_required
+    def get_daily_z_report():
+        date_str = request.args.get('date')
+        if not date_str:
+            target_date = get_ist_time().date()
+            date_str = target_date.strftime('%Y-%m-%d')
+        else:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid date format. Please use YYYY-MM-DD.'}), 400
+
+        start_dt = datetime.combine(target_date, datetime.min.time())
+        end_dt = datetime.combine(target_date, datetime.max.time())
+
+        # All orders placed on target_date
+        orders = Order.query.filter(Order.created_at >= start_dt, Order.created_at <= end_dt).order_by(Order.created_at.desc()).all()
+        # All khata repayments collected on target_date
+        repayments = KhataPayment.query.filter(KhataPayment.created_at >= start_dt, KhataPayment.created_at <= end_dt).order_by(KhataPayment.created_at.desc()).all()
+
+        total_orders_count = len(orders)
+        gross_sales_mrp = sum(o.total_mrp or 0.0 for o in orders)
+        net_sales = sum(o.final_amount or 0.0 for o in orders)
+        total_savings_given = sum(o.total_savings or 0.0 for o in orders)
+        store_credit_redeemed = sum(o.credit_used or 0.0 for o in orders)
+        store_credit_earned_paid = sum(o.credit_earned or 0.0 for o in orders if o.payment_status == 'Paid')
+
+        # Breakdowns by payment method & status
+        cash_paid_orders = [o for o in orders if o.payment_method in ['Cash on Delivery', 'Cash', 'Cash on Delivery (COD)'] and o.payment_status == 'Paid']
+        cash_paid_amount = sum(o.final_amount for o in cash_paid_orders)
+
+        cash_unpaid_orders = [o for o in orders if o.payment_method in ['Cash on Delivery', 'Cash', 'Cash on Delivery (COD)'] and o.payment_status != 'Paid']
+        cash_unpaid_amount = sum(o.final_amount for o in cash_unpaid_orders)
+
+        upi_paid_orders = [o for o in orders if 'UPI' in (o.payment_method or '') and o.payment_status == 'Paid']
+        upi_paid_amount = sum(o.final_amount for o in upi_paid_orders)
+
+        upi_unpaid_orders = [o for o in orders if 'UPI' in (o.payment_method or '') and o.payment_status != 'Paid']
+        upi_unpaid_amount = sum(o.final_amount for o in upi_unpaid_orders)
+
+        # New Udhaar orders issued today
+        khata_new_orders = [o for o in orders if 'Khata' in (o.payment_method or '') or (o.payment_status != 'Paid' and 'Cash' not in (o.payment_method or '') and 'UPI' not in (o.payment_method or ''))]
+        khata_new_amount = sum(o.final_amount for o in khata_new_orders)
+
+        # Repayments received today
+        khata_cash_recovered = sum(p.amount for p in repayments if p.payment_method == 'Cash')
+        khata_upi_recovered = sum(p.amount for p in repayments if p.payment_method != 'Cash')
+        total_khata_recovered = sum(p.amount for p in repayments)
+
+        # Physical Cash in Drawer: Cash orders paid + Cash Khata repayments
+        total_cash_in_drawer = round(cash_paid_amount + khata_cash_recovered, 2)
+
+        # Total Digital UPI Realized: UPI orders paid + UPI Khata repayments
+        total_upi_received = round(upi_paid_amount + khata_upi_recovered, 2)
+
+        # Total Liquid money collected today
+        total_liquid_collected = round(total_cash_in_drawer + total_upi_received, 2)
+
+        # Total market udhaar balance across entire store
+        all_unpaid_orders = Order.query.filter(Order.payment_status == 'Unpaid').all()
+        total_unpaid_orders_sum = sum(o.final_amount for o in all_unpaid_orders)
+        all_repayments_sum = db.session.query(db.func.sum(KhataPayment.amount)).scalar() or 0.0
+        total_market_udhaar = max(0.0, round(total_unpaid_orders_sum - all_repayments_sum, 2))
+
+        avg_basket_value = round(net_sales / total_orders_count, 2) if total_orders_count > 0 else 0.0
+
+        return jsonify({
+            'date': date_str,
+            'formatted_date': target_date.strftime('%d %b %Y'),
+            'total_orders_count': total_orders_count,
+            'gross_sales_mrp': round(gross_sales_mrp, 2),
+            'net_sales': round(net_sales, 2),
+            'total_savings_given': round(total_savings_given, 2),
+            'avg_basket_value': avg_basket_value,
+            'cash_paid_amount': round(cash_paid_amount, 2),
+            'cash_unpaid_amount': round(cash_unpaid_amount, 2),
+            'upi_paid_amount': round(upi_paid_amount, 2),
+            'upi_unpaid_amount': round(upi_unpaid_amount, 2),
+            'store_credit_redeemed': round(store_credit_redeemed, 2),
+            'store_credit_earned_paid': round(store_credit_earned_paid, 2),
+            'khata_new_amount': round(khata_new_amount, 2),
+            'khata_new_count': len(khata_new_orders),
+            'khata_cash_recovered': round(khata_cash_recovered, 2),
+            'khata_upi_recovered': round(khata_upi_recovered, 2),
+            'total_khata_recovered': round(total_khata_recovered, 2),
+            'total_cash_in_drawer': total_cash_in_drawer,
+            'total_upi_received': total_upi_received,
+            'total_liquid_collected': total_liquid_collected,
+            'total_market_udhaar': total_market_udhaar,
+            'orders': [o.to_dict() for o in orders],
+            'repayments': [p.to_dict() for p in repayments]
+        })
+
+
     # --- STATIC FILE SERVING FOR PRODUCTION / SINGLE-PORT RUN ---
     frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')
 

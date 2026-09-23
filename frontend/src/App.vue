@@ -694,6 +694,13 @@
               ₹{{ adminKhataSummary.total_market_udhaar }}
             </span>
           </button>
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'zreport' }"
+            @click="adminActiveTab = 'zreport'; loadDailyZReport();"
+          >
+            {{ t('admin_tab_zreport') }}
+          </button>
         </div>
 
         <!-- TAB 1: INVENTORY & QUICK PRICE CHANGER -->
@@ -1322,6 +1329,14 @@
                   {{ t('admin_print_direct') }}
                 </button>
                 <button
+                  type="button"
+                  class="admin-action-btn"
+                  style="background: #ecfdf5; border-color: #a7f3d0; color: #047857; font-weight: 800;"
+                  @click="downloadOrderPdf(ord)"
+                >
+                  📥 PDF
+                </button>
+                <button
                   class="admin-action-btn whatsapp-bill-btn"
                   @click="shareOrderOnWhatsApp(ord)"
                 >
@@ -1544,6 +1559,247 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- TAB 6: DUKANDAR DAILY Z-REPORT & CASH RECONCILER -->
+        <div v-if="adminActiveTab === 'zreport'" style="margin-top: 14px;">
+          <!-- Top Control Header: Date Selector & Actions -->
+          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-weight: 800; color: #064e3b; font-size: 0.95rem;">📅 तारीख निवडा:</span>
+              <input
+                type="date"
+                v-model="zReportDate"
+                @change="loadDailyZReport"
+                style="padding: 6px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.9rem;"
+              />
+              <button
+                type="button"
+                @click="setZReportQuickDate(0)"
+                style="padding: 6px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
+              >
+                आज (Today)
+              </button>
+              <button
+                type="button"
+                @click="setZReportQuickDate(-1)"
+                style="padding: 6px 12px; background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
+              >
+                काल (Yesterday)
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button
+                type="button"
+                @click="shareDailyZReportWhatsApp"
+                style="background: #25d366; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              >
+                📲 WhatsApp हिशोब पाठवा
+              </button>
+              <button
+                type="button"
+                @click="downloadZReportPdf"
+                style="background: #047857; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              >
+                📥 PDF डाऊनलोड
+              </button>
+              <button
+                type="button"
+                @click="printZReport"
+                style="background: #1c1917; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              >
+                🖨️ प्रिंट करा
+              </button>
+            </div>
+          </div>
+
+          <!-- Printable Z-Report Body -->
+          <div id="printable-z-report" style="margin-top: 16px; background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+            <!-- Report Header -->
+            <div style="border-bottom: 2px solid #064e3b; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h2 style="margin: 0; color: #064e3b; font-size: 1.4rem; font-weight: 900;">
+                  🏪 कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)
+                </h2>
+                <div style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">
+                  दुकानदार दैनिक गल्ला, ऑनलाइन बँक जमा व उधारी ताळेबंद अहवाल
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="background: #ecfdf5; border: 1px solid #6ee7b7; color: #064e3b; font-weight: 900; padding: 6px 14px; border-radius: 20px; font-size: 0.95rem; display: inline-block;">
+                  📅 {{ zReport.formatted_date || zReportDate }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 3 Main Financial Column Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px;">
+              <!-- 1. Physical Cash in Drawer -->
+              <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 16px;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 6px;">
+                  💵 रोख गल्ला (Cash in Drawer)
+                </div>
+                <div style="font-size: 1.7rem; font-weight: 900; color: #15803d; margin-top: 6px;">
+                  ₹{{ zReport.total_cash_in_drawer }}
+                </div>
+                <div style="font-size: 0.78rem; color: #166534; margin-top: 8px; border-top: 1px dashed #86efac; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>रोख विक्री (Cash Orders):</span>
+                    <strong>₹{{ zReport.cash_paid_amount }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>उधारी वसुली रोख (Khata Cash):</span>
+                    <strong>₹{{ zReport.khata_cash_recovered }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Bank UPI Settlements -->
+              <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 16px;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                  📲 बँक व UPI जमा (Digital Settlements)
+                </div>
+                <div style="font-size: 1.7rem; font-weight: 900; color: #1d4ed8; margin-top: 6px;">
+                  ₹{{ zReport.total_upi_received }}
+                </div>
+                <div style="font-size: 0.78rem; color: #1e40af; margin-top: 8px; border-top: 1px dashed #93c5fd; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>ऑनलाइन UPI विक्री:</span>
+                    <strong>₹{{ zReport.upi_paid_amount }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>उधारी वसुली UPI (Khata UPI):</span>
+                    <strong>₹{{ zReport.khata_upi_recovered }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Total Liquid Money Realized -->
+              <div style="background: #fdf4ff; border: 1.5px solid #f0abfc; border-radius: 10px; padding: 16px;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: #86198f; display: flex; align-items: center; gap: 6px;">
+                  ✨ एकूण प्रत्यक्ष जमा रक्कम (Liquid Total)
+                </div>
+                <div style="font-size: 1.7rem; font-weight: 900; color: #a21caf; margin-top: 6px;">
+                  ₹{{ zReport.total_liquid_collected }}
+                </div>
+                <div style="font-size: 0.78rem; color: #86198f; margin-top: 8px; border-top: 1px dashed #f0abfc; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>रोख गल्ला + बँक UPI:</span>
+                    <strong>₹{{ zReport.total_cash_in_drawer }} + ₹{{ zReport.total_upi_received }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>वापरलेले स्टोअर क्रेडिट:</span>
+                    <strong>₹{{ zReport.store_credit_redeemed }}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sales & Khata Movement Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 18px;">
+              <!-- Sales Summary -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+                <div style="font-weight: 800; color: #1e293b; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">
+                  🛒 विक्री व ऑर्डर कामगिरी (Sales Breakdown)
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>एकूण ऑर्डर्स:</span>
+                    <strong>{{ zReport.total_orders_count }} ऑर्डर्स</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>एकूण विक्री रक्कम (Net Sales):</span>
+                    <strong>₹{{ zReport.net_sales }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>एमआरपी बेरीज (Gross MRP):</span>
+                    <span>₹{{ zReport.gross_sales_mrp }}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; color: #059669;">
+                    <span>ग्राहकांना दिलेली थेट सूट:</span>
+                    <strong>- ₹{{ zReport.total_savings_given }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>सरासरी बिल किंमत (AOV):</span>
+                    <strong>₹{{ zReport.avg_basket_value }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Khata Movement Summary -->
+              <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 14px;">
+                <div style="font-weight: 800; color: #854d0e; font-size: 0.92rem; border-bottom: 1px solid #fde047; padding-bottom: 6px; margin-bottom: 8px;">
+                  📒 उधारी बही हालचाल (Khata Udhaar Ledger)
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
+                  <div style="display: flex; justify-content: space-between; color: #dc2626;">
+                    <span>आज दिलेली नवीन उधारी:</span>
+                    <strong>+ ₹{{ zReport.khata_new_amount }} ({{ zReport.khata_new_count }} बिले)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; color: #16a34a;">
+                    <span>आज वसूल झालेली उधारी:</span>
+                    <strong>- ₹{{ zReport.total_khata_recovered }}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; border-top: 1px dashed #fde047; padding-top: 4px; font-weight: 800; color: #991b1b;">
+                    <span>एकूण बाजार थकबाकी (Market Udhaar):</span>
+                    <strong>₹{{ zReport.total_market_udhaar }}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detailed Transactions of Selected Day -->
+            <div style="margin-top: 20px;">
+              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">
+                📝 या दिवसाच्या सर्व ऑर्डर्स व व्यवहार ({{ zReport.orders?.length || 0 }})
+              </h4>
+              <div v-if="!zReport.orders || zReport.orders.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 0.88rem; background: #f8fafc; border-radius: 8px;">
+                या तारखेला कोणतीही ऑर्डर नोंदवलेली नाही.
+              </div>
+              <div v-else style="overflow-x: auto;">
+                <table class="admin-products-table" style="width: 100%; font-size: 0.82rem;">
+                  <thead>
+                    <tr>
+                      <th>ऑर्डर नं</th>
+                      <th>ग्राहक</th>
+                      <th>वेळ</th>
+                      <th>पेमेंट पद्धत</th>
+                      <th>स्थिती</th>
+                      <th style="text-align: right;">रक्कम</th>
+                      <th style="text-align: center;">कृती</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="ord in zReport.orders" :key="ord.id">
+                      <td><strong>{{ ord.order_number }}</strong></td>
+                      <td>
+                        <strong>{{ ord.customer_name }}</strong><br />
+                        <span style="font-size: 0.72rem; color: #64748b;">{{ ord.customer_phone }}</span>
+                      </td>
+                      <td>{{ ord.created_at }}</td>
+                      <td>{{ ord.payment_method }}</td>
+                      <td>
+                        <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : 'unpaid'">
+                          {{ ord.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी' }}
+                        </span>
+                      </td>
+                      <td style="text-align: right; font-weight: 800;">₹{{ ord.final_amount }}</td>
+                      <td style="text-align: center;">
+                        <button
+                          type="button"
+                          @click="downloadOrderPdf(ord)"
+                          style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 0.74rem; cursor: pointer;"
+                        >
+                          📥 PDF
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1950,7 +2206,7 @@
                   </span>
                 </div>
 
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button
                     v-if="ord.payment_status !== 'Paid'"
                     @click="openUpiPayForCustomerOrder(ord)"
@@ -1963,6 +2219,12 @@
                     style="background: white; border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;"
                   >
                     🧾 पर्चा देखें
+                  </button>
+                  <button
+                    @click="downloadOrderPdf(ord)"
+                    style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
+                  >
+                    📥 PDF बिल
                   </button>
                 </div>
               </div>
@@ -2713,7 +2975,7 @@
           <button class="close-btn" @click="lastOrderReceipt = null">✕</button>
         </div>
 
-        <div class="parcha-receipt">
+        <div class="parcha-receipt" id="printable-parcha-slip">
           <div class="parcha-header">
             <h3>{{ t('store_name_full') }}</h3>
             <p style="font-size: 0.8rem;">मेन बाजार, स्टेशन रोड • फोन: 98765-43210</p>
@@ -2800,6 +3062,13 @@
             style="flex: 1; min-width: 130px; padding: 11px; background: #1c1917; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
           >
             🖨️ {{ t('parcha_print_btn') }}
+          </button>
+          <button
+            type="button"
+            @click="downloadOrderPdf(lastOrderReceipt)"
+            style="flex: 1; min-width: 130px; padding: 11px; background: #047857; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+          >
+            📥 {{ t('parcha_pdf_btn') || 'PDF बिल' }}
           </button>
           <button
             @click="lastOrderReceipt = null"
@@ -4133,6 +4402,36 @@ const khataStatementLoading = ref(false);
 // Customer Khata State
 const customerKhataData = ref(null);
 const customerKhataLoading = ref(false);
+
+// Admin Daily Z-Report State
+const zReportDate = ref(new Date().toISOString().split('T')[0]);
+const zReport = ref({
+  date: '',
+  formatted_date: '',
+  total_orders_count: 0,
+  gross_sales_mrp: 0,
+  net_sales: 0,
+  total_savings_given: 0,
+  avg_basket_value: 0,
+  cash_paid_amount: 0,
+  cash_unpaid_amount: 0,
+  upi_paid_amount: 0,
+  upi_unpaid_amount: 0,
+  store_credit_redeemed: 0,
+  store_credit_earned_paid: 0,
+  khata_new_amount: 0,
+  khata_new_count: 0,
+  khata_cash_recovered: 0,
+  khata_upi_recovered: 0,
+  total_khata_recovered: 0,
+  total_cash_in_drawer: 0,
+  total_upi_received: 0,
+  total_liquid_collected: 0,
+  total_market_udhaar: 0,
+  orders: [],
+  repayments: []
+});
+
 
 // Admin POS & Customer Directory State
 const adminCustomers = ref([]);
@@ -6313,6 +6612,112 @@ function getCategoryEmoji(slug) {
     'household-cleaning': '🧼'
   };
   return map[slug] || '📦';
+}
+
+// --- 1-CLICK DOWNLOADABLE PDF BILL & DAILY Z-REPORT METHODS ---
+
+async function downloadOrderPdf(order) {
+  if (!order) return;
+  lastOrderReceipt.value = order;
+  await nextTick();
+
+  setTimeout(async () => {
+    const el = document.getElementById('printable-parcha-slip');
+    if (!el) {
+      showToast('पावती लोड होत आहे, पुन्हा प्रयत्न करा...', 'warning');
+      return;
+    }
+    try {
+      showToast('⏳ PDF तयार होत आहे...');
+      const html2pdf = (await import('html2pdf.js')).default;
+      const opt = {
+        margin: [6, 6, 6, 6],
+        filename: `Komal_Mart_Bill_${order.order_number}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+      };
+      await html2pdf().from(el).set(opt).save();
+      showToast(`📥 PDF डाऊनलोड झाले: Komal_Mart_Bill_${order.order_number}.pdf`);
+    } catch (err) {
+      console.error('PDF error:', err);
+      showToast('PDF डाउनलोड करताना अडचण आली, प्रिंट वापरा', 'error');
+    }
+  }, 120);
+}
+
+async function loadDailyZReport() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/reports/daily-z?date=${zReportDate.value}`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      zReport.value = await res.json();
+    }
+  } catch (err) {
+    console.error('Daily Z-Report error:', err);
+  }
+}
+
+function setZReportQuickDate(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  zReportDate.value = d.toISOString().split('T')[0];
+  loadDailyZReport();
+}
+
+function shareDailyZReportWhatsApp() {
+  if (!zReport.value) return;
+  const z = zReport.value;
+  const text =
+`🏪 *कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)* 🏪
+📅 *तारीख:* ${z.formatted_date || z.date}
+━━━━━━━━━━━━━━━━━━
+💰 *गल्ला व बँक जमा (Liquid Realized):*
+• 💵 रोख गल्ला (Cash in Hand): ₹${z.total_cash_in_drawer}
+• 📲 UPI / बँक जमा: ₹${z.total_upi_received}
+• ✨ *एकूण रोख+बँक जमा:* ₹${z.total_liquid_collected}
+
+🛒 *विक्री कामगिरी (Sales Performance):*
+• एकूण ऑर्डर्स: ${z.total_orders_count} (सरासरी: ₹${z.avg_basket_value})
+• प्रत्यक्ष विक्री रक्कम: ₹${z.net_sales}
+• ग्राहकांची थेट बचत: ₹${z.total_savings_given}
+• वापरलेले स्टोअर क्रेडिट: ₹${z.store_credit_redeemed}
+
+📒 *उधारी बही (Khata Movement):*
+• आज दिलेली नवीन उधारी: ₹${z.khata_new_amount} (${z.khata_new_count} बिले)
+• आज वसूल उधारी: ₹${z.total_khata_recovered} (रोख: ₹${z.khata_cash_recovered}, UPI: ₹${z.khata_upi_recovered})
+• एकूण बाजार थकबाकी: ₹${z.total_market_udhaar}
+━━━━━━━━━━━━━━━━━━
+📊 *Komal Mart ERP*`;
+
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+async function downloadZReportPdf() {
+  const el = document.getElementById('printable-z-report');
+  if (!el) return;
+  try {
+    showToast('⏳ Z-Report PDF तयार होत आहे...');
+    const html2pdf = (await import('html2pdf.js')).default;
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: `Komal_Mart_ZReport_${zReportDate.value}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    await html2pdf().from(el).set(opt).save();
+    showToast(`📥 Z-Report PDF डाऊनलोड झाले: Komal_Mart_ZReport_${zReportDate.value}.pdf`);
+  } catch (err) {
+    console.error('Z-Report PDF error:', err);
+    showToast('PDF डाउनलोड करताना अडचण आली', 'error');
+  }
+}
+
+function printZReport() {
+  window.print();
 }
 
 onMounted(() => {
