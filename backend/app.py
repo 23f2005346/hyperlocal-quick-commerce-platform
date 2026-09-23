@@ -278,13 +278,20 @@ def get_tiered_unit_price(product_id, qty):
     Checks if there is a tiered wholesale pricing slab applicable for this product and quantity/weight.
     Returns (unit_price, tier_label) or None if no wholesale slab matches.
     """
-    if not product_id or qty <= 0:
+    if not product_id:
         return None
+    try:
+        qty_val = float(qty)
+        if qty_val <= 0:
+            return None
+    except (ValueError, TypeError):
+        return None
+
     try:
         tiers = TieredPricing.query.filter_by(product_id=product_id).order_by(TieredPricing.min_qty.desc()).all()
         for t in tiers:
-            if qty >= t.min_qty:
-                if t.max_qty is None or qty <= t.max_qty:
+            if qty_val >= t.min_qty:
+                if t.max_qty is None or qty_val <= t.max_qty:
                     return t.unit_price, t.tier_label
     except Exception as e:
         print(f"[TIER PRICE ERROR] {e}")
@@ -1446,14 +1453,21 @@ def create_app():
         data = request.get_json() or {}
         phone = str(data.get('customer_phone', '')).strip()
         name = str(data.get('customer_name', '')).strip() or 'खाता ग्राहक'
-        amount = float(data.get('amount', 0.0))
+        try:
+            amount = float(data.get('amount', 0.0))
+        except (ValueError, TypeError):
+            return jsonify({'error': 'कृपया योग्य रक्कम टाका!'}), 400
+
         payment_method = str(data.get('payment_method', 'Cash')).strip()
         note = str(data.get('note', '')).strip()
 
         if not phone or amount <= 0:
             return jsonify({'error': 'कृपया योग्य फोन नंबर आणि रक्कम टाका!'}), 400
 
-        user = User.query.filter_by(phone=phone).first()
+        clean_phone = re.sub(r'\D', '', phone)
+        phone_10 = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+
+        user = User.query.filter((User.phone == phone) | (User.phone.endswith(phone_10))).first() if phone_10 else None
 
         payment = KhataPayment(
             user_id=user.id if user else None,
@@ -1466,7 +1480,10 @@ def create_app():
         db.session.add(payment)
 
         # Sequentially settle unpaid orders from oldest to newest
-        unpaid_orders = Order.query.filter_by(customer_phone=phone, payment_status='Unpaid').order_by(Order.created_at.asc()).all()
+        unpaid_orders = Order.query.filter(
+            (Order.customer_phone == phone) | (Order.customer_phone.endswith(phone_10)),
+            Order.payment_status == 'Unpaid'
+        ).order_by(Order.created_at.asc()).all() if phone_10 else []
         rem_amount = amount
         settled_orders = []
 
@@ -1549,9 +1566,12 @@ def create_app():
         product = Product.query.get_or_404(product_id)
         if request.method == 'POST':
             data = request.get_json() or {}
-            min_qty = float(data.get('min_qty', 5.0))
-            max_qty = float(data['max_qty']) if data.get('max_qty') else None
-            unit_price = float(data.get('unit_price', 0.0))
+            try:
+                min_qty = float(data.get('min_qty', 5.0))
+                max_qty = float(data['max_qty']) if data.get('max_qty') else None
+                unit_price = float(data.get('unit_price', 0.0))
+            except (ValueError, TypeError):
+                return jsonify({'error': 'कृपया संख्यात्मक वजन व दर टाका!'}), 400
             tier_label = str(data.get('tier_label', f"होलसेल ({min_qty}+)")).strip()
             tier_label_hi = str(data.get('tier_label_hi', tier_label)).strip()
 
