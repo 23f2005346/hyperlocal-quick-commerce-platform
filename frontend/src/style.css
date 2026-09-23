@@ -1532,6 +1532,58 @@ a {
   }
 }
 
+/* Auth Modal Header with In-Modal Language Segmented Control */
+.auth-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auth-title-wrap {
+  flex: 1;
+  min-width: 140px;
+}
+
+.auth-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-lang-pills {
+  display: inline-flex;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.modal-lang-pill {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-lang-pill:hover {
+  color: #064e3b;
+}
+
+.modal-lang-pill.active {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
 /* ==========================================================================
    LANGUAGE ONBOARDING MODAL & SELECTION
    ========================================================================== */

@@ -3,6 +3,9 @@ import random
 import re
 import time
 import uuid
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
@@ -17,6 +20,58 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 # Strict Store Owner Admin Email Whitelist
 ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
 ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
+
+# Optional SMTP configuration for real email delivery (e.g. Gmail App Password)
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASS = os.environ.get('SMTP_PASS', '')
+
+def send_admin_otp_email(to_email, otp):
+    """
+    Dispatches 6-digit OTP code to the authorized admin email address.
+    If SMTP credentials are provided, sends a real HTML email.
+    Always logs clearly to console for local testing and server audits.
+    """
+    subject = f"🔐 Komal Mart Admin 2FA Code: {otp}"
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1.5px solid #059669; border-radius: 12px; background-color: #fdfbf7;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #064e3b; margin: 0; font-size: 24px;">🌾 कोमल मार्ट (Komal Mart)</h1>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">Store Owner Security Verification</p>
+        </div>
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center;">
+            <p style="font-size: 14px; color: #374151; margin-bottom: 12px;">Your 6-digit Store Admin Login OTP is:</p>
+            <div style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; display: inline-block;">
+                {otp}
+            </div>
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 14px;">This code expires in 5 minutes. Do not share this code with anyone.</p>
+        </div>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 20px;">Komal Mart Kirana Store • Secure Admin Gateway</p>
+    </div>
+    """
+    if SMTP_USER and SMTP_PASS:
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"Komal Mart Admin Security <{SMTP_USER}>"
+            msg['To'] = to_email
+            msg.attach(MIMEText(f"Your Komal Mart Admin 2FA Code is: {otp}. Valid for 5 minutes.", 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10)
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [to_email], msg.as_string())
+            server.quit()
+            print(f"📧 [EMAIL SENT] Successfully sent 2FA OTP to {to_email}")
+            return True, "Email dispatched successfully"
+        except Exception as e:
+            print(f"⚠️ [SMTP ERROR] Failed to send email to {to_email}: {e}")
+            return False, str(e)
+    else:
+        print(f"ℹ️ [SMTP INFO] SMTP_USER/SMTP_PASS not set. Printed OTP to terminal console only.")
+        return False, "SMTP not configured"
 
 def create_app():
     app = Flask(__name__)
@@ -116,39 +171,39 @@ def create_app():
         address = data.get('address', '').strip()
 
         if not name or not password or not phone:
-            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत (Name, Phone and Password are required)'}), 400
+            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         # Mandatory & Strict Indian Mobile Validation (10 digits starting with 6,7,8,9)
         if not re.match(r'^[6-9]\d{9}$', phone):
-            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (Must be 10-digit Indian mobile starting with 6-9)'}), 400
+            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
 
         # Reject dummy or fake phone numbers
         if len(set(phone)) <= 1:
-            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 9999999999) चालणार नाही.'}), 400
+            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 9999999999) चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
 
         dummy_phones = {'1234567890', '0123456789', '1234512345', '9876598765', '1122334455'}
         if phone in dummy_phones:
-            return jsonify({'error': 'हा डमी नंबर आहे. कृपया आपला खरा १० अंकी मोबाईल नंबर टाका.'}), 400
+            return jsonify({'error': 'हा डमी नंबर आहे. कृपया आपला खरा १० अंकी मोबाईल नंबर टाका.', 'code': 'DUMMY_PHONE'}), 400
 
         # Enforce unique phone
         if User.query.filter_by(phone=phone).first():
-            return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.'}), 400
+            return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
         # Unique username validation (if provided)
         if username:
             if not re.match(r'^[a-zA-Z0-9_.-]{3,30}$', username):
-                return jsonify({'error': 'युझरनेम ३ ते ३० अक्षरांचे (फक्त अक्षरे, अंक, _, . किंवा -) असावे.'}), 400
+                return jsonify({'error': 'युझरनेम ३ ते ३० अक्षरांचे (फक्त अक्षरे, अंक, _, . किंवा -) असावे.', 'code': 'INVALID_USERNAME'}), 400
             if User.query.filter_by(username=username).first():
-                return jsonify({'error': f'युझरनेम "{username}" आधीच वापरले गेले आहे. कृपया दुसरे नाव निवडा.'}), 400
+                return jsonify({'error': f'युझरनेम "{username}" आधीच वापरले गेले आहे. कृपया दुसरे नाव निवडा.', 'code': 'USERNAME_EXISTS'}), 400
         else:
             username = None
 
         # Optional Email Validation
         if email:
             if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com)'}), 400
+                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com)', 'code': 'INVALID_EMAIL'}), 400
             if User.query.filter_by(email=email).first():
-                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे.'}), 400
+                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे.', 'code': 'EMAIL_EXISTS'}), 400
         else:
             email = None
 
@@ -178,7 +233,7 @@ def create_app():
         password = data.get('password', '').strip()
 
         if not identifier or not password:
-            return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.'}), 400
+            return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
 
         # Find user by email, phone, or username
         user = User.query.filter(
@@ -188,15 +243,15 @@ def create_app():
         ).first()
 
         if not user:
-            return jsonify({'error': 'या तपशीलांशी जुळणारे कोणतेही खाते सापडले नाही. कृपया नवीन खाते तयार करा.'}), 404
+            return jsonify({'error': 'या तपशीलांशी जुळणारे कोणतेही खाते सापडले नाही. कृपया नवीन खाते तयार करा.', 'code': 'USER_NOT_FOUND'}), 404
 
         if not user.check_password(password):
-            return jsonify({'error': 'चुकीचा पासवर्ड! कृपया योग्य पासवर्ड टाका.'}), 401
+            return jsonify({'error': 'चुकीचा पासवर्ड! कृपया योग्य पासवर्ड टाका.', 'code': 'INVALID_CREDENTIALS'}), 401
 
         # Check if user is Admin -> Strict Whitelist and 2FA Verification
         if user.role == 'admin':
             if user.email not in ADMIN_WHITELIST:
-                return jsonify({'error': 'अनाधिकृत प्रवेश: केवळ अधिकृत दुकान मालक ईमेलद्वारे ॲडमिन ॲक्सेस शक्य आहे.'}), 403
+                return jsonify({'error': 'अनाधिकृत प्रवेश: केवळ अधिकृत दुकान मालक ईमेलद्वारे ॲडमिन ॲक्सेस शक्य आहे.', 'code': 'UNAUTHORIZED_ADMIN'}), 403
 
             # Generate 6-digit OTP
             otp = f"{random.randint(100000, 999999)}"
@@ -214,6 +269,9 @@ def create_app():
             print(f"⏳ Valid for 5 minutes")
             print(f"=======================================================\n")
 
+            # Dispatch email via SMTP if configured
+            email_sent, _ = send_admin_otp_email(user.email, otp)
+
             parts = user.email.split('@')
             masked = (parts[0][:2] + '***' + parts[0][-2:] + '@' + parts[1]) if len(parts[0]) > 4 else user.email
 
@@ -222,7 +280,7 @@ def create_app():
                 'temp_token': temp_token,
                 'masked_email': masked,
                 'admin_email': user.email,
-                'otp_preview': otp, # local dev convenience
+                'email_dispatched': email_sent,
                 'message': f'सुरक्षा पडताळणी: ६-अंकी OTP कोड {masked} वर पाठवला आहे.'
             })
 
@@ -241,30 +299,30 @@ def create_app():
         otp_input = data.get('otp', '').strip()
 
         if not temp_token or not otp_input:
-            return jsonify({'error': 'Temp token and 6-digit OTP are required'}), 400
+            return jsonify({'error': 'Temp token and 6-digit OTP are required', 'code': 'MISSING_FIELDS'}), 400
 
         try:
             payload = serializer.loads(temp_token, salt='admin-2fa-salt', max_age=300)
             email = payload.get('email')
         except (SignatureExpired, BadSignature, Exception):
-            return jsonify({'error': '२-स्टेप पडताळणी सत्र संपले आहे. कृपया पुन्हा लॉगिन करा.'}), 401
+            return jsonify({'error': '२-स्टेप पडताळणी सत्र संपले आहे. कृपया पुन्हा लॉगिन करा.', 'code': 'SESSION_EXPIRED'}), 401
 
         record = ADMIN_2FA_STORE.get(email)
         if not record:
-            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा लॉगिन करा.'}), 400
+            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा लॉगिन करा.', 'code': 'OTP_NOT_FOUND'}), 400
 
         if time.time() > record['expires_at']:
             ADMIN_2FA_STORE.pop(email, None)
-            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.'}), 400
+            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
 
         if record['otp'] != otp_input:
-            return jsonify({'error': 'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका.'}), 400
+            return jsonify({'error': 'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका.', 'code': 'INVALID_OTP'}), 400
 
         # OTP valid! Issue Admin JWT Token
         ADMIN_2FA_STORE.pop(email, None)
         user = User.query.get(record['user_id'])
         if not user or user.role != 'admin':
-            return jsonify({'error': 'Unauthorized admin account'}), 403
+            return jsonify({'error': 'Unauthorized admin account', 'code': 'UNAUTHORIZED_ADMIN'}), 403
 
         token = serializer.dumps({'user_id': user.id, 'role': user.role})
         return jsonify({
@@ -280,19 +338,19 @@ def create_app():
         new_password = data.get('new_password', '').strip()
 
         if not phone or not new_password:
-            return jsonify({'error': 'मोबाईल नंबर आणि नवीन पासवर्ड आवश्यक आहेत.'}), 400
+            return jsonify({'error': 'मोबाईल नंबर आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         if len(new_password) < 4:
-            return jsonify({'error': 'पासवर्ड किमान ४ अक्षरांचा असावा.'}), 400
+            return jsonify({'error': 'नवीन पासवर्ड किमान ४ अक्षरांचा असावा.', 'code': 'PASSWORD_TOO_SHORT'}), 400
 
         user = User.query.filter_by(phone=phone).first()
         if not user:
-            return jsonify({'error': 'या मोबाईल नंबरवर कोणतेही खाते सापडले नाही.'}), 404
+            return jsonify({'error': 'या मोबाईल नंबरवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
         user.set_password(new_password)
         db.session.commit()
         return jsonify({
-            'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! कृपया नवीन पासवर्डने लॉगिन करा.'
+            'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! आता नवीन पासवर्डने लॉगिन करा.'
         })
 
     @app.route('/api/auth/me', methods=['GET'])

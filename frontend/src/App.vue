@@ -1630,12 +1630,47 @@
     <!-- AUTH MODAL: LOGIN / REGISTER / ADMIN LOGIN               -->
     <!-- ======================================================== -->
     <div class="modal-overlay" v-if="showAuthModal" @click.self="showAuthModal = false">
-      <div class="modal-card" style="max-width: 450px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b;">
-            {{ admin2faState.active ? '🔐 दुकानदार २-स्टेप पडताळणी (2FA)' : (authMode === 'reset_password' ? '🔑 पासवर्ड रीसेट करा' : (authMode === 'admin' ? '🏪 दुकानदार लॉगिन (Store Admin)' : (authMode === 'register' ? '📝 नवीन ग्राहक नोंदणी' : '👤 ग्राहक लॉगिन'))) }}
-          </h3>
-          <button class="close-btn" @click="showAuthModal = false">✕</button>
+      <div class="modal-card" style="max-width: 460px;">
+        <!-- Auth Modal Header with In-Modal 3-Language Selector -->
+        <div class="auth-modal-header">
+          <div class="auth-title-wrap">
+            <h3 style="font-size: 1.22rem; font-weight: 900; color: #064e3b; margin: 0;">
+              {{ getAuthModalTitle() }}
+            </h3>
+          </div>
+          <div class="auth-header-controls">
+            <!-- In-Modal Language Segmented Pills -->
+            <div class="modal-lang-pills">
+              <button
+                type="button"
+                class="modal-lang-pill"
+                :class="{ active: currentLang === 'mr' }"
+                @click="selectLanguage('mr')"
+                title="मराठी"
+              >
+                मराठी
+              </button>
+              <button
+                type="button"
+                class="modal-lang-pill"
+                :class="{ active: currentLang === 'hi' }"
+                @click="selectLanguage('hi')"
+                title="हिंदी"
+              >
+                हिंदी
+              </button>
+              <button
+                type="button"
+                class="modal-lang-pill"
+                :class="{ active: currentLang === 'en' }"
+                @click="selectLanguage('en')"
+                title="English"
+              >
+                EN
+              </button>
+            </div>
+            <button class="close-btn" @click="showAuthModal = false">✕</button>
+          </div>
         </div>
 
         <!-- Auth Tabs (Only for Customer Login/Register) -->
@@ -1645,14 +1680,14 @@
             :class="{ active: authMode === 'login' }"
             @click="authMode = 'login'"
           >
-            {{ currentLang === 'mr' ? 'लॉगिन करा' : 'लॉगिन करें' }}
+            {{ t('auth_tab_login') }}
           </button>
           <button
             class="account-tab-btn"
             :class="{ active: authMode === 'register' }"
             @click="authMode = 'register'"
           >
-            {{ currentLang === 'mr' ? 'नवीन खाते उघडा' : 'नया खाता बनाएं' }}
+            {{ t('auth_tab_register') }}
           </button>
         </div>
 
@@ -1665,25 +1700,19 @@
         <div v-if="admin2faState.active" style="text-align: center;">
           <div style="font-size: 2.8rem; margin-bottom: 8px;">🔐</div>
           <p style="font-size: 0.92rem; color: #374151; margin-bottom: 6px;">
-            सुरक्षा पडताळणीसाठी अधिकृत ॲडमिन ईमेलवर <strong>६-अंकी OTP कोड</strong> पाठवला आहे:
+            {{ t('auth_admin_2fa_notice') }}
           </p>
-          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 8px; font-weight: 800; color: #064e3b; margin-bottom: 14px; font-size: 0.95rem;">
+          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 8px; font-weight: 800; color: #064e3b; margin-bottom: 8px; font-size: 0.95rem;">
             ✉️ {{ admin2faState.masked_email || admin2faState.admin_email }}
           </div>
 
-          <!-- Dev Auto-fill Badge for quick testing -->
-          <div
-            v-if="admin2faState.otp_preview"
-            @click="admin2faState.otp = admin2faState.otp_preview"
-            style="display: inline-block; background: #ecfdf5; border: 1.5px dashed #059669; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; color: #047857; cursor: pointer; margin-bottom: 14px;"
-            title="क्लिक करून त्वरित कोड भरा"
-          >
-            💡 Dev Test OTP: <strong>{{ admin2faState.otp_preview }}</strong> (टॅप करा)
-          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px;">
+            {{ t('auth_admin_2fa_email_hint') }}
+          </p>
 
           <form @submit.prevent="handleVerifyAdmin2Fa">
             <div class="form-group">
-              <label class="form-label" style="text-align: left;">६-अंकी OTP कोड टाका (Enter 6-Digit OTP) *</label>
+              <label class="form-label" style="text-align: left;">{{ t('auth_admin_otp_label') }}</label>
               <input
                 type="text"
                 v-model="admin2faState.otp"
@@ -1698,13 +1727,13 @@
             </div>
 
             <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-              {{ authSubmitting ? 'पडताळणी होत आहे...' : '🔐 OTP सत्यापित करा व प्रवेश करा' }}
+              {{ authSubmitting ? t('auth_btn_submitting') : t('auth_admin_verify_btn') }}
             </button>
           </form>
 
           <p style="margin-top: 14px; font-size: 0.82rem; color: var(--text-muted);">
             <a href="javascript:void(0)" @click="admin2faState.active = false" style="color: #047857; font-weight: 700; text-decoration: none;">
-              ← लॉगिनवर परत जा (Back to Login)
+              {{ t('auth_back_to_login') }}
             </a>
           </p>
         </div>
@@ -1712,42 +1741,42 @@
         <!-- VIEW B: FORGOT / RESET PASSWORD FORM -->
         <div v-else-if="authMode === 'reset_password'">
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; color: #166534; margin-bottom: 14px;">
-            ℹ️ आपला नोंदणीकृत १०-अंकी मोबाईल नंबर टाका आणि नवीन पासवर्ड सेट करा.
+            {{ t('auth_reset_notice') }}
           </div>
 
           <form @submit.prevent="handleResetPassword">
             <div class="form-group">
-              <label class="form-label">नोंदणीकृत मोबाईल नंबर (10-Digit Phone) *</label>
+              <label class="form-label">{{ t('auth_reset_phone_label') }}</label>
               <input
                 type="tel"
                 v-model="resetPasswordForm.phone"
                 required
                 pattern="[6-9][0-9]{9}"
                 class="form-input"
-                placeholder="उदा. 9876543299"
+                :placeholder="t('auth_register_phone_ph')"
               />
             </div>
 
             <div class="form-group">
-              <label class="form-label">नवीन पासवर्ड (New Password) *</label>
+              <label class="form-label">{{ t('auth_reset_new_pwd_label') }}</label>
               <input
                 type="password"
                 v-model="resetPasswordForm.new_password"
                 required
                 minlength="4"
                 class="form-input"
-                placeholder="किमान ४ अक्षरे / अंक"
+                :placeholder="t('auth_register_password_ph')"
               />
             </div>
 
             <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-              {{ authSubmitting ? 'बदल होत आहे...' : '🔑 पासवर्ड रीसेट करा (Reset Password)' }}
+              {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_btn') }}
             </button>
           </form>
 
           <p style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
             <a href="javascript:void(0)" @click="authMode = 'login'; authError = '';" style="color: #047857; font-weight: 700; text-decoration: none;">
-              ← लॉगिनवर परत जा (Back to Login)
+              {{ t('auth_back_to_login') }}
             </a>
           </p>
         </div>
@@ -1756,32 +1785,32 @@
         <form v-else-if="authMode === 'login' || authMode === 'admin'" @submit.prevent="handleLogin">
           <!-- Admin Whitelist Banner -->
           <div v-if="authMode === 'admin'" style="background: #fffbeb; border: 1.5px solid #fef3c7; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; color: #92400e; margin-bottom: 14px;">
-            🛡️ <strong>सुरक्षा सूचना:</strong> दुकानदार ॲक्सेस केवळ अधिकृत ईमेल (<code>thisisroushan01@gmail.com</code> / <code>novaaether01@gmail.com</code>) साठी २-स्टेप व्हेरिफिकेशनसह सुरक्षित आहे.
+            {{ t('auth_admin_security_info') }}
           </div>
 
           <div class="form-group">
             <label class="form-label">
-              {{ authMode === 'admin' ? 'अधिकृत ॲडमिन ईमेल (Admin Email) *' : 'मोबाईल नंबर / ईमेल / युझरनेम *' }}
+              {{ authMode === 'admin' ? t('auth_input_admin_email') : t('auth_input_identifier') }}
             </label>
             <input
               type="text"
               v-model="authForm.identifier"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'thisisroushan01@gmail.com' : '9876543299 किंवा email@example.com'"
+              :placeholder="authMode === 'admin' ? 'thisisroushan01@gmail.com' : (currentLang === 'mr' ? '9876543299 किंवा email@example.com' : (currentLang === 'hi' ? '9876543299 या email@example.com' : '9876543299 or email@example.com'))"
             />
           </div>
 
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label class="form-label" style="margin-bottom: 0;">पासवर्ड (Password) *</label>
+              <label class="form-label" style="margin-bottom: 0;">{{ t('auth_input_password') }}</label>
               <a
                 v-if="authMode !== 'admin'"
                 href="javascript:void(0)"
                 @click="authMode = 'reset_password'; authError = '';"
                 style="font-size: 0.78rem; color: #047857; font-weight: 700; text-decoration: none;"
               >
-                पासवर्ड विसरलात?
+                {{ t('auth_forgot_password') }}
               </a>
             </div>
             <input
@@ -1789,50 +1818,50 @@
               v-model="authForm.password"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'admin123' : 'आपला पासवर्ड टाका'"
+              :placeholder="authMode === 'admin' ? 'admin123' : t('auth_register_password_ph')"
             />
           </div>
 
           <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-            {{ authSubmitting ? 'तपासणी सुरू आहे...' : (authMode === 'admin' ? '🔐 पुढे जा (२-स्टेप OTP पाठवा)' : 'लॉगिन करा') }}
+            {{ authSubmitting ? t('auth_btn_submitting') : (authMode === 'admin' ? t('auth_btn_admin_login') : t('auth_btn_login')) }}
           </button>
         </form>
 
         <!-- VIEW D: REGISTER FORM (CUSTOMER) -->
         <form v-else @submit.prevent="handleRegister">
           <div class="form-group">
-            <label class="form-label">पूर्ण नाव (Full Name) *</label>
-            <input type="text" v-model="registerForm.name" required class="form-input" placeholder="उदा. राहुल पाटील / पूजा शर्मा" />
+            <label class="form-label">{{ t('auth_register_name') }}</label>
+            <input type="text" v-model="registerForm.name" required class="form-input" :placeholder="t('auth_register_name_ph')" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">युझरनेम (Username - Unique, उदा. roushan466)</label>
-            <input type="text" v-model="registerForm.username" pattern="[a-zA-Z0-9_.-]{3,30}" class="form-input" placeholder="फक्त अक्षरे, अंक किंवा _ (पर्यायी)" />
+            <label class="form-label">{{ t('auth_register_username') }}</label>
+            <input type="text" v-model="registerForm.username" pattern="[a-zA-Z0-9_.-]{3,30}" class="form-input" :placeholder="t('auth_register_username_ph')" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">मोबाईल नंबर (10-Digit Mobile Number) *</label>
-            <input type="tel" v-model="registerForm.phone" required pattern="[6-9][0-9]{9}" class="form-input" placeholder="१० अंकी वैध मोबाईल नंबर (उदा. 9820011223)" />
-            <span style="font-size: 0.72rem; color: var(--text-muted);">* डमी किंवा बनावट नंबर स्वीकारले जाणार नाहीत.</span>
+            <label class="form-label">{{ t('auth_register_phone') }}</label>
+            <input type="tel" v-model="registerForm.phone" required pattern="[6-9][0-9]{9}" class="form-input" :placeholder="t('auth_register_phone_ph')" />
+            <span style="font-size: 0.72rem; color: var(--text-muted);">{{ t('auth_register_phone_hint') }}</span>
           </div>
 
           <div class="form-group">
-            <label class="form-label">ईमेल (Email) - <span style="color: var(--text-muted);">पर्यायी (Optional)</span></label>
-            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com (ऐच्छिक)" />
+            <label class="form-label">{{ t('auth_register_email') }}</label>
+            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">पासवर्ड (Password) *</label>
-            <input type="password" v-model="registerForm.password" required minlength="4" class="form-input" placeholder="किमान ४ अक्षरे / अंक" />
+            <label class="form-label">{{ t('auth_register_password') }}</label>
+            <input type="password" v-model="registerForm.password" required minlength="4" class="form-input" :placeholder="t('auth_register_password_ph')" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">डिलिव्हरी पत्ता (Delivery Address)</label>
-            <textarea v-model="registerForm.address" rows="2" class="form-input" placeholder="घर/फ्लॅट क्र., इमारत, रस्ता, लँडमार्क"></textarea>
+            <label class="form-label">{{ t('auth_register_address') }}</label>
+            <textarea v-model="registerForm.address" rows="2" class="form-input" :placeholder="t('auth_register_address_ph')"></textarea>
           </div>
 
           <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-            {{ authSubmitting ? 'नोंदणी होत आहे...' : '✅ नोंदणी करा व खरेदी सुरू करा' }}
+            {{ authSubmitting ? t('auth_btn_submitting') : t('auth_btn_register') }}
           </button>
         </form>
       </div>
@@ -3840,10 +3869,32 @@ async function checkAuth() {
   }
 }
 
+function getAuthModalTitle() {
+  if (admin2faState.value.active) return t('auth_modal_title_2fa');
+  if (authMode.value === 'reset_password') return t('auth_modal_title_reset');
+  if (authMode.value === 'admin') return t('auth_modal_title_admin');
+  if (authMode.value === 'register') return t('auth_modal_title_register');
+  return t('auth_modal_title_login');
+}
+
+function formatAuthError(data, defaultMsg) {
+  const code = data?.code;
+  if (code === 'INVALID_PHONE') return t('auth_err_invalid_phone');
+  if (code === 'DUMMY_PHONE') return t('auth_err_dummy_phone');
+  if (code === 'PHONE_EXISTS') return t('auth_err_phone_exists');
+  if (code === 'USERNAME_EXISTS') return t('auth_err_username_exists');
+  if (code === 'EMAIL_EXISTS') return t('auth_err_email_exists');
+  if (code === 'INVALID_CREDENTIALS') return t('auth_err_invalid_credentials');
+  if (code === 'USER_NOT_FOUND') return t('auth_err_user_not_found');
+  if (code === 'INVALID_OTP') return t('auth_err_invalid_otp');
+  if (code === 'OTP_EXPIRED') return t('auth_err_otp_expired');
+  return data?.error || defaultMsg;
+}
+
 function openAuthModal(mode = 'login') {
   authMode.value = mode;
   authError.value = '';
-  admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp_preview: '', otp: '' };
+  admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp: '' };
   if (mode === 'admin') {
     authForm.value = { identifier: 'thisisroushan01@gmail.com', password: '' };
   } else {
@@ -3869,10 +3920,9 @@ async function handleLogin() {
           temp_token: data.temp_token,
           masked_email: data.masked_email,
           admin_email: data.admin_email,
-          otp_preview: data.otp_preview,
           otp: ''
         };
-        showToast(data.message || 'सुरक्षा पडताळणी कोड पाठवला आहे');
+        showToast(data.message || (currentLang.value === 'mr' ? 'सुरक्षा पडताळणी कोड पाठवला आहे' : (currentLang.value === 'hi' ? 'सुरक्षा सत्यापन कोड भेजा गया है' : 'Security verification code sent')));
         return;
       }
 
@@ -3885,17 +3935,17 @@ async function handleLogin() {
       customerForm.value.address = data.user.address;
       showAuthModal.value = false;
       authForm.value = { identifier: '', password: '' };
-      showToast(`नमस्ते ${data.user.name}! लॉगिन यशस्वी.`);
+      showToast(`${t('greeting')} ${data.user.name}!`);
       if (data.user.role === 'admin') {
         adminActiveTab.value = 'inventory';
         loadAdminOrders();
         loadAdminCustomers();
       }
     } else {
-      authError.value = data.error || 'लॉगिन अयशस्वी. कृपया पुन्हा प्रयत्न करा.';
+      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'लॉगिन अयशस्वी. कृपया पुन्हा प्रयत्न करा.' : (currentLang.value === 'hi' ? 'लॉगिन असफल। कृपया पुन: प्रयास करें।' : 'Login failed. Please try again.'));
     }
   } catch (err) {
-    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+    authError.value = t('auth_err_network');
   } finally {
     authSubmitting.value = false;
   }
@@ -3903,7 +3953,7 @@ async function handleLogin() {
 
 async function handleVerifyAdmin2Fa() {
   if (!admin2faState.value.otp || admin2faState.value.otp.trim().length !== 6) {
-    authError.value = 'कृपया ६-अंकी OTP कोड टाका.';
+    authError.value = t('auth_err_invalid_otp');
     return;
   }
   authSubmitting.value = true;
@@ -3924,19 +3974,19 @@ async function handleVerifyAdmin2Fa() {
       currentUser.value = data.user;
       profileForm.value = { ...data.user };
       showAuthModal.value = false;
-      admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp_preview: '', otp: '' };
+      admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp: '' };
       authForm.value = { identifier: '', password: '' };
-      showToast(`नमस्ते ${data.user.name}! 🔐 २-स्टेप व्हेरिफिकेशन यशस्वी.`);
+      showToast(`${t('greeting')} ${data.user.name}! 🔐`);
       if (data.user.role === 'admin') {
         adminActiveTab.value = 'inventory';
         loadAdminOrders();
         loadAdminCustomers();
       }
     } else {
-      authError.value = data.error || 'अवैध OTP कोड. कृपया पुन्हा प्रयत्न करा.';
+      authError.value = formatAuthError(data, t('auth_err_invalid_otp'));
     }
   } catch (err) {
-    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+    authError.value = t('auth_err_network');
   } finally {
     authSubmitting.value = false;
   }
@@ -3944,7 +3994,7 @@ async function handleVerifyAdmin2Fa() {
 
 async function handleResetPassword() {
   if (!resetPasswordForm.value.phone || !resetPasswordForm.value.new_password) {
-    authError.value = 'कृपया मोबाईल नंबर आणि नवीन पासवर्ड टाका.';
+    authError.value = currentLang.value === 'mr' ? 'कृपया मोबाईल नंबर आणि नवीन पासवर्ड टाका.' : (currentLang.value === 'hi' ? 'कृपया मोबाइल नंबर और नया पासवर्ड दर्ज करें।' : 'Please enter mobile number and new password.');
     return;
   }
   authSubmitting.value = true;
@@ -3960,15 +4010,15 @@ async function handleResetPassword() {
     });
     const data = await res.json();
     if (res.ok) {
-      showToast('✅ पासवर्ड यशस्वीरीत्या बदलला! आता नवीन पासवर्डने लॉगिन करा.');
+      showToast(currentLang.value === 'mr' ? '✅ पासवर्ड यशस्वीरीत्या बदलला! आता नवीन पासवर्डने लॉगिन करा.' : (currentLang.value === 'hi' ? '✅ पासवर्ड सफलतापूर्वक बदला गया! अब नए पासवर्ड से लॉगिन करें।' : '✅ Password reset successfully! Please login with your new password.'));
       authMode.value = 'login';
       authForm.value.identifier = resetPasswordForm.value.phone;
       resetPasswordForm.value = { phone: '', new_password: '' };
     } else {
-      authError.value = data.error || 'पासवर्ड बदल अयशस्वी.';
+      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'पासवर्ड बदल अयशस्वी.' : (currentLang.value === 'hi' ? 'पासवर्ड बदलना असफल।' : 'Password reset failed.'));
     }
   } catch (err) {
-    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+    authError.value = t('auth_err_network');
   } finally {
     authSubmitting.value = false;
   }
@@ -3978,7 +4028,7 @@ async function handleRegister() {
   const phone = registerForm.value.phone.trim();
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
-    authError.value = 'कृपया १० अंकांचा खरा भारतीय मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा)';
+    authError.value = t('auth_err_invalid_phone');
     return;
   }
   authSubmitting.value = true;
@@ -4008,12 +4058,12 @@ async function handleRegister() {
       customerForm.value.phone = data.user.phone;
       customerForm.value.address = data.user.address;
       showAuthModal.value = false;
-      showToast(`स्वागत आहे ${data.user.name}! कोमल मार्ट खाते तयार झाले.`);
+      showToast(`${t('greeting')} ${data.user.name}!`);
     } else {
-      authError.value = data.error || 'नोंदणी अयशस्वी.';
+      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'नोंदणी अयशस्वी.' : (currentLang.value === 'hi' ? 'पंजीकरण असफल।' : 'Registration failed.'));
     }
   } catch (err) {
-    authError.value = 'सर्व्हरशी संपर्क होऊ शकला नाही.';
+    authError.value = t('auth_err_network');
   } finally {
     authSubmitting.value = false;
   }

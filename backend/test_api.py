@@ -1,4 +1,4 @@
-from app import create_app
+from app import create_app, ADMIN_2FA_STORE
 import json
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -73,8 +73,9 @@ admin_res = client.post('/api/auth/login', json={
 print("Admin Login Step 1 (2FA Required):", admin_res.status_code, admin_res.get_json().get('require_2fa'))
 assert admin_res.status_code == 200
 assert admin_res.get_json().get('require_2fa') is True
+assert 'otp_preview' not in admin_res.get_json(), "Security leak: OTP preview must not exist in API response"
 temp_token = admin_res.get_json()['temp_token']
-otp = admin_res.get_json()['otp_preview']
+otp = ADMIN_2FA_STORE['thisisroushan01@gmail.com']['otp']
 
 # 5c. Admin Login Step 2 (Verify OTP)
 verify_res = client.post('/api/auth/verify-admin-2fa', json={
