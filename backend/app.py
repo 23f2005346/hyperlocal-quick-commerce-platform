@@ -1902,7 +1902,7 @@ def create_app():
             return send_from_directory(frontend_dist, 'index.html')
         else:
             return jsonify({
-                'store': 'Apna Desi Kirana Store Backend API',
+                'store': 'Komal Mart Quick Commerce Backend API',
                 'status': 'Backend running.'
             })
 
