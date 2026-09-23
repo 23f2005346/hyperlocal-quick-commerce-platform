@@ -439,7 +439,7 @@ def create_app():
                     cur.execute("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0")
                     conn.commit()
 
-                # Ensure orders.credit_used and orders.credit_earned columns exist
+                # Ensure orders.credit_used, credit_earned, delivery_type, and pincode columns exist
                 cur.execute("PRAGMA table_info(orders)")
                 order_cols = [r[1] for r in cur.fetchall()]
                 if 'credit_used' not in order_cols:
@@ -447,6 +447,12 @@ def create_app():
                     conn.commit()
                 if 'credit_earned' not in order_cols:
                     cur.execute("ALTER TABLE orders ADD COLUMN credit_earned FLOAT DEFAULT 0.0")
+                    conn.commit()
+                if 'delivery_type' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN delivery_type VARCHAR(30) DEFAULT 'home_delivery'")
+                    conn.commit()
+                if 'pincode' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN pincode VARCHAR(10) DEFAULT '400031'")
                     conn.commit()
             except Exception as e:
                 print("Migration warning:", e)
@@ -838,7 +844,27 @@ def create_app():
         customer_name = data.get('customer_name') or (user.name if user else 'Walk-in Customer')
         customer_phone = data.get('customer_phone') or (user.phone if user else '9876543210')
         customer_address = data.get('customer_address') or (user.address if user else 'Local Delivery')
+        delivery_type = data.get('delivery_type', 'home_delivery')
+        pincode = str(data.get('pincode', '')).strip()
         payment_method = data.get('payment_method', 'Cash on Delivery (COD)')
+
+        # Wadala Local Delivery Zone Guard (Express Home Delivery strictly within Wadala & neighboring zones)
+        ALLOWED_WADALA_PINCODES = {'400031', '400037', '400015', '400014', '400019', '400022'}
+        if delivery_type == 'home_delivery':
+            if pincode and pincode not in ALLOWED_WADALA_PINCODES:
+                return jsonify({
+                    'error': f'Home delivery is strictly restricted to Wadala and neighboring pincodes ({", ".join(sorted(ALLOWED_WADALA_PINCODES))}). Please choose Store Counter Pickup.',
+                    'allowed_pincodes': list(sorted(ALLOWED_WADALA_PINCODES))
+                }), 400
+
+            # Detect any out-of-zone 6-digit Indian pincode mentioned in customer_address
+            address_pincodes = re.findall(r'\b(4\d{5})\b', customer_address)
+            for apin in address_pincodes:
+                if apin not in ALLOWED_WADALA_PINCODES:
+                    return jsonify({
+                        'error': f'Pincode {apin} in address is outside Wadala delivery zone ({", ".join(sorted(ALLOWED_WADALA_PINCODES))}). Please select Store Counter Pickup.',
+                        'allowed_pincodes': list(sorted(ALLOWED_WADALA_PINCODES))
+                    }), 400
 
         # Only UPI QR code is paid immediately; COD and Khata are Unpaid until cash received
         if payment_method in ['UPI / QR Code', 'Paid via UPI QR']:
@@ -944,6 +970,8 @@ def create_app():
             customer_name=customer_name,
             customer_phone=customer_phone,
             customer_address=customer_address,
+            delivery_type=delivery_type,
+            pincode=pincode if pincode else ('400031' if delivery_type == 'store_pickup' else '400031'),
             total_mrp=round(total_mrp, 2),
             final_amount=round(final_amount, 2),
             total_savings=savings,

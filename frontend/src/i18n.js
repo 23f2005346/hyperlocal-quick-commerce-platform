@@ -112,6 +112,12 @@ export const translations = {
 
     // Checkout
     checkout_title: "डिलिव्हरी व बिलाचा तपशील",
+    delivery_type_home: "🛵 ३० मिनिटांत घरपोच डिलिव्हरी (Home Delivery)",
+    delivery_type_pickup: "🏬 दुकान काउंटरवरून स्वतः उचलणे (Store Pickup)",
+    delivery_zone_title: "डिलिव्हरी परिसर व पिनकोड (Wadala Zone)",
+    delivery_pincode_error: "⚠️ दिलगीर आहोत! सध्या घरपोच डिलिव्हरी फक्त वडाळा व लगतच्या परिसरासाठी (४०००३१, ४०००३७...) मर्यादित आहे. तुम्ही 'दुकान काउंटरवरून स्वतः उचलणे' निवडू शकता.",
+    pickup_store_address: "कोमल मार्ट किराणा भंडार, कात्रक रोड, वडाळा (प), मुंबई - ४०००३१",
+    pickup_note: "ऑर्डर दिल्यानंतर १५ मिनिटांत सामान पॅक करून तयार राहील. दुकान काउंटरवरून कधीही घेऊन जा. डिलिव्हरी शुल्क: ₹०.",
     cust_name_label: "ग्राहकाचे पूर्ण नाव *",
     cust_phone_label: "मोबाईल नंबर *",
     cust_address_label: "डिलिव्हरी पत्ता / लँडमार्क *",
@@ -413,6 +419,12 @@ export const translations = {
 
     // Checkout
     checkout_title: "डिलीवरी व बिल विवरण",
+    delivery_type_home: "🛵 ३० मिनट में होम डिलीवरी (Home Delivery)",
+    delivery_type_pickup: "🏬 दुकान काउंटर से स्वयं पिकअप (Store Pickup)",
+    delivery_zone_title: "डिलीवरी क्षेत्र व पिनकोड (Wadala Zone)",
+    delivery_pincode_error: "⚠️ क्षमा करें! वर्तमान में होम डिलीवरी केवल वडाला व आसपास (400031, 400037...) के लिए सीमित है। आप 'दुकान काउंटर से पिकअप' चुन सकते हैं।",
+    pickup_store_address: "कोमल मार्ट किराना भंडार, कात्रक रोड, वडाला (प), मुंबई - ४०००३१",
+    pickup_note: "ऑर्डर के बाद १५ मिनट में सामान पैक होकर तैयार रहेगा। दुकान काउंटर से कभी भी ले जाएं। डिलीवरी शुल्क: ₹०।",
     cust_name_label: "ग्राहक का पूरा नाम *",
     cust_phone_label: "मोबाइल नंबर *",
     cust_address_label: "डिलीवरी का पता / लैंडमार्क *",
@@ -714,6 +726,12 @@ export const translations = {
 
     // Checkout
     checkout_title: "Delivery & Billing Details",
+    delivery_type_home: "🛵 30-Min Express Home Delivery",
+    delivery_type_pickup: "🏬 Store Counter Pickup (Free)",
+    delivery_zone_title: "Delivery Area & Pincode (Wadala Zone)",
+    delivery_pincode_error: "⚠️ Delivery Unavailable: Currently delivering strictly within Wadala & nearby (400031, 400037...). You can choose Store Counter Pickup.",
+    pickup_store_address: "Komal Mart Kirana Store, Katrak Road, Wadala (W), Mumbai - 400031",
+    pickup_note: "Your items will be packed and ready in 15 mins. Pick up anytime from shop counter. Delivery Fee: ₹0.",
     cust_name_label: "Full Name *",
     cust_phone_label: "Phone Number (10-Digit) *",
     cust_address_label: "Delivery Address & Landmark *",

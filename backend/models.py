@@ -148,6 +148,8 @@ class Order(db.Model):
     customer_name = db.Column(db.String(100), nullable=False)
     customer_phone = db.Column(db.String(20), nullable=False)
     customer_address = db.Column(db.Text, nullable=True)
+    delivery_type = db.Column(db.String(30), default='home_delivery')
+    pincode = db.Column(db.String(10), default='400031')
     total_mrp = db.Column(db.Float, default=0.0)
     final_amount = db.Column(db.Float, nullable=False)
     total_savings = db.Column(db.Float, default=0.0)
@@ -168,6 +170,8 @@ class Order(db.Model):
             'customer_name': self.customer_name,
             'customer_phone': self.customer_phone,
             'customer_address': self.customer_address,
+            'delivery_type': self.delivery_type or 'home_delivery',
+            'pincode': self.pincode or '400031',
             'total_mrp': self.total_mrp,
             'final_amount': self.final_amount,
             'total_savings': self.total_savings,

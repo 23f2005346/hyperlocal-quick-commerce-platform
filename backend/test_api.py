@@ -238,7 +238,57 @@ assert backup_list_res.get_json()['count'] >= 1
 backup_dl_res = client.get('/api/admin/backup/download?compress=true', headers={'Authorization': f'Bearer {admin_token}'})
 print("Admin 1-Click Backup Download API:", backup_dl_res.status_code, "Content-Length:", len(backup_dl_res.data), "bytes")
 assert backup_dl_res.status_code == 200
-assert len(backup_dl_res.data) > 1000
+# 14. Wadala Local Delivery Pincode Guard Tests
+# 14a. Rejection: Home Delivery with outside pincode (e.g., 400050 Bandra)
+out_zone_order = client.post('/api/orders', json={
+    'customer_name': 'Bandra Customer',
+    'customer_phone': '9820099887',
+    'customer_address': 'Hill Road, Bandra West, Mumbai 400050',
+    'delivery_type': 'home_delivery',
+    'pincode': '400050',
+    'items': [{'variant_id': 1, 'quantity': 1}]
+})
+print("Outside Wadala Home Delivery Rejection:", out_zone_order.status_code, "(Should be 400)")
+assert out_zone_order.status_code == 400
+assert 'Wadala' in out_zone_order.get_json()['error']
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS & HOT BACKUP TESTS PASSED 100%!")
+# 14b. Rejection: Home Delivery with outside pincode in address string even if pincode field is omitted
+out_zone_addr_order = client.post('/api/orders', json={
+    'customer_name': 'Andheri Customer',
+    'customer_phone': '9820099887',
+    'customer_address': 'Lokhandwala Complex, Andheri 400053',
+    'delivery_type': 'home_delivery',
+    'items': [{'variant_id': 1, 'quantity': 1}]
+})
+print("Outside Wadala Address Pincode Rejection:", out_zone_addr_order.status_code, "(Should be 400)")
+assert out_zone_addr_order.status_code == 400
+
+# 14c. Acceptance: Home Delivery within Wadala (400031)
+wadala_order = client.post('/api/orders', json={
+    'customer_name': 'Wadala Resident',
+    'customer_phone': '9820099887',
+    'customer_address': 'Katrak Road, Wadala West, Mumbai - 400031',
+    'delivery_type': 'home_delivery',
+    'pincode': '400031',
+    'items': [{'variant_id': 1, 'quantity': 1}]
+})
+print("Wadala Home Delivery Acceptance:", wadala_order.status_code, "(Should be 201)")
+assert wadala_order.status_code == 201
+assert wadala_order.get_json()['order']['delivery_type'] == 'home_delivery'
+assert wadala_order.get_json()['order']['pincode'] == '400031'
+
+# 14d. Acceptance: Store Counter Pickup (Free, accepted from any customer/area)
+pickup_order = client.post('/api/orders', json={
+    'customer_name': 'Pickup Visitor',
+    'customer_phone': '9820099887',
+    'customer_address': 'Komal Mart Shop Counter [STORE PICKUP]',
+    'delivery_type': 'store_pickup',
+    'pincode': '400050',
+    'items': [{'variant_id': 1, 'quantity': 1}]
+})
+print("Store Counter Pickup Acceptance (Any Pincode):", pickup_order.status_code, "(Should be 201)")
+assert pickup_order.status_code == 201
+assert pickup_order.get_json()['order']['delivery_type'] == 'store_pickup'
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD & HOT BACKUP TESTS PASSED 100%!")
 

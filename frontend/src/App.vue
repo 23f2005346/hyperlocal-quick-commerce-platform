@@ -2919,31 +2919,100 @@
             <input type="tel" v-model="customerForm.phone" required pattern="[0-9]{10}" class="form-input" />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">{{ t('cust_address_label') }}</label>
-            <textarea v-model="customerForm.address" required rows="2" class="form-input" placeholder="मकान नं, गली, मोहल्ला / लैंडमार्क"></textarea>
-          </div>
-
-          <!-- Delivery Slot Selector -->
-          <div class="form-group">
-            <label class="form-label">⏰ {{ t('delivery_slot_title') }}</label>
-            <div class="delivery-slots-grid">
-              <div
-                v-for="slot in deliverySlotOptions"
-                :key="slot.id"
-                class="delivery-slot-card"
-                :class="{ active: customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label }"
-                @click="customerForm.deliverySlot = slot.id"
+          <!-- Delivery Mode: Express Home Delivery vs Store Pickup -->
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 800; color: #064e3b; margin-bottom: 8px; display: block;">
+              🛵 {{ currentLang === 'en' ? 'Choose Fulfillment Mode:' : (currentLang === 'mr' ? 'डिलिव्हरी प्रकार निवडा:' : 'डिलीवरी का प्रकार चुनें:') }}
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button
+                type="button"
+                @click="customerForm.deliveryType = 'home_delivery'"
+                :style="customerForm.deliveryType === 'home_delivery' ? 'background: #ecfdf5; border: 2px solid #059669; color: #064e3b; font-weight: 900;' : 'background: #f8fafc; border: 1.5px solid #cbd5e1; color: #64748b; font-weight: 700;'"
+                style="padding: 10px 8px; border-radius: 10px; cursor: pointer; font-size: 0.84rem; text-align: center; transition: all 0.2s;"
               >
-                <div class="slot-icon">{{ slot.icon }}</div>
-                <div class="slot-details">
-                  <div class="slot-label">{{ slot.title }}</div>
-                  <div class="slot-desc">{{ slot.desc }}</div>
-                </div>
-                <div class="slot-check-icon" v-if="customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label">✓</div>
-              </div>
+                {{ t('delivery_type_home') }}
+              </button>
+              <button
+                type="button"
+                @click="customerForm.deliveryType = 'store_pickup'"
+                :style="customerForm.deliveryType === 'store_pickup' ? 'background: #ecfdf5; border: 2px solid #059669; color: #064e3b; font-weight: 900;' : 'background: #f8fafc; border: 1.5px solid #cbd5e1; color: #64748b; font-weight: 700;'"
+                style="padding: 10px 8px; border-radius: 10px; cursor: pointer; font-size: 0.84rem; text-align: center; transition: all 0.2s;"
+              >
+                {{ t('delivery_type_pickup') }}
+              </button>
             </div>
           </div>
+
+          <template v-if="customerForm.deliveryType === 'home_delivery'">
+            <!-- Wadala Area & Pincode Selector -->
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-weight: 800; color: #064e3b;">
+                📍 {{ t('delivery_zone_title') }} <span style="color: #ef4444;">*</span>
+              </label>
+              <select v-model="customerForm.pincode" class="form-input" style="font-weight: 700;">
+                <option v-for="area in WADALA_SERVICEABLE_AREAS" :key="area.pincode" :value="area.pincode">
+                  {{ currentLang === 'en' ? area.name_en : (currentLang === 'mr' ? area.name_mr : area.name_hi) }}
+                </option>
+                <option value="other">{{ currentLang === 'en' ? 'Other Pincode (Outside Wadala Zone)' : (currentLang === 'mr' ? 'इतर पिनकोड (वडाळा परिसराबाहेर)' : 'अन्य पिनकोड (वडाला क्षेत्र से बाहर)') }}</option>
+              </select>
+            </div>
+
+            <!-- Warning if not serviceable -->
+            <div v-if="!isPincodeServiceable" style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+              <div style="color: #991b1b; font-weight: 800; font-size: 0.86rem; line-height: 1.45;">
+                {{ t('delivery_pincode_error') }}
+              </div>
+              <button
+                type="button"
+                @click="customerForm.deliveryType = 'store_pickup'"
+                style="margin-top: 8px; background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
+              >
+                🏬 {{ currentLang === 'en' ? 'Switch to Store Pickup (Free)' : (currentLang === 'mr' ? 'दुकान पिकअप निवडा (मोफत)' : 'दुकान पिकअप चुनें (मुफ़्त)') }}
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">{{ t('cust_address_label') }}</label>
+              <textarea v-model="customerForm.address" required rows="2" class="form-input" placeholder="मकान नं, बिल्डिंग, गल्ली, लँडमार्क"></textarea>
+            </div>
+
+            <!-- Delivery Slot Selector -->
+            <div class="form-group">
+              <label class="form-label">⏰ {{ t('delivery_slot_title') }}</label>
+              <div class="delivery-slots-grid">
+                <div
+                  v-for="slot in deliverySlotOptions"
+                  :key="slot.id"
+                  class="delivery-slot-card"
+                  :class="{ active: customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label }"
+                  @click="customerForm.deliverySlot = slot.id"
+                >
+                  <div class="slot-icon">{{ slot.icon }}</div>
+                  <div class="slot-details">
+                    <div class="slot-label">{{ slot.title }}</div>
+                    <div class="slot-desc">{{ slot.desc }}</div>
+                  </div>
+                  <div class="slot-check-icon" v-if="customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label">✓</div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <!-- Store Pickup Info Box -->
+            <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+              <div style="font-weight: 900; color: #166534; font-size: 0.95rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                🏬 {{ currentLang === 'en' ? 'Store Counter Pickup (Free)' : (currentLang === 'mr' ? 'दुकान काउंटरवरून स्वतः उचलणे (मोफत)' : 'दुकान काउंटर से स्वयं पिकअप (मुफ़्त)') }}
+              </div>
+              <div style="font-size: 0.86rem; color: #1e293b; font-weight: 700; margin-bottom: 4px;">
+                📍 {{ t('pickup_store_address') }}
+              </div>
+              <div style="font-size: 0.8rem; color: #475569; line-height: 1.4;">
+                ⏱️ {{ t('pickup_note') }}
+              </div>
+            </div>
+          </template>
 
           <div class="form-group">
             <label class="form-label">{{ t('payment_method_label') }}</label>
@@ -3071,10 +3140,13 @@
 
           <button
             type="submit"
-            :disabled="orderSubmitting || (customerForm.paymentMethod === 'UPI / QR Code' && !customerForm.upiConfirmed)"
+            :disabled="orderSubmitting || !isPincodeServiceable || (customerForm.paymentMethod === 'UPI / QR Code' && !customerForm.upiConfirmed)"
             class="checkout-btn"
+            :style="!isPincodeServiceable ? 'opacity: 0.6; cursor: not-allowed;' : ''"
           >
-            {{ orderSubmitting ? t('placing_order') : '✅ ' + t('place_order_btn') + ' (₹' + finalPayableAmount + ')' }}
+            <span v-if="!isPincodeServiceable">🚫 {{ currentLang === 'en' ? 'Delivery Unavailable Outside Wadala' : (currentLang === 'mr' ? 'वडाळा परिसराबाहेर डिलिव्हरी अनुपलब्ध' : 'वडाला क्षेत्र से बाहर डिलीवरी अनुपलब्ध') }}</span>
+            <span v-else-if="orderSubmitting">{{ t('placing_order') }}</span>
+            <span v-else>✅ {{ t('place_order_btn') }} (₹{{ finalPayableAmount }})</span>
           </button>
         </form>
       </div>
@@ -4981,9 +5053,28 @@ const customerForm = ref({
   name: '',
   phone: '',
   address: '',
+  deliveryType: 'home_delivery', // 'home_delivery' | 'store_pickup'
+  pincode: '400031',
   deliverySlot: 'instant',
   paymentMethod: 'Cash on Delivery (COD)',
   upiConfirmed: false
+});
+
+const WADALA_SERVICEABLE_AREAS = [
+  { pincode: '400031', name_mr: '४०००३१ — वडाळा (प) / कात्रक रोड / सहकार नगर', name_hi: '400031 — वडाला (प) / कात्रक रोड', name_en: '400031 — Wadala West / Katrak Road' },
+  { pincode: '400037', name_mr: '४०००३७ — वडाळा (पू) / अंटॉप हिल / CGS कॉलनी', name_hi: '400037 — वडाला (पू) / अंटॉप हिल', name_en: '400037 — Wadala East / Antop Hill' },
+  { pincode: '400015', name_mr: '४०००१५ — शिवडी (Sewri - वडाळा लगत)', name_hi: '400015 — शिवड़ी (Sewri)', name_en: '400015 — Sewri (Wadala Border)' },
+  { pincode: '400014', name_mr: '४०००१४ — दादर (पूर्व) / हिंदू कॉलनी', name_hi: '400014 — दादर (पूर्व) / हिंदू कॉलोनी', name_en: '400014 — Dadar East / Hindu Colony' },
+  { pincode: '400019', name_mr: '४०००१९ — माटुंगा (पूर्व) / बी.आर. आंबेडकर रोड', name_hi: '400019 — माटुंगा (पूर्व)', name_en: '400019 — Matunga East' },
+  { pincode: '400022', name_mr: '४०००२२ — जी.टी.बी. नगर / सायन कोळीवाडा', name_hi: '400022 — जी.टी.बी. नगर / सायन', name_en: '400022 — GTB Nagar / Sion Koliwada' }
+];
+
+const ALLOWED_PINCODES = new Set(['400031', '400037', '400015', '400014', '400019', '400022']);
+
+const isPincodeServiceable = computed(() => {
+  if (customerForm.value.deliveryType === 'store_pickup') return true;
+  const pin = (customerForm.value.pincode || '').trim();
+  return ALLOWED_PINCODES.has(pin);
 });
 
 const deliverySlotOptions = computed(() => [
@@ -5780,6 +5871,7 @@ const DELIVERY_STANDARD_FEE = 25;
 
 const deliveryFee = computed(() => {
   if (cart.value.length === 0) return 0;
+  if (customerForm.value.deliveryType === 'store_pickup') return 0;
   return Number(cartTotalAmount.value) < DELIVERY_FREE_THRESHOLD ? DELIVERY_STANDARD_FEE : 0;
 });
 
@@ -5870,6 +5962,11 @@ async function submitOrder() {
     return;
   }
 
+  if (customerForm.value.deliveryType === 'home_delivery' && !isPincodeServiceable.value) {
+    alert(t('delivery_pincode_error'));
+    return;
+  }
+
   orderSubmitting.value = true;
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -5877,19 +5974,25 @@ async function submitOrder() {
       headers['Authorization'] = `Bearer ${authToken.value}`;
     }
 
-    const activeSlot = deliverySlotOptions.value.find(s => s.id === customerForm.value.deliverySlot)
-      || deliverySlotOptions.value.find(s => s.label === customerForm.value.deliverySlot)
-      || deliverySlotOptions.value[0];
-    const slotLabel = activeSlot ? activeSlot.label : customerForm.value.deliverySlot;
-    const slotPrefix = currentLang.value === 'en' ? '⏰ Slot:' : (currentLang.value === 'mr' ? '⏰ वेळ:' : '⏰ समय:');
-    const deliveryAddressWithSlot = slotLabel
-      ? `${customerForm.value.address} [${slotPrefix} ${slotLabel}]`
-      : customerForm.value.address;
+    let finalAddress = '';
+    if (customerForm.value.deliveryType === 'store_pickup') {
+      finalAddress = `🏬 ${t('pickup_store_address')} [STORE PICKUP / काउंटर पिकअप]`;
+    } else {
+      const activeSlot = deliverySlotOptions.value.find(s => s.id === customerForm.value.deliverySlot)
+        || deliverySlotOptions.value.find(s => s.label === customerForm.value.deliverySlot)
+        || deliverySlotOptions.value[0];
+      const slotLabel = activeSlot ? activeSlot.label : customerForm.value.deliverySlot;
+      const slotPrefix = currentLang.value === 'en' ? '⏰ Slot:' : (currentLang.value === 'mr' ? '⏰ वेळ:' : '⏰ समय:');
+      const pinCodeSuffix = customerForm.value.pincode ? ` [PIN: ${customerForm.value.pincode}]` : '';
+      finalAddress = `${customerForm.value.address}${pinCodeSuffix} [${slotPrefix} ${slotLabel}]`;
+    }
 
     const payload = {
       customer_name: customerForm.value.name,
       customer_phone: phone,
-      customer_address: deliveryAddressWithSlot,
+      customer_address: finalAddress,
+      delivery_type: customerForm.value.deliveryType,
+      pincode: customerForm.value.deliveryType === 'home_delivery' ? customerForm.value.pincode : '400031',
       payment_method: customerForm.value.paymentMethod,
       use_credit: useStoreCredit.value,
       items: cart.value.map(i => {
