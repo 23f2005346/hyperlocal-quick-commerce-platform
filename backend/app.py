@@ -12,7 +12,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from models import db, User, Category, Product, ProductVariant, Order, OrderItem, get_ist_time
+from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment, TieredPricing, get_ist_time
 from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
 
 # Ensure UTF-8 stdout encoding on Windows consoles to prevent charmap crashes
@@ -273,6 +273,60 @@ def calculate_order_credit(items_data):
 
     return round(total_credit, 2)
 
+def get_tiered_unit_price(product_id, qty):
+    """
+    Checks if there is a tiered wholesale pricing slab applicable for this product and quantity/weight.
+    Returns (unit_price, tier_label) or None if no wholesale slab matches.
+    """
+    if not product_id or qty <= 0:
+        return None
+    try:
+        tiers = TieredPricing.query.filter_by(product_id=product_id).order_by(TieredPricing.min_qty.desc()).all()
+        for t in tiers:
+            if qty >= t.min_qty:
+                if t.max_qty is None or qty <= t.max_qty:
+                    return t.unit_price, t.tier_label
+    except Exception as e:
+        print(f"[TIER PRICE ERROR] {e}")
+    return None
+
+def seed_default_tiered_pricing():
+    """
+    Seeds wholesale tiered pricing slabs for essential bulk staples:
+    - Wada Kolam Rice (5kg+ wholesale, 25kg+ mandi/bori rate)
+    - Chakki Wheat Atta (5kg+ wholesale, 10kg+ katta, 25kg+ bori)
+    - Toor Dal (5kg+ wholesale, 25kg+ bulk)
+    - Chana Dal (5kg+ wholesale, 25kg+ bulk)
+    """
+    staple_tiers = [
+        ("Wada Kolam", 5.0, 24.99, 56.0, "होलसेल (Wholesale 5kg+)"),
+        ("Wada Kolam", 25.0, None, 54.0, "बोरी दर (Bulk Bori 25kg+)"),
+        ("Chakki Fresh Wheat Atta", 5.0, 9.99, 33.0, "होलसेल (5kg+)"),
+        ("Chakki Fresh Wheat Atta", 10.0, 24.99, 32.0, "कट्टा दर (10kg+)"),
+        ("Chakki Fresh Wheat Atta", 25.0, None, 30.0, "बोरी दर (25kg+)"),
+        ("Toor Dal / Arhar Dal", 5.0, 24.99, 142.0, "होलसेल (5kg+)"),
+        ("Toor Dal / Arhar Dal", 25.0, None, 135.0, "बोरी दर (25kg+)"),
+        ("Chana Dal", 5.0, 24.99, 86.0, "होलसेल (5kg+)"),
+        ("Chana Dal", 25.0, None, 80.0, "बोरी दर (25kg+)"),
+    ]
+    for term, min_q, max_q, price, label in staple_tiers:
+        prod = Product.query.filter(Product.name.ilike(f"%{term}%")).first()
+        if prod:
+            db.session.add(TieredPricing(
+                product_id=prod.id,
+                min_qty=min_q,
+                max_qty=max_q,
+                unit_price=price,
+                tier_label=label,
+                tier_label_hi=label
+            ))
+    try:
+        db.session.commit()
+        print("[WHOLESALE SEED] Seeded default tiered pricing slabs successfully.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WHOLESALE SEED ERROR] {e}")
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = SECRET_KEY
@@ -367,6 +421,9 @@ def create_app():
         # Seed default admin and inventory if empty or missing admin
         if Category.query.count() == 0 or User.query.filter_by(role='admin').count() == 0:
             seed_database()
+
+        if TieredPricing.query.count() == 0:
+            seed_default_tiered_pricing()
 
     # --- AUTHENTICATION HELPERS ---
 
@@ -767,7 +824,16 @@ def create_app():
                 prod_name = product.name if product else item.get('product_name', 'Kirana Item')
                 unit_label = item.get('unit_size', '1kg')
                 unit_price = float(item.get('unit_price', 30.0))
-                subtotal = round(float(item.get('subtotal', unit_price)), 2)
+                custom_weight = float(item.get('custom_weight', 1.0))
+
+                # Check wholesale tiered pricing for bulk weight
+                tier_res = get_tiered_unit_price(prod_id, custom_weight)
+                label_suffix = ""
+                if tier_res:
+                    unit_price = tier_res[0]
+                    label_suffix = f" ({tier_res[1]})"
+
+                subtotal = round(float(item.get('subtotal', unit_price * custom_weight)), 2)
                 item_mrp = round(float(item.get('mrp', unit_price * 1.15)), 2)
                 
                 total_mrp += item_mrp
@@ -777,7 +843,7 @@ def create_app():
                     product_id=prod_id,
                     variant_id=None,
                     product_name=prod_name,
-                    variant_label=f"{unit_label} (कस्टम तोल)",
+                    variant_label=f"{unit_label} (कस्टम तोल){label_suffix}",
                     unit_price=unit_price,
                     quantity=1,
                     subtotal=subtotal
@@ -796,7 +862,14 @@ def create_app():
                 else:
                     variant.stock_quantity = 0
 
-                subtotal = round(variant.selling_price * qty, 2)
+                effective_price = variant.selling_price
+                label_suffix = ""
+                tier_res = get_tiered_unit_price(variant.product_id, qty)
+                if tier_res:
+                    effective_price = tier_res[0]
+                    label_suffix = f" ({tier_res[1]})"
+
+                subtotal = round(effective_price * qty, 2)
                 total_mrp += round(variant.mrp * qty, 2)
                 final_amount += subtotal
 
@@ -804,8 +877,8 @@ def create_app():
                     product_id=variant.product_id,
                     variant_id=variant.id,
                     product_name=variant.product.name,
-                    variant_label=variant.unit_size,
-                    unit_price=variant.selling_price,
+                    variant_label=f"{variant.unit_size}{label_suffix}",
+                    unit_price=effective_price,
                     quantity=qty,
                     subtotal=subtotal
                 )
@@ -1135,7 +1208,16 @@ def create_app():
                 prod_name = product.name if product else item.get('product_name', 'किराना सामान')
                 unit_label = item.get('unit_size', '1kg')
                 unit_price = float(item.get('unit_price', 30.0))
-                subtotal = round(float(item.get('subtotal', unit_price)), 2)
+                custom_weight = float(item.get('custom_weight', 1.0))
+
+                # Check wholesale tiered pricing for custom weight
+                tier_res = get_tiered_unit_price(prod_id, custom_weight)
+                label_suffix = ""
+                if tier_res:
+                    unit_price = tier_res[0]
+                    label_suffix = f" ({tier_res[1]})"
+
+                subtotal = round(float(item.get('subtotal', unit_price * custom_weight)), 2)
                 item_mrp = round(float(item.get('mrp', unit_price * 1.15)), 2)
 
                 total_mrp += item_mrp
@@ -1145,7 +1227,7 @@ def create_app():
                     product_id=prod_id,
                     variant_id=None,
                     product_name=prod_name,
-                    variant_label=f"{unit_label} (कस्टम तोल)",
+                    variant_label=f"{unit_label} (कस्टम तोल){label_suffix}",
                     unit_price=unit_price,
                     quantity=1,
                     subtotal=subtotal
@@ -1162,8 +1244,14 @@ def create_app():
                     else:
                         variant.stock_quantity = 0
 
-                    unit_price = float(item.get('unit_price', variant.selling_price))
-                    subtotal = round(unit_price * qty, 2)
+                    effective_price = variant.selling_price
+                    label_suffix = ""
+                    tier_res = get_tiered_unit_price(variant.product_id, qty)
+                    if tier_res:
+                        effective_price = tier_res[0]
+                        label_suffix = f" ({tier_res[1]})"
+
+                    subtotal = round(effective_price * qty, 2)
                     mrp = float(item.get('mrp', variant.mrp))
                     total_mrp += round(mrp * qty, 2)
                     final_amount += subtotal
@@ -1172,8 +1260,8 @@ def create_app():
                         product_id=variant.product_id,
                         variant_id=variant.id,
                         product_name=variant.product.name,
-                        variant_label=variant.unit_size,
-                        unit_price=unit_price,
+                        variant_label=f"{variant.unit_size}{label_suffix}",
+                        unit_price=effective_price,
                         quantity=qty,
                         subtotal=subtotal
                     )
@@ -1282,6 +1370,216 @@ def create_app():
             'message': 'Image uploaded successfully!',
             'url': f'/uploads/{unique_name}'
         })
+
+    # --- DIGITAL KHATA BOOK & UDHAAR LEDGER ROUTES ---
+
+    @app.route('/api/admin/khata', methods=['GET'])
+    @admin_required
+    def get_admin_khata():
+        unpaid_orders = Order.query.filter_by(payment_status='Unpaid').order_by(Order.created_at.desc()).all()
+        payments = KhataPayment.query.order_by(KhataPayment.created_at.desc()).all()
+
+        customers_map = {}
+        for o in unpaid_orders:
+            phone = o.customer_phone
+            if phone not in customers_map:
+                customers_map[phone] = {
+                    'customer_name': o.customer_name,
+                    'customer_phone': phone,
+                    'customer_address': o.customer_address or '',
+                    'user_id': o.user_id,
+                    'unpaid_orders': [],
+                    'total_unpaid': 0.0,
+                    'payments': [],
+                    'total_repaid': 0.0,
+                    'last_order_date': o.created_at.strftime('%d %b %Y, %I:%M %p')
+                }
+            customers_map[phone]['unpaid_orders'].append(o.to_dict())
+            customers_map[phone]['total_unpaid'] += float(o.final_amount or 0.0)
+
+        for p in payments:
+            phone = p.customer_phone
+            if phone in customers_map:
+                customers_map[phone]['payments'].append(p.to_dict())
+                customers_map[phone]['total_repaid'] += float(p.amount or 0.0)
+            else:
+                customers_map[phone] = {
+                    'customer_name': p.customer_name,
+                    'customer_phone': phone,
+                    'customer_address': '',
+                    'user_id': p.user_id,
+                    'unpaid_orders': [],
+                    'total_unpaid': 0.0,
+                    'payments': [p.to_dict()],
+                    'total_repaid': float(p.amount or 0.0),
+                    'last_order_date': p.created_at.strftime('%d %b %Y, %I:%M %p')
+                }
+
+        khata_list = []
+        total_market_udhaar = 0.0
+        for phone, c in customers_map.items():
+            c['total_unpaid'] = round(c['total_unpaid'], 2)
+            c['total_repaid'] = round(c['total_repaid'], 2)
+            c['net_balance_due'] = round(c['total_unpaid'], 2)
+            total_market_udhaar += c['net_balance_due']
+            khata_list.append(c)
+
+        khata_list.sort(key=lambda x: x['net_balance_due'], reverse=True)
+
+        now = get_ist_time()
+        start_of_month = datetime(now.year, now.month, 1)
+        month_payments = [p.amount for p in payments if p.created_at >= start_of_month]
+        total_recovered_month = round(sum(month_payments), 2)
+
+        return jsonify({
+            'customers': khata_list,
+            'summary': {
+                'total_market_udhaar': round(total_market_udhaar, 2),
+                'total_khata_customers': len([c for c in khata_list if c['net_balance_due'] > 0]),
+                'total_recovered_month': total_recovered_month
+            }
+        })
+
+    @app.route('/api/admin/khata/pay', methods=['POST'])
+    @admin_required
+    def record_khata_payment():
+        data = request.get_json() or {}
+        phone = str(data.get('customer_phone', '')).strip()
+        name = str(data.get('customer_name', '')).strip() or 'खाता ग्राहक'
+        amount = float(data.get('amount', 0.0))
+        payment_method = str(data.get('payment_method', 'Cash')).strip()
+        note = str(data.get('note', '')).strip()
+
+        if not phone or amount <= 0:
+            return jsonify({'error': 'कृपया योग्य फोन नंबर आणि रक्कम टाका!'}), 400
+
+        user = User.query.filter_by(phone=phone).first()
+
+        payment = KhataPayment(
+            user_id=user.id if user else None,
+            customer_name=name,
+            customer_phone=phone,
+            amount=round(amount, 2),
+            payment_method=payment_method,
+            note=note
+        )
+        db.session.add(payment)
+
+        # Sequentially settle unpaid orders from oldest to newest
+        unpaid_orders = Order.query.filter_by(customer_phone=phone, payment_status='Unpaid').order_by(Order.created_at.asc()).all()
+        rem_amount = amount
+        settled_orders = []
+
+        for ord_obj in unpaid_orders:
+            if rem_amount <= 0:
+                break
+            if rem_amount >= ord_obj.final_amount:
+                ord_obj.payment_status = 'Paid'
+                rem_amount = round(rem_amount - ord_obj.final_amount, 2)
+                settled_orders.append(ord_obj.order_number)
+                if ord_obj.user_id and ord_obj.credit_earned and ord_obj.credit_earned > 0:
+                    cust_u = db.session.get(User, ord_obj.user_id)
+                    if cust_u:
+                        cust_u.wallet_balance = round((cust_u.wallet_balance or 0.0) + ord_obj.credit_earned, 2)
+            else:
+                ord_obj.final_amount = round(ord_obj.final_amount - rem_amount, 2)
+                settled_orders.append(f"{ord_obj.order_number} (₹{rem_amount} जमा)")
+                rem_amount = 0.0
+
+        db.session.commit()
+
+        msg = f"₹{amount} पेमेंट यशस्वीपणे नोंदवले गेले!"
+        if settled_orders:
+            msg += f" (बिले चुकता: {', '.join(settled_orders)})"
+
+        return jsonify({
+            'message': msg,
+            'payment': payment.to_dict(),
+            'settled_orders': settled_orders
+        })
+
+    @app.route('/api/admin/khata/<string:phone>/statement', methods=['GET'])
+    @admin_required
+    def get_khata_statement(phone):
+        orders = Order.query.filter_by(customer_phone=phone).order_by(Order.created_at.desc()).all()
+        payments = KhataPayment.query.filter_by(customer_phone=phone).order_by(KhataPayment.created_at.desc()).all()
+
+        unpaid_total = sum(o.final_amount for o in orders if o.payment_status == 'Unpaid')
+        paid_total = sum(p.amount for p in payments)
+
+        return jsonify({
+            'customer_phone': phone,
+            'customer_name': orders[0].customer_name if orders else (payments[0].customer_name if payments else 'ग्राहक'),
+            'orders': [o.to_dict() for o in orders],
+            'payments': [p.to_dict() for p in payments],
+            'unpaid_total': round(unpaid_total, 2),
+            'paid_total': round(paid_total, 2)
+        })
+
+    @app.route('/api/customer/khata', methods=['GET'])
+    def get_customer_khata():
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        orders = Order.query.filter(
+            (Order.user_id == user.id) | (Order.customer_phone == user.phone)
+        ).order_by(Order.created_at.desc()).all()
+
+        payments = KhataPayment.query.filter(
+            (KhataPayment.user_id == user.id) | (KhataPayment.customer_phone == user.phone)
+        ).order_by(KhataPayment.created_at.desc()).all()
+
+        unpaid_orders = [o for o in orders if o.payment_status == 'Unpaid']
+        total_due = sum(o.final_amount for o in unpaid_orders)
+
+        return jsonify({
+            'customer_name': user.name,
+            'customer_phone': user.phone,
+            'net_balance_due': round(total_due, 2),
+            'unpaid_orders': [o.to_dict() for o in unpaid_orders],
+            'payments': [p.to_dict() for p in payments]
+        })
+
+    # --- WHOLESALE TIERED PRICING ADMIN ROUTES ---
+
+    @app.route('/api/admin/products/<int:product_id>/tiers', methods=['GET', 'POST'])
+    @admin_required
+    def manage_product_tiers(product_id):
+        product = Product.query.get_or_404(product_id)
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            min_qty = float(data.get('min_qty', 5.0))
+            max_qty = float(data['max_qty']) if data.get('max_qty') else None
+            unit_price = float(data.get('unit_price', 0.0))
+            tier_label = str(data.get('tier_label', f"होलसेल ({min_qty}+)")).strip()
+            tier_label_hi = str(data.get('tier_label_hi', tier_label)).strip()
+
+            if unit_price <= 0:
+                return jsonify({'error': 'कृपया योग्य होलसेल दर टाका!'}), 400
+
+            tier = TieredPricing(
+                product_id=product.id,
+                min_qty=min_qty,
+                max_qty=max_qty,
+                unit_price=unit_price,
+                tier_label=tier_label,
+                tier_label_hi=tier_label_hi
+            )
+            db.session.add(tier)
+            db.session.commit()
+            return jsonify({'message': 'होलसेल स्लॅब जोडला!', 'tier': tier.to_dict()}), 201
+
+        tiers = TieredPricing.query.filter_by(product_id=product_id).order_by(TieredPricing.min_qty.asc()).all()
+        return jsonify([t.to_dict() for t in tiers])
+
+    @app.route('/api/admin/tiers/<int:tier_id>', methods=['DELETE'])
+    @admin_required
+    def delete_product_tier(tier_id):
+        tier = TieredPricing.query.get_or_404(tier_id)
+        db.session.delete(tier)
+        db.session.commit()
+        return jsonify({'message': 'होलसेल स्लॅब हटवला!'})
 
     # --- STATIC FILE SERVING FOR PRODUCTION / SINGLE-PORT RUN ---
     frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')

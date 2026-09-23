@@ -425,6 +425,14 @@
             <div class="product-sub-title">{{ currentLang === 'en' ? (prod.name_hi || '') : prod.name }}</div>
             <p class="product-desc">{{ prod.description }}</p>
 
+            <!-- Wholesale Tier Badges -->
+            <div v-if="prod.tiered_prices && prod.tiered_prices.length > 0" class="wholesale-tier-badge">
+              🏷️ <strong style="color: #065f46;">{{ t('wholesale_label') }}:</strong>
+              <span v-for="tp in prod.tiered_prices" :key="tp.id" class="wholesale-tier-chip">
+                {{ tp.min_qty }}kg+ @ ₹{{ tp.unit_price }}/kg
+              </span>
+            </div>
+
             <!-- Unit Variant Selector & Loose Custom Weight Option -->
             <div class="variants-wrap" v-if="prod.variants && prod.variants.length > 0">
               <div class="variant-label-title">{{ t('weight_select_label') }}</div>
@@ -454,7 +462,10 @@
             <div v-if="customWeightMode[prod.id]" class="custom-weight-box">
               <div class="custom-weight-header">
                 <span>⚖️ {{ t('enter_custom_weight') }}</span>
-                <span class="custom-rate-badge">{{ t('per_kg_rate') }}: ₹{{ getBasePerKgRate(prod) }}/kg</span>
+                <span class="custom-rate-badge">{{ t('per_kg_rate') }}: ₹{{ getEffectivePerKgRate(prod, customWeightInputs[prod.id]) }}/kg</span>
+              </div>
+              <div v-if="getMatchingTierInfo(prod, customWeightInputs[prod.id])" style="background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 6px; padding: 4px 8px; font-size: 0.78rem; color: #064e3b; font-weight: 700; margin-bottom: 6px;">
+                🎉 {{ getMatchingTierInfo(prod, customWeightInputs[prod.id]).tier_label }} लागू झाला: ₹{{ getEffectivePerKgRate(prod, customWeightInputs[prod.id]) }}/kg!
               </div>
               <div class="custom-input-group">
                 <button
@@ -495,12 +506,12 @@
               <div class="quick-weights">
                 <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 1.5)">1.5kg</span>
                 <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 2.5)">2.5kg</span>
-                <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 4.5)">4.5kg</span>
+                <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 5)">5kg (होलसेल)</span>
                 <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 10)">10kg</span>
-                <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 15)">15kg</span>
+                <span class="quick-chip" @click="setQuickCustomWeight(prod.id, 25)">25kg (बोरी)</span>
               </div>
               <div class="custom-price-calc">
-                <span>{{ t('custom_total_label') }} (₹{{ getBasePerKgRate(prod) }} × {{ customWeightInputs[prod.id] || 0 }}):</span>
+                <span>{{ t('custom_total_label') }} (₹{{ getEffectivePerKgRate(prod, customWeightInputs[prod.id]) }}/kg × {{ customWeightInputs[prod.id] || 0 }}):</span>
                 <strong class="custom-total-val">₹{{ getCustomWeightPrice(prod) }}</strong>
               </div>
               <button
@@ -671,6 +682,16 @@
             {{ t('admin_tab_customers') }}
             <span v-if="khataCustomersCount > 0" class="tab-badge-warning" style="margin-left: 4px;">
               {{ khataCustomersCount }}
+            </span>
+          </button>
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'khata' }"
+            @click="adminActiveTab = 'khata'; loadAdminKhata();"
+          >
+            {{ t('admin_tab_khata') }}
+            <span v-if="adminKhataSummary.total_market_udhaar > 0" class="tab-badge-danger" style="margin-left: 4px;">
+              ₹{{ adminKhataSummary.total_market_udhaar }}
             </span>
           </button>
         </div>
@@ -953,6 +974,7 @@
                           step="0.25"
                           min="0.25"
                           v-model.number="posCustomWeight"
+                          @input="updatePosTierRate"
                           class="pos-input"
                         />
                       </div>
@@ -965,14 +987,17 @@
                         />
                       </div>
                     </div>
+                    <div v-if="getMatchingTierInfo(posSelectedProduct, posCustomWeight)" style="margin-top: 6px; font-size: 0.8rem; color: #047857; font-weight: 800;">
+                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posCustomWeight).tier_label }} लागू झाला! (₹{{ posCustomRate }}/kg)
+                    </div>
                     <!-- Quick Weight Chips -->
                     <div class="pos-type-chips" style="margin-top: 8px;">
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 1.0">1 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.0">2 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.5">2.5 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 5.0">5 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 10.0">10 kg</button>
-                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 25.0">25 kg बोरी</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 1.0; updatePosTierRate();">1 kg</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.0; updatePosTierRate();">2 kg</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 2.5; updatePosTierRate();">2.5 kg</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 5.0; updatePosTierRate();">5 kg (होलसेल)</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 10.0; updatePosTierRate();">10 kg</button>
+                      <button type="button" class="pos-type-chip" @click="posCustomWeight = 25.0; updatePosTierRate();">25 kg बोरी</button>
                     </div>
                   </div>
 
@@ -984,7 +1009,7 @@
                         <select
                           v-model="posSelectedVariant"
                           class="pos-select"
-                          @change="posCustomRate = posSelectedVariant.selling_price"
+                          @change="posCustomRate = posSelectedVariant.selling_price; updatePosTierRate();"
                         >
                           <option v-for="v in posSelectedProduct.variants" :key="v.id" :value="v">
                             {{ v.unit_size }} - ₹{{ v.selling_price }} (MRP ₹{{ v.mrp }})
@@ -997,6 +1022,7 @@
                           type="number"
                           min="1"
                           v-model.number="posQuantity"
+                          @input="updatePosTierRate"
                           class="pos-input"
                         />
                       </div>
@@ -1008,6 +1034,9 @@
                           class="pos-input"
                         />
                       </div>
+                    </div>
+                    <div v-if="getMatchingTierInfo(posSelectedProduct, posQuantity)" style="margin-top: 6px; font-size: 0.8rem; color: #047857; font-weight: 800;">
+                      🏷️ {{ getMatchingTierInfo(posSelectedProduct, posQuantity).tier_label }} लागू झाला! (₹{{ posCustomRate }}/unit)
                     </div>
                   </div>
 
@@ -1402,6 +1431,121 @@
             </table>
           </div>
         </div>
+
+        <!-- TAB 5: DIGITAL KHATA BOOK & UDHAAR LEDGER -->
+        <div v-if="adminActiveTab === 'khata'">
+          <!-- Top Khata Stat KPI Cards -->
+          <div class="admin-stats-grid" style="margin-top: 18px;">
+            <div class="stat-card stat-card-danger">
+              <div class="stat-icon">🔴</div>
+              <div class="stat-content">
+                <span class="stat-label">{{ currentLang === 'mr' ? 'एकूण बाजारात उधारी' : 'कुल बाजार उधारी' }}</span>
+                <strong class="stat-val">₹{{ adminKhataSummary.total_market_udhaar }}</strong>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">👥</div>
+              <div class="stat-content">
+                <span class="stat-label">{{ currentLang === 'mr' ? 'उधारी असलेले ग्राहक' : 'उधारी वाले ग्राहक' }}</span>
+                <strong class="stat-val">{{ adminKhataSummary.total_khata_customers }}</strong>
+              </div>
+            </div>
+            <div class="stat-card stat-card-success">
+              <div class="stat-icon">🟢</div>
+              <div class="stat-content">
+                <span class="stat-label">{{ currentLang === 'mr' ? 'या महिन्यात जमा वसुली' : 'इस माह की वसूली' }}</span>
+                <strong class="stat-val">₹{{ adminKhataSummary.total_recovered_month }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khata Filter & Search Bar -->
+          <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 420px;">
+              <input
+                type="text"
+                v-model="khataSearch"
+                placeholder="ग्राहक नाव किंवा फोन नंबरने शोधा..."
+                style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.9rem;"
+              />
+            </div>
+            <button
+              @click="loadAdminKhata"
+              style="background: #065f46; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+            >
+              🔄 रीफ्रेश करा
+            </button>
+          </div>
+
+          <!-- Khata Table -->
+          <div class="admin-table-wrap" style="margin-top: 14px;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ currentLang === 'mr' ? 'ग्राहक नाव' : 'ग्राहक नाम' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'मोबाईल नंबर' : 'मोबाइल नंबर' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'उधारी बिले' : 'उधारी बिल' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'शेवटची खरेदी' : 'आखिरी खरीदारी' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'एकूण बाकी (Net Due)' : 'कुल बकाया (Net Due)' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'कृती (Actions)' : 'कार्रवाई (Actions)' }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="filteredKhataList.length === 0">
+                  <td colspan="6" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                    {{ khataLoading ? 'खाते बही लोड होत आहे...' : (currentLang === 'mr' ? 'कोणतीही उधारी बाकी नाही! सर्व बिले चुकता आहेत. 🎉' : 'कोई उधारी बाकी नहीं है!') }}
+                  </td>
+                </tr>
+                <tr v-for="c in filteredKhataList" :key="c.customer_phone">
+                  <td>
+                    <strong>{{ c.customer_name }}</strong>
+                    <div v-if="c.customer_address" style="font-size: 0.74rem; color: var(--text-subtle);">📍 {{ c.customer_address }}</div>
+                  </td>
+                  <td>📞 {{ c.customer_phone }}</td>
+                  <td>
+                    <span class="status-badge unpaid" style="font-size: 0.76rem;">
+                      {{ c.unpaid_orders.length }} बिले बाकी
+                    </span>
+                  </td>
+                  <td><small>{{ c.last_order_date }}</small></td>
+                  <td>
+                    <strong style="color: #dc2626; font-size: 1.1rem; font-weight: 900;">
+                      ₹{{ c.net_balance_due }}
+                    </strong>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <button
+                        type="button"
+                        @click="openKhataPay(c)"
+                        style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                        title="पेमेंट जमा करा"
+                      >
+                        💰 जमा करा
+                      </button>
+                      <button
+                        type="button"
+                        @click="sendKhataWhatsAppReminder(c)"
+                        style="background: #25d366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                        title="WhatsApp वर स्मरणपत्र पाठवा"
+                      >
+                        📲 तगादा
+                      </button>
+                      <button
+                        type="button"
+                        @click="openKhataStatement(c.customer_phone)"
+                        style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;"
+                        title="संपूर्ण खाते बही स्टेटमेंट पहा"
+                      >
+                        📄 बही
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1545,6 +1689,162 @@
       </div>
     </div>
 
+    <!-- KHATA RECORD PAYMENT MODAL -->
+    <div class="audit-modal-backdrop" v-if="showKhataPayModal" @click.self="showKhataPayModal = false">
+      <div class="modal-card" style="max-width: 480px; width: 95%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 16px;">
+          <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+            💰 {{ currentLang === 'mr' ? 'उधारी रक्कम जमा करा' : 'उधारी रकम जमा करें' }}
+          </h3>
+          <button class="close-btn" @click="showKhataPayModal = false">✕</button>
+        </div>
+
+        <div v-if="activeKhataCustomer" style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{{ activeKhataCustomer.customer_name }}</strong>
+              <div style="font-size: 0.8rem; color: #64748b;">📞 {{ activeKhataCustomer.customer_phone }}</div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.75rem; color: #991b1b; font-weight: 700;">एकूण येणे बाकी:</span>
+              <div style="font-size: 1.25rem; font-weight: 900; color: #dc2626;">₹{{ activeKhataCustomer.net_balance_due }}</div>
+            </div>
+          </div>
+        </div>
+
+        <form @submit.prevent="submitKhataPayment">
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
+              {{ currentLang === 'mr' ? 'जमा करावयाची रक्कम (₹) *' : 'जमा करने की रकम (₹) *' }}
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="1"
+              v-model.number="khataPayForm.amount"
+              required
+              class="pos-input"
+              style="font-size: 1.15rem; font-weight: 800;"
+            />
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
+              {{ currentLang === 'mr' ? 'पेमेंट पद्धत' : 'भुगतान माध्यम' }}
+            </label>
+            <select v-model="khataPayForm.payment_method" class="pos-select">
+              <option value="Cash">💵 रोख (Cash)</option>
+              <option value="UPI">📱 फोन पे / गुगल पे / UPI</option>
+              <option value="Bank Transfer">🏦 बँक ट्रान्सफर (NEFT/IMPS)</option>
+              <option value="Cheque">📜 चेक (Cheque)</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 18px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">
+              {{ currentLang === 'mr' ? 'टीप / पावती संदर्भ (पर्यायी)' : 'नोट / संदर्भ' }}
+            </label>
+            <input
+              type="text"
+              v-model="khataPayForm.note"
+              placeholder="उदा. माहे सप्टेंबर बिल आंशिक पेमेंट"
+              class="pos-input"
+            />
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button
+              type="submit"
+              :disabled="isSubmittingKhataPay"
+              style="flex: 1; padding: 12px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 0.95rem; cursor: pointer;"
+            >
+              {{ isSubmittingKhataPay ? 'नोंद होत आहे...' : '✅ पेमेंट जमा करा व बिले चुकता करा' }}
+            </button>
+            <button
+              type="button"
+              @click="showKhataPayModal = false"
+              style="padding: 12px 18px; background: #e2e8f0; color: #334155; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;"
+            >
+              रद्द
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- KHATA STATEMENT MODAL -->
+    <div class="audit-modal-backdrop" v-if="showKhataStatementModal" @click.self="showKhataStatementModal = false">
+      <div class="audit-modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+              📒 {{ activeKhataStatement?.customer_name }} — {{ currentLang === 'mr' ? 'खाते बही स्टेटमेंट' : 'खाता बही स्टेटमेंट' }}
+            </h3>
+            <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
+              📞 {{ activeKhataStatement?.customer_phone }} | एकूण बाकी: <strong style="color: #dc2626;">₹{{ activeKhataStatement?.unpaid_total }}</strong> | एकूण भरलेली रक्कम: <strong style="color: #059669;">₹{{ activeKhataStatement?.paid_total }}</strong>
+            </div>
+          </div>
+          <button class="close-btn" @click="showKhataStatementModal = false">✕</button>
+        </div>
+
+        <div v-if="khataStatementLoading" style="text-align: center; padding: 30px;">
+          स्टेटमेंट लोड होत आहे...
+        </div>
+        <div v-else style="margin-top: 16px;">
+          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">📋 सर्व ऑर्डर्स व बिले</h4>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>बिल क्र.</th>
+                  <th>दिनांक</th>
+                  <th>रक्कम</th>
+                  <th>स्थिती</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="ord in activeKhataStatement?.orders" :key="ord.id">
+                  <td><strong>{{ ord.order_number }}</strong></td>
+                  <td>{{ ord.created_at }}</td>
+                  <td><strong>₹{{ ord.final_amount }}</strong></td>
+                  <td>
+                    <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : 'unpaid'">
+                      {{ ord.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin: 20px 0 10px;">💰 जमा केलेल्या रकमा (Repayments History)</h4>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>दिनांक</th>
+                  <th>जमा रक्कम</th>
+                  <th>माध्यम</th>
+                  <th>टीप</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!activeKhataStatement?.payments || activeKhataStatement?.payments.length === 0">
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 18px;">अद्याप कोणतीही रक्कम जमा केलेली नाही.</td>
+                </tr>
+                <tr v-for="p in activeKhataStatement?.payments" :key="p.id">
+                  <td>{{ p.created_at }}</td>
+                  <td><strong style="color: #059669;">+₹{{ p.amount }}</strong></td>
+                  <td>{{ p.payment_method }}</td>
+                  <td>{{ p.note || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ======================================================== -->
     <!-- VIEW 3: CUSTOMER ACCOUNT & ORDERS MODAL                  -->
     <!-- ======================================================== -->
@@ -1576,6 +1876,16 @@
             @click="customerActiveTab = 'orders'"
           >
             📦 {{ t('tab_my_orders') }}
+          </button>
+          <button
+            class="account-tab-btn"
+            :class="{ active: customerActiveTab === 'khata' }"
+            @click="customerActiveTab = 'khata'; loadCustomerKhata();"
+          >
+            📒 {{ currentLang === 'mr' ? 'माझे खाते' : 'मेरा खाता' }}
+            <span v-if="customerKhataData && customerKhataData.net_balance_due > 0" class="tab-badge-danger" style="margin-left: 4px;">
+              ₹{{ customerKhataData.net_balance_due }}
+            </span>
           </button>
           <button
             class="account-tab-btn"
@@ -1740,6 +2050,63 @@
               </div>
               <span class="check-mark" v-if="currentLang === 'en'">✓</span>
             </button>
+          </div>
+        </div>
+
+        <!-- CUSTOMER TAB 4: MY KHATA -->
+        <div v-if="customerActiveTab === 'khata'">
+          <div v-if="customerKhataLoading" style="text-align: center; padding: 30px;">
+            खाते लोड होत आहे...
+          </div>
+          <div v-else>
+            <!-- Khata Balance Card -->
+            <div style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <span style="font-size: 0.82rem; color: #991b1b; font-weight: 800;">
+                  {{ currentLang === 'mr' ? 'एकूण बाकी उधारी रक्कम (Net Balance Due):' : 'कुल बकाया उधारी रकम (Net Balance Due):' }}
+                </span>
+                <div style="font-size: 1.7rem; font-weight: 900; color: #dc2626; margin-top: 2px;">
+                  ₹{{ customerKhataData ? customerKhataData.net_balance_due : 0 }}
+                </div>
+              </div>
+              <button
+                v-if="customerKhataData && customerKhataData.unpaid_orders.length > 0"
+                @click="openUpiPayForCustomerOrder(customerKhataData.unpaid_orders[0])"
+                style="background: #047857; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer;"
+              >
+                💳 UPI ने भरा
+              </button>
+            </div>
+
+            <!-- Unpaid Orders List -->
+            <div v-if="!customerKhataData || customerKhataData.unpaid_orders.length === 0" style="text-align: center; padding: 30px 10px; color: var(--text-muted);">
+              <div style="font-size: 2rem; margin-bottom: 6px;">🎉</div>
+              <strong>{{ currentLang === 'mr' ? 'तुमचे खाते पूर्णपणे चुकता आहे! कोणतीही बाकी नाही.' : 'आपका खाता पूरी तरह चुकता है! कोई बकाया नहीं।' }}</strong>
+            </div>
+            <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 4px 0 2px;">📋 बाकी राहिलेली बिले</h4>
+              <div
+                v-for="ord in customerKhataData.unpaid_orders"
+                :key="ord.id"
+                style="border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: white; display: flex; justify-content: space-between; align-items: center;"
+              >
+                <div>
+                  <strong style="color: #064e3b;">{{ ord.order_number }}</strong>
+                  <div style="font-size: 0.76rem; color: var(--text-subtle);">{{ ord.created_at }}</div>
+                </div>
+                <div style="text-align: right;">
+                  <strong style="color: #dc2626; font-size: 1.05rem;">₹{{ ord.final_amount }}</strong>
+                  <div style="margin-top: 4px;">
+                    <button
+                      @click="openUpiPayForCustomerOrder(ord)"
+                      style="background: #059669; color: white; border: none; padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; font-weight: 800; cursor: pointer;"
+                    >
+                      चुकता करा
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3748,6 +4115,25 @@ const selectedAdminOrderIds = ref([]);
 const showBatchPrintModal = ref(false);
 const batchPrintLayout = ref('auto'); // 'auto' | 'two' | 'four'
 
+// Admin Khata Book State
+const adminKhataList = ref([]);
+const adminKhataSummary = ref({ total_market_udhaar: 0, total_khata_customers: 0, total_recovered_month: 0 });
+const khataSearch = ref('');
+const khataLoading = ref(false);
+
+const showKhataPayModal = ref(false);
+const activeKhataCustomer = ref(null);
+const khataPayForm = ref({ amount: '', payment_method: 'Cash', note: '' });
+const isSubmittingKhataPay = ref(false);
+
+const showKhataStatementModal = ref(false);
+const activeKhataStatement = ref(null);
+const khataStatementLoading = ref(false);
+
+// Customer Khata State
+const customerKhataData = ref(null);
+const customerKhataLoading = ref(false);
+
 // Admin POS & Customer Directory State
 const adminCustomers = ref([]);
 const customerSearch = ref('');
@@ -4715,9 +5101,32 @@ function getBasePerKgMrp(prod) {
   return prod.variants[0].mrp;
 }
 
+function getEffectivePerKgRate(prod, wt) {
+  let rate = getBasePerKgRate(prod);
+  const w = parseFloat(wt) || 0;
+  if (prod && prod.tiered_prices && prod.tiered_prices.length > 0 && w > 0) {
+    const matching = [...prod.tiered_prices]
+      .filter(t => w >= t.min_qty && (!t.max_qty || w <= t.max_qty))
+      .sort((a, b) => b.min_qty - a.min_qty)[0];
+    if (matching) {
+      rate = matching.unit_price;
+    }
+  }
+  return rate;
+}
+
+function getMatchingTierInfo(prod, qtyOrWt) {
+  if (!prod || !prod.tiered_prices || prod.tiered_prices.length === 0) return null;
+  const val = parseFloat(qtyOrWt) || 0;
+  if (val <= 0) return null;
+  return [...prod.tiered_prices]
+    .filter(t => val >= t.min_qty && (!t.max_qty || val <= t.max_qty))
+    .sort((a, b) => b.min_qty - a.min_qty)[0] || null;
+}
+
 function getCustomWeightPrice(prod) {
-  const rate = getBasePerKgRate(prod);
   const wt = parseFloat(customWeightInputs.value[prod.id]) || 0;
+  const rate = getEffectivePerKgRate(prod, wt);
   return (Math.round(rate * wt * 100) / 100).toFixed(2);
 }
 
@@ -4727,11 +5136,12 @@ function addCustomWeightItemToCart(prod) {
     showToast('कृपया सही वजन दर्ज करें (उदा: 1.5, 4.5, 10 kg)');
     return;
   }
-  const rate = getBasePerKgRate(prod);
+  const rate = getEffectivePerKgRate(prod, wt);
   const mrpRate = getBasePerKgMrp(prod);
   const subtotal = Math.round(rate * wt * 100) / 100;
   const mrp = Math.round(mrpRate * wt * 100) / 100;
-  const unitSize = `${wt} kg`;
+  const tier = getMatchingTierInfo(prod, wt);
+  const unitSize = tier ? `${wt} kg (${tier.tier_label})` : `${wt} kg`;
 
   const existing = cart.value.find(item => item.is_custom_weight && item.product.id === prod.id && item.custom_weight === wt);
   if (existing) {
@@ -4750,10 +5160,12 @@ function addCustomWeightItemToCart(prod) {
       single_mrp: mrp,
       subtotal: subtotal,
       mrp: mrp,
-      quantity: 1
+      quantity: 1,
+      tier_label: tier ? tier.tier_label : null
     });
   }
-  showToast(`🛒 ${prod.name} (${unitSize} - ₹${subtotal}) थैले में जोड़ा गया!`);
+  const tierMsg = tier ? ` 🎉 ${tier.tier_label} लागू!` : '';
+  showToast(`🛒 ${prod.name} (${unitSize} - ₹${subtotal})${tierMsg} थैले में जोड़ा गया!`);
 }
 
 function handleImageFallback(event) {
@@ -5205,17 +5617,34 @@ async function toggleVariantStock(variant) {
 }
 
 // --- ADMIN POS COUNTER BILLING METHODS ---
+function updatePosTierRate() {
+  if (!posSelectedProduct.value) return;
+  const prod = posSelectedProduct.value;
+  const isLoose = prod.is_loose || isLooseProduct(prod);
+  const qtyOrWt = isLoose ? (parseFloat(posCustomWeight.value) || 1.0) : (parseInt(posQuantity.value) || 1);
+  const tier = getMatchingTierInfo(prod, qtyOrWt);
+  if (tier) {
+    posCustomRate.value = tier.unit_price;
+  } else {
+    if (isLoose) {
+      posCustomRate.value = getBasePerKgRate(prod);
+    } else {
+      const v = posSelectedVariant.value || (prod.variants && prod.variants[0]);
+      if (v) posCustomRate.value = v.selling_price;
+    }
+  }
+}
+
 function onPosProductSelect(prod) {
   posSelectedProduct.value = prod;
   if (!prod) return;
   if (prod.is_loose || isLooseProduct(prod)) {
     posCustomWeight.value = 1.0;
-    const baseVar = prod.variants && prod.variants[0] ? prod.variants[0] : null;
-    posCustomRate.value = baseVar ? baseVar.selling_price : 35;
+    updatePosTierRate();
   } else {
     posSelectedVariant.value = prod.variants && prod.variants[0] ? prod.variants[0] : null;
     posQuantity.value = 1;
-    posCustomRate.value = posSelectedVariant.value ? posSelectedVariant.value.selling_price : 50;
+    updatePosTierRate();
   }
 }
 
@@ -5227,26 +5656,32 @@ function addPosItem() {
   if (isLoose) {
     const wt = parseFloat(posCustomWeight.value) || 1.0;
     const rate = parseFloat(posCustomRate.value) || 35.0;
+    const tier = getMatchingTierInfo(prod, wt);
+    const unitSize = tier ? `${wt} kg (${tier.tier_label})` : `${wt} kg`;
     const subtotal = Math.round(wt * rate);
     const mrp = Math.round(subtotal * 1.15);
 
     counterOrder.value.items.push({
       is_custom_weight: true,
+      custom_weight: wt,
       product_id: prod.id,
       variant_id: null,
       product_name: getLocalizedTitle(prod),
-      unit_size: `${wt} kg`,
+      unit_size: unitSize,
       unit_price: rate,
       quantity: 1,
       mrp: mrp,
       subtotal: subtotal,
-      is_loose: true
+      is_loose: true,
+      tier_label: tier ? tier.tier_label : null
     });
   } else {
     const variant = posSelectedVariant.value || (prod.variants && prod.variants[0]);
     if (!variant) return;
     const qty = parseInt(posQuantity.value) || 1;
     const unitPrice = parseFloat(posCustomRate.value) || variant.selling_price;
+    const tier = getMatchingTierInfo(prod, qty);
+    const unitSize = tier ? `${variant.unit_size} (${tier.tier_label})` : variant.unit_size;
     const subtotal = Math.round(unitPrice * qty);
     const mrp = Math.round(variant.mrp * qty);
 
@@ -5255,12 +5690,13 @@ function addPosItem() {
       product_id: prod.id,
       variant_id: variant.id,
       product_name: getLocalizedTitle(prod),
-      unit_size: variant.unit_size,
+      unit_size: unitSize,
       unit_price: unitPrice,
       quantity: qty,
       mrp: mrp,
       subtotal: subtotal,
-      is_loose: false
+      is_loose: false,
+      tier_label: tier ? tier.tier_label : null
     });
   }
 
@@ -5476,6 +5912,149 @@ function sendKhataReminderWhatsApp(customer) {
 
   const encoded = encodeURIComponent(text);
   window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`, '_blank');
+}
+
+// --- ADMIN KHATA BOOK (UDHAAR LEDGER) METHODS ---
+async function loadAdminKhata() {
+  khataLoading.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/khata`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      adminKhataList.value = data.customers || [];
+      adminKhataSummary.value = data.summary || { total_market_udhaar: 0, total_khata_customers: 0, total_recovered_month: 0 };
+    }
+  } catch (err) {
+    console.error('Failed to load Khata:', err);
+  } finally {
+    khataLoading.value = false;
+  }
+}
+
+const filteredKhataList = computed(() => {
+  if (!khataSearch.value.trim()) return adminKhataList.value;
+  const q = khataSearch.value.toLowerCase().trim();
+  return adminKhataList.value.filter(c => 
+    (c.customer_name && c.customer_name.toLowerCase().includes(q)) ||
+    (c.customer_phone && c.customer_phone.includes(q))
+  );
+});
+
+function openKhataPay(cust) {
+  activeKhataCustomer.value = cust;
+  khataPayForm.value = {
+    amount: cust.net_balance_due > 0 ? cust.net_balance_due : '',
+    payment_method: 'Cash',
+    note: ''
+  };
+  showKhataPayModal.value = true;
+}
+
+async function submitKhataPayment() {
+  if (!activeKhataCustomer.value) return;
+  const amt = parseFloat(khataPayForm.value.amount);
+  if (!amt || amt <= 0) {
+    showToast('कृपया वैध रक्कम टाका!', 'error');
+    return;
+  }
+  isSubmittingKhataPay.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/khata/pay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        customer_phone: activeKhataCustomer.value.customer_phone,
+        customer_name: activeKhataCustomer.value.customer_name,
+        amount: amt,
+        payment_method: khataPayForm.value.payment_method,
+        note: khataPayForm.value.note
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'पेमेंट यशस्वीरित्या नोंदवले गेले!');
+      showKhataPayModal.value = false;
+      loadAdminKhata();
+      loadAdminOrders();
+      loadAdminCustomers();
+    } else {
+      showToast(data.error || 'पेमेंट नोंदवता आले नाही', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('सर्व्हर त्रुटी.', 'error');
+  } finally {
+    isSubmittingKhataPay.value = false;
+  }
+}
+
+async function openKhataStatement(phone) {
+  khataStatementLoading.value = true;
+  showKhataStatementModal.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/khata/${phone}/statement`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      activeKhataStatement.value = await res.json();
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    khataStatementLoading.value = false;
+  }
+}
+
+function sendKhataWhatsAppReminder(cust) {
+  if (!cust || !cust.customer_phone) return;
+  const billsText = (cust.unpaid_orders || []).map((o, idx) => {
+    return `${idx + 1}. बिल #${o.order_number} (${o.created_at}) — ₹${o.final_amount}`;
+  }).join('\n');
+
+  const text = 
+`🌾 *कोमल मार्ट (Komal Mart) - खाते बही / उधारी बाकी स्मरणपत्र*
+━━━━━━━━━━━━━━━━━━━━
+नमस्कार *${cust.customer_name}* जी,
+तुमच्या दुकानातील उधारीचे विवरण खालीलप्रमाणे आहे:
+
+📋 *बाकी राहिलेली बिले:*
+${billsText}
+
+🔴 *एकूण येणे बाकी (Net Due):* ₹${cust.net_balance_due}
+
+कृपया ही रक्कम खालील UPI किंवा दुकानात येऊन लवकरात लवकर जमा करावी:
+💳 *UPI ID:* 9820088888@upi
+📞 *संपर्क:* +91 98200 88888
+
+🙏 धन्यवाद! आपले सहकार्य मोलाचे आहे.
+━━━━━━━━━━━━━━━━━━━━
+*कोमल मार्ट (Komal Mart)*`;
+
+  const cleanPhone = cust.customer_phone.replace(/\D/g, '');
+  const url = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+async function loadCustomerKhata() {
+  if (!authToken.value) return;
+  customerKhataLoading.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/customer/khata`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      customerKhataData.value = await res.json();
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    customerKhataLoading.value = false;
+  }
 }
 
 async function loadAdminOrders() {

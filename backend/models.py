@@ -83,6 +83,7 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
     variants = db.relationship('ProductVariant', backref='product', lazy=True, cascade="all, delete-orphan")
+    tiered_prices = db.relationship('TieredPricing', backref='product', lazy=True, cascade="all, delete-orphan", order_by="TieredPricing.min_qty.asc()")
 
     def to_dict(self):
         raw_img = self.image_url or ''
@@ -102,7 +103,8 @@ class Product(db.Model):
             'description': self.description,
             'image_url': primary_image,
             'images': images,
-            'variants': [v.to_dict() for v in self.variants]
+            'variants': [v.to_dict() for v in self.variants],
+            'tiered_prices': [tp.to_dict() for tp in self.tiered_prices]
         }
 
 
@@ -197,4 +199,53 @@ class OrderItem(db.Model):
             'unit_price': self.unit_price,
             'quantity': self.quantity,
             'subtotal': self.subtotal
+        }
+
+
+class KhataPayment(db.Model):
+    __tablename__ = 'khata_payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    customer_name = db.Column(db.String(100), nullable=False)
+    customer_phone = db.Column(db.String(20), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(50), default='Cash') # Cash, UPI, Bank Transfer, Cheque
+    note = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'amount': round(self.amount, 2),
+            'payment_method': self.payment_method,
+            'note': self.note or '',
+            'created_at': self.created_at.strftime('%d %b %Y, %I:%M %p')
+        }
+
+
+class TieredPricing(db.Model):
+    __tablename__ = 'tiered_pricing'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    min_qty = db.Column(db.Float, nullable=False)
+    max_qty = db.Column(db.Float, nullable=True)
+    unit_price = db.Column(db.Float, nullable=False)
+    tier_label = db.Column(db.String(100), nullable=True)
+    tier_label_hi = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'min_qty': self.min_qty,
+            'max_qty': self.max_qty,
+            'unit_price': round(self.unit_price, 2),
+            'tier_label': self.tier_label or f"होलसेल ({self.min_qty}+)",
+            'tier_label_hi': self.tier_label_hi or f"होलसेल ({self.min_qty}+)"
         }

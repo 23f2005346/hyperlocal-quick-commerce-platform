@@ -4265,6 +4265,36 @@ a {
   margin-top: 10px;
 }
 
+/* ==========================================================================
+   WHOLESALE TIER PRICING BADGES & CHIPS
+   ========================================================================== */
+.wholesale-tier-badge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: 8px;
+  padding: 5px 8px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  font-size: 0.74rem;
+  color: #14532d;
+}
+
+.wholesale-tier-chip {
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #bbf7d0;
+  font-size: 0.72rem;
+  letter-spacing: 0.2px;
+}
+
+
 
 
 
