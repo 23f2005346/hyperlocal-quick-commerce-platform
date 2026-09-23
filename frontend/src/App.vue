@@ -3347,6 +3347,112 @@
         </button>
       </div>
     </div>
+
+    <!-- Floating Bottom Cart Strip (Blinkit / Zepto Style) -->
+    <transition name="floating-cart-slide">
+      <div
+        v-if="cartTotalQuantity > 0 && !isCartOpen && !isAdminLoggedIn"
+        class="floating-cart-strip"
+        @click="isCartOpen = true"
+      >
+        <div class="floating-cart-content">
+          <div class="floating-cart-left">
+            <div class="floating-cart-badge">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+              <span class="floating-cart-qty">{{ cartTotalQuantity }}</span>
+            </div>
+            <div class="floating-cart-info">
+              <span class="floating-cart-price">₹{{ cartTotalAmount }}</span>
+              <span class="floating-cart-items-label">{{ cartTotalQuantity }} {{ t('floating_cart_items') }}</span>
+            </div>
+          </div>
+          <div class="floating-cart-right">
+            <span class="floating-cart-action">{{ t('floating_cart_view') }}</span>
+            <span class="floating-cart-arrow">➔</span>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav v-if="!isAdminLoggedIn" class="mobile-bottom-nav">
+      <button
+        class="bottom-nav-item"
+        :class="{ active: currentBottomTab === 'home' && !showMobileCategorySheet }"
+        @click="handleBottomNav('home')"
+      >
+        <span class="bottom-nav-icon">🏠</span>
+        <span class="bottom-nav-label">{{ t('bottom_nav_home') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: showMobileCategorySheet || selectedCategorySlug !== '' }"
+        @click="handleBottomNav('categories')"
+      >
+        <span class="bottom-nav-icon">📂</span>
+        <span class="bottom-nav-label">{{ t('bottom_nav_categories') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: currentBottomTab === 'khata' }"
+        @click="handleBottomNav('khata')"
+      >
+        <span class="bottom-nav-icon">📖</span>
+        <span class="bottom-nav-label">{{ t('bottom_nav_khata') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item cart-item"
+        :class="{ active: isCartOpen }"
+        @click="handleBottomNav('cart')"
+      >
+        <div class="bottom-nav-cart-icon-wrapper">
+          <span class="bottom-nav-icon">🛒</span>
+          <span v-if="cartTotalQuantity > 0" class="bottom-nav-cart-badge">{{ cartTotalQuantity }}</span>
+        </div>
+        <span class="bottom-nav-label">{{ t('bottom_nav_cart') }}</span>
+      </button>
+    </nav>
+
+    <!-- Mobile Category Bottom Sheet Modal -->
+    <div class="modal-overlay" v-if="showMobileCategorySheet" @click.self="showMobileCategorySheet = false">
+      <div class="mobile-category-sheet">
+        <div class="category-sheet-header">
+          <div class="category-sheet-title">
+            <span style="font-size: 1.35rem;">📂</span>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #064e3b;">{{ t('bottom_nav_categories') }}</h3>
+          </div>
+          <button class="category-sheet-close" @click="showMobileCategorySheet = false">✕</button>
+        </div>
+        <div class="category-sheet-grid">
+          <button
+            class="category-sheet-card"
+            :class="{ active: selectedCategorySlug === '' }"
+            @click="selectCategoryFromSheet('')"
+          >
+            <span class="cat-sheet-emoji">🌟</span>
+            <span class="cat-sheet-name">{{ t('cat_all') }}</span>
+          </button>
+          <button
+            v-for="cat in categories"
+            :key="cat.id"
+            class="category-sheet-card"
+            :class="{ active: selectedCategorySlug === cat.slug }"
+            @click="selectCategoryFromSheet(cat.slug)"
+          >
+            <span class="cat-sheet-emoji">{{ getCategoryEmoji(cat.slug) }}</span>
+            <span class="cat-sheet-name">{{ getLocalizedCategoryName(cat, currentLang) }}</span>
+            <span class="cat-sheet-count">{{ cat.product_count }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -3391,6 +3497,39 @@ const dismissInstallBanner = () => {
   showInstallBanner.value = false;
   sessionStorage.setItem('pwa_banner_dismissed', 'true');
 };
+
+// Mobile Navigation & Floating Cart State
+const currentBottomTab = ref('home');
+const showMobileCategorySheet = ref(false);
+
+function handleBottomNav(tab) {
+  currentBottomTab.value = tab;
+  if (tab === 'home') {
+    selectedCategorySlug.value = '';
+    searchQuery.value = '';
+    showMobileCategorySheet.value = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (tab === 'categories') {
+    showMobileCategorySheet.value = !showMobileCategorySheet.value;
+  } else if (tab === 'khata') {
+    showMobileCategorySheet.value = false;
+    if (currentUser.value) {
+      openAccountModal();
+    } else {
+      openAuthModal('login');
+    }
+  } else if (tab === 'cart') {
+    showMobileCategorySheet.value = false;
+    isCartOpen.value = true;
+  }
+}
+
+function selectCategoryFromSheet(slug) {
+  selectCategory(slug);
+  showMobileCategorySheet.value = false;
+  currentBottomTab.value = slug === '' ? 'home' : 'categories';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 // Language State (Marathi default for Maharashtra / Mumbai, user-customizable)
 const currentLang = ref(localStorage.getItem('kirana_preferred_lang') || 'mr');

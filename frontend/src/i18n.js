@@ -24,6 +24,12 @@ export const translations = {
     pwa_install_title: "कोमल मार्ट ॲप इन्स्टॉल करा",
     pwa_install_sub: "मोबाईलवर १-टॅप झटपट किराणा खरेदी • थेट घरपोच",
     pwa_install_btn: "ॲप इन्स्टॉल करा",
+    bottom_nav_home: "होम",
+    bottom_nav_categories: "विभाग",
+    bottom_nav_khata: "खाते",
+    bottom_nav_cart: "थैली",
+    floating_cart_items: "सामान",
+    floating_cart_view: "थैली पहा",
 
     // Language Selector
     lang_mr: "मराठी",
@@ -260,6 +266,12 @@ export const translations = {
     pwa_install_title: "कोमल मार्ट ॲप इन्स्टॉल करें",
     pwa_install_sub: "मोबाइल पर १-टैप में सुपरफास्ट राशन ऑर्डर • फ्री डिलीवरी",
     pwa_install_btn: "ॲप इन्स्टॉल करें",
+    bottom_nav_home: "होम",
+    bottom_nav_categories: "कैटेगरी",
+    bottom_nav_khata: "खाता",
+    bottom_nav_cart: "थैला",
+    floating_cart_items: "सामान",
+    floating_cart_view: "थैला देखें",
 
     // Language Selector
     lang_mr: "मराठी",
@@ -496,6 +508,12 @@ export const translations = {
     pwa_install_title: "Install Komal Mart App",
     pwa_install_sub: "Fast 1-tap grocery ordering & doorstep delivery!",
     pwa_install_btn: "Install App",
+    bottom_nav_home: "Home",
+    bottom_nav_categories: "Categories",
+    bottom_nav_khata: "Khata",
+    bottom_nav_cart: "Cart",
+    floating_cart_items: "items",
+    floating_cart_view: "View Cart",
 
     // Language Selector
     lang_mr: "मराठी",
