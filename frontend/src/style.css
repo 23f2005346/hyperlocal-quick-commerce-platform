@@ -3993,6 +3993,279 @@ a {
   }
 }
 
+/* ==========================================================================
+   LEVEL 1.3: ADMIN 1-TAP STOCK TOGGLE & LOW STOCK ALERTS
+   ========================================================================== */
+.admin-stock-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.low-stock-alert {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.stock-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1.5px solid;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.stock-toggle-pill.stock-in {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.stock-toggle-pill.stock-in:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+
+.stock-toggle-pill.stock-out {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.stock-toggle-pill.stock-out:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+  transform: translateY(-1px);
+}
+
+.stock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.stock-toggle-pill.stock-in .stock-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.stock-toggle-pill.stock-out .stock-dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+/* Storefront Out of Stock Badge & Disabled Button */
+.stock-out-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  background: rgba(185, 28, 28, 0.94);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.3px;
+}
+
+.product-card.is-out-of-stock .product-thumb {
+  filter: grayscale(45%) contrast(90%);
+  opacity: 0.85;
+}
+
+.btn-out-of-stock {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  font-weight: 800 !important;
+  opacity: 0.9 !important;
+}
+
+.btn-out-of-stock:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   STORE CREDIT & WALLET STYLES
+   ========================================================================= */
+.store-credit-header-badge {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1.5px solid #fcd34d;
+  font-weight: 800;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.store-credit-header-badge:hover {
+  background: #fde68a;
+  transform: translateY(-1px);
+}
+
+.store-credit-account-card {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 20px rgba(6, 78, 59, 0.22);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.credit-card-left .credit-card-label {
+  font-size: 0.84rem;
+  color: #a7f3d0;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.credit-card-left .credit-card-balance {
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 4px 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.credit-card-left .credit-card-sub {
+  font-size: 0.8rem;
+  color: #d1fae5;
+  line-height: 1.4;
+  max-width: 360px;
+}
+
+.credit-card-chip {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.store-credit-checkout-box {
+  background: #f0fdf4;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.store-credit-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.store-credit-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  color: #065f46;
+  font-size: 0.92rem;
+}
+
+.store-credit-toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #059669;
+  cursor: pointer;
+}
+
+.store-credit-avail {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #047857;
+  background: #dcfce7;
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+
+.store-credit-applied-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #a7f3d0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #047857;
+}
+
+.store-credit-earn-note {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #065f46;
+  background: #dcfce7;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pos-credit-card {
+  background: #fefce8;
+  border: 1.5px solid #fef08a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+
 
 
 

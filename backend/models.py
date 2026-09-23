@@ -21,6 +21,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     address = db.Column(db.Text, nullable=True)
     role = db.Column(db.String(20), default='customer') # 'customer' or 'admin'
+    wallet_balance = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
     orders = db.relationship('Order', backref='customer', lazy=True)
@@ -40,6 +41,7 @@ class User(db.Model):
             'phone': self.phone,
             'address': self.address,
             'role': self.role,
+            'wallet_balance': round(self.wallet_balance or 0.0, 2),
             'created_at': self.created_at.strftime('%d %b %Y')
         }
 
@@ -127,7 +129,8 @@ class ProductVariant(db.Model):
             'selling_price': self.selling_price,
             'discount_pct': discount_pct,
             'stock_quantity': self.stock_quantity,
-            'is_available': self.is_available and self.stock_quantity > 0
+            'is_available': bool(self.is_available and (self.stock_quantity is None or self.stock_quantity > 0)),
+            'is_in_stock': bool(self.is_available)
         }
 
 
@@ -146,6 +149,8 @@ class Order(db.Model):
     payment_method = db.Column(db.String(50), default='Cash on Delivery')
     payment_status = db.Column(db.String(30), default='Unpaid') # 'Paid' or 'Unpaid / Khata'
     status = db.Column(db.String(30), default='Placed') # Placed, Packed, Out for Delivery, Delivered
+    credit_used = db.Column(db.Float, default=0.0)
+    credit_earned = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -161,6 +166,8 @@ class Order(db.Model):
             'total_mrp': self.total_mrp,
             'final_amount': self.final_amount,
             'total_savings': self.total_savings,
+            'credit_used': round(self.credit_used or 0.0, 2),
+            'credit_earned': round(self.credit_earned or 0.0, 2),
             'payment_method': self.payment_method,
             'payment_status': self.payment_status,
             'status': self.status,

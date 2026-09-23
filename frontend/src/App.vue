@@ -160,6 +160,9 @@
           <template v-else>
             <!-- Logged in Customer -->
             <div v-if="currentUser" style="display: flex; align-items: center; gap: 8px;">
+              <button class="store-credit-header-badge" @click="openAccountModal" :title="t('store_credit_balance')">
+                💳 <strong>₹{{ (currentUser.wallet_balance || 0).toFixed(2) }}</strong>
+              </button>
               <button class="user-btn" @click="openAccountModal">
                 👤 {{ t('greeting') }}, {{ currentUser.name.split(' ')[0] }}! ({{ t('account') }})
               </button>
@@ -395,7 +398,7 @@
 
       <!-- Products Grid -->
       <div v-else class="products-grid">
-        <div v-for="prod in products" :key="prod.id" class="product-card">
+        <div v-for="prod in products" :key="prod.id" class="product-card" :class="{ 'is-out-of-stock': getActiveVariant(prod) && !getActiveVariant(prod).is_available }">
           <!-- Product Photo (Verified Local Images) -->
           <div class="product-thumb-wrap" @click="openQuickView(prod)">
             <img
@@ -408,6 +411,9 @@
             <span v-if="prod.is_loose" class="loose-badge">🌾 {{ t('badge_loose') }}</span>
             <span v-else class="packed-badge">📦 {{ t('badge_packed') }}</span>
             <span class="brand-badge" v-if="prod.brand && prod.brand !== 'Loose / Desi Mandi' && prod.brand !== 'Local / Mandi' && prod.brand !== 'Loose / Local'">{{ prod.brand }}</span>
+            <span v-if="getActiveVariant(prod) && !getActiveVariant(prod).is_available" class="stock-out-badge">
+              🚫 {{ t('out_of_stock') }}
+            </span>
             <div class="quick-view-overlay">
               <span>👁️ {{ t('view_details_btn') }}</span>
             </div>
@@ -521,7 +527,12 @@
 
               <!-- Add to Cart or Quantity Controls -->
               <div v-if="getActiveVariant(prod)">
-                <div v-if="getCartItemQuantity(prod.id, getActiveVariant(prod).id) === 0">
+                <div v-if="!getActiveVariant(prod).is_available" class="out-of-stock-action-wrap">
+                  <button class="add-to-cart-btn btn-out-of-stock" disabled>
+                    🚫 {{ t('out_of_stock') }}
+                  </button>
+                </div>
+                <div v-else-if="getCartItemQuantity(prod.id, getActiveVariant(prod).id) === 0">
                   <button
                     class="add-to-cart-btn"
                     @click="addToCart(prod, getActiveVariant(prod))"
@@ -682,14 +693,15 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>सामान (Product & Hindi Name)</th>
-                  <th>प्रकार (Type)</th>
-                  <th>ब्रांड (Brand)</th>
-                  <th>वजन/यूनिट</th>
+                  <th>{{ currentLang === 'mr' ? 'सामान' : (currentLang === 'hi' ? 'सामान' : 'Product') }}</th>
+                  <th>{{ currentLang === 'mr' ? 'प्रकार' : (currentLang === 'hi' ? 'प्रकार' : 'Type') }}</th>
+                  <th>{{ currentLang === 'mr' ? 'ब्रँड' : (currentLang === 'hi' ? 'ब्रांड' : 'Brand') }}</th>
+                  <th>{{ currentLang === 'mr' ? 'वजन/युनिट' : (currentLang === 'hi' ? 'वजन/यूनिट' : 'Size') }}</th>
                   <th>MRP (₹)</th>
-                  <th>दुकान दर (Selling ₹)</th>
-                  <th>स्टॉक संख्या</th>
-                  <th>एक्शन</th>
+                  <th>{{ currentLang === 'mr' ? 'दुकान दर (₹)' : (currentLang === 'hi' ? 'दुकान दर (₹)' : 'Rate (₹)') }}</th>
+                  <th>{{ currentLang === 'mr' ? 'स्टॉक संख्या' : (currentLang === 'hi' ? 'स्टॉक संख्या' : 'Stock Qty') }}</th>
+                  <th>{{ t('stock_status_header') }}</th>
+                  <th>{{ currentLang === 'mr' ? 'कृती (Action)' : (currentLang === 'hi' ? 'कार्रवाई' : 'Action') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -727,11 +739,29 @@
                       />
                     </td>
                     <td>
-                      <input
-                        type="number"
-                        v-model.number="v.stock_quantity"
-                        class="admin-inline-input"
-                      />
+                      <div class="admin-stock-cell">
+                        <input
+                          type="number"
+                          v-model.number="v.stock_quantity"
+                          class="admin-inline-input"
+                          style="width: 65px;"
+                        />
+                        <span v-if="v.stock_quantity <= 5" class="low-stock-alert" :title="t('low_stock_pill')">
+                          ⚠️ {{ t('low_stock_pill') }} ({{ v.stock_quantity }})
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="stock-toggle-pill"
+                        :class="(v.is_in_stock !== false && v.is_available) ? 'stock-in' : 'stock-out'"
+                        @click="toggleVariantStock(v)"
+                        :title="(v.is_in_stock !== false && v.is_available) ? 'क्लिक करून आउट-ऑफ-स्टॉक करा' : 'क्लिक करून इन-स्टॉक करा'"
+                      >
+                        <span class="stock-dot"></span>
+                        {{ (v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn') }}
+                      </button>
                     </td>
                     <td>
                       <div style="display: flex; gap: 6px; align-items: center;">
@@ -794,6 +824,21 @@
                       {{ c.name }} (📞 {{ c.phone }}) {{ c.unpaid_balance > 0 ? `[🔴 बाकी ₹${c.unpaid_balance}]` : '' }}
                     </option>
                   </select>
+                </div>
+
+                <!-- POS Customer Store Credit Info & Redemption -->
+                <div v-if="selectedPosCustomer" class="pos-credit-card" style="grid-column: 1 / -1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <span style="font-weight: 800; color: #92400e; font-size: 0.88rem;">💳 {{ t('store_credit_balance') }}:</span>
+                      <strong style="color: #065f46; font-size: 1.05rem; margin-left: 6px;">₹{{ (selectedPosCustomer.wallet_balance || 0).toFixed(2) }}</strong>
+                    </div>
+                    <label v-if="(selectedPosCustomer.wallet_balance || 0) > 0" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 800; color: #047857; font-size: 0.86rem;">
+                      <input type="checkbox" v-model="posUseStoreCredit" style="width: 16px; height: 16px; accent-color: #059669;" />
+                      <span>{{ t('use_store_credit') }} (-₹{{ posAppliedCredit.toFixed(2) }})</span>
+                    </label>
+                    <span v-else style="font-size: 0.76rem; color: #b45309;">(शिल्लक ० आहे)</span>
+                  </div>
                 </div>
 
                 <div class="pos-input-group">
@@ -1035,9 +1080,16 @@
                   <span>{{ currentLang === 'mr' ? 'किराणा बचत (Discount):' : 'किराना बचत (Discount):' }}</span>
                   <span>-₹{{ counterOrderTotals.savings }}</span>
                 </div>
+                <div v-if="posUseStoreCredit && posAppliedCredit > 0" class="pos-bill-row" style="color: #047857; font-weight: 700;">
+                  <span>💳 {{ t('store_credit_applied') }}:</span>
+                  <span>-₹{{ posAppliedCredit.toFixed(2) }}</span>
+                </div>
                 <div class="pos-bill-total">
                   <span>{{ currentLang === 'mr' ? 'एकूण देय रक्कम:' : 'कुल देय राशि:' }}</span>
-                  <span>₹{{ counterOrderTotals.subtotal }}</span>
+                  <span>₹{{ posFinalPayable }}</span>
+                </div>
+                <div v-if="posEstimatedCredit > 0" class="store-credit-earn-note" style="margin-top: 6px;">
+                  💳 {{ currentLang === 'mr' ? 'या बिलावर ग्राहक मिळवेल:' : 'इस बिल पर ग्राहक कमाएगा:' }} <strong>+₹{{ posEstimatedCredit.toFixed(2) }}</strong>
                 </div>
               </div>
 
@@ -1304,13 +1356,14 @@
                   <th>{{ currentLang === 'mr' ? 'नोंदणी दिनांक' : 'रजिस्टर दिनांक' }}</th>
                   <th>{{ currentLang === 'mr' ? 'एकूण ऑर्डर्स' : 'कुल ऑर्डर' }}</th>
                   <th>{{ currentLang === 'mr' ? 'एकूण खरेदी' : 'कुल खरीदारी' }}</th>
+                  <th>{{ t('store_credit') }}</th>
                   <th>{{ currentLang === 'mr' ? 'उधारी स्थिती' : 'उधारी स्थिति' }}</th>
                   <th>{{ currentLang === 'mr' ? 'कृती (Action)' : 'कार्रवाई (Action)' }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="filteredAdminCustomers.length === 0">
-                  <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                  <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">
                     {{ currentLang === 'mr' ? 'कोणताही ग्राहक सापडला नाही.' : 'कोई ग्राहक नहीं मिला।' }}
                   </td>
                 </tr>
@@ -1323,6 +1376,7 @@
                   <td>{{ c.created_at }}</td>
                   <td><strong>{{ c.total_orders }}</strong></td>
                   <td><strong>₹{{ c.total_spent }}</strong></td>
+                  <td><strong style="color: #047857; font-weight: 800;">₹{{ (c.wallet_balance || 0).toFixed(2) }}</strong></td>
                   <td>
                     <span v-if="c.unpaid_balance > 0" class="cust-balance-danger">
                       🔴 ₹{{ c.unpaid_balance }} बाकी
@@ -1501,6 +1555,18 @@
           <button class="close-btn" @click="showAccountModal = false">✕</button>
         </div>
 
+        <!-- Store Credit Balance Card -->
+        <div class="store-credit-account-card">
+          <div class="credit-card-left">
+            <div class="credit-card-label">💳 {{ t('store_credit') }}</div>
+            <div class="credit-card-balance">₹{{ (currentUser?.wallet_balance || 0).toFixed(2) }}</div>
+            <div class="credit-card-sub">{{ t('store_credit_rule') }}</div>
+          </div>
+          <div class="credit-card-right">
+            <span class="credit-card-chip">2.5% Loose • 0.5% FMCG</span>
+          </div>
+        </div>
+
         <div class="account-tabs">
           <button
             class="account-tab-btn"
@@ -1547,6 +1613,12 @@
                 </div>
                 <div style="text-align: right;">
                   <span style="font-weight: 900; font-size: 1.1rem; color: #1c1917;">₹{{ ord.final_amount }}</span>
+                  <div v-if="ord.credit_used > 0" style="font-size: 0.74rem; color: #047857; font-weight: 700;">
+                    💳 छूट: -₹{{ ord.credit_used }}
+                  </div>
+                  <div v-if="ord.credit_earned > 0" style="font-size: 0.74rem; color: #059669; font-weight: 700;">
+                    🎉 अर्जित: +₹{{ ord.credit_earned }}
+                  </div>
                 </div>
               </div>
 
@@ -2061,6 +2133,9 @@
               <span>{{ t('payable_amount') }}</span>
               <span>₹{{ cartPayableWithDelivery }}</span>
             </div>
+            <div v-if="estimatedEarnedCredit > 0" class="store-credit-earn-note">
+              💳 {{ t('you_will_earn_credit') }} <strong>₹{{ estimatedEarnedCredit.toFixed(2) }} {{ t('store_credit') }}</strong>
+            </div>
           </div>
 
           <button class="checkout-btn" @click="openCheckoutModal">
@@ -2186,7 +2261,7 @@
                 <div class="upi-id-row"><span>UPI ID:</span> <code>komalmart@upi</code></div>
                 <div class="upi-amount-row">
                   <span>{{ t('payable_amount') }}:</span>
-                  <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ cartPayableWithDelivery }}</strong>
+                  <strong style="color: #064e3b; font-size: 1.25rem;">₹{{ finalPayableAmount }}</strong>
                 </div>
                 <div class="upi-apps-icons">PhonePe • GPay • Paytm</div>
               </div>
@@ -2200,6 +2275,23 @@
             </div>
           </div>
 
+          <!-- Store Credit Redemption Box (If Logged In & Has Balance) -->
+          <div v-if="currentUser && (currentUser.wallet_balance || 0) > 0" class="store-credit-checkout-box">
+            <label class="store-credit-toggle">
+              <span class="store-credit-toggle-label">
+                <input type="checkbox" v-model="useStoreCredit" />
+                <span>💳 {{ t('use_store_credit') }}</span>
+              </span>
+              <span class="store-credit-avail">
+                {{ t('store_credit_balance') }}: ₹{{ (currentUser.wallet_balance || 0).toFixed(2) }}
+              </span>
+            </label>
+            <div v-if="useStoreCredit && appliedCreditAmount > 0" class="store-credit-applied-row">
+              <span>{{ t('store_credit_applied') }}:</span>
+              <span>- ₹{{ appliedCreditAmount.toFixed(2) }}</span>
+            </div>
+          </div>
+
           <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
             <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 6px;">
               <span>{{ t('cart_bag') }}:</span>
@@ -2210,12 +2302,19 @@
               <span v-if="deliveryFee === 0" style="color: #059669; font-weight: 800;">{{ t('delivery_free_badge') }}</span>
               <span v-else style="font-weight: 700; color: #b45309;">₹{{ deliveryFee.toFixed(2) }}</span>
             </div>
+            <div v-if="useStoreCredit && appliedCreditAmount > 0" style="display: flex; justify-content: space-between; font-size: 0.88rem; color: #047857; font-weight: 800; margin-bottom: 6px;">
+              <span>💳 {{ t('store_credit_applied') }}:</span>
+              <span>- ₹{{ appliedCreditAmount.toFixed(2) }}</span>
+            </div>
             <div style="display: flex; justify-content: space-between; font-weight: 900; color: #064e3b; font-size: 1.15rem; border-top: 1px dashed #a7f3d0; padding-top: 8px; margin-top: 4px;">
               <span>{{ t('payable_amount') }}:</span>
-              <span>₹{{ cartPayableWithDelivery }}</span>
+              <span>₹{{ finalPayableAmount }}</span>
             </div>
             <div style="font-size: 0.84rem; color: #047857; font-weight: 700; margin-top: 4px;">
               🎉 {{ t('order_savings_text') }}: ₹{{ cartTotalSavings }}!
+            </div>
+            <div v-if="estimatedEarnedCredit > 0" class="store-credit-earn-note" style="margin-top: 6px;">
+              💳 {{ t('you_will_earn_credit') }} <strong>₹{{ estimatedEarnedCredit.toFixed(2) }} {{ t('store_credit') }}</strong>
             </div>
           </div>
 
@@ -2224,7 +2323,7 @@
             :disabled="orderSubmitting || (customerForm.paymentMethod === 'UPI / QR Code' && !customerForm.upiConfirmed)"
             class="checkout-btn"
           >
-            {{ orderSubmitting ? t('placing_order') : '✅ ' + t('place_order_btn') }}
+            {{ orderSubmitting ? t('placing_order') : '✅ ' + t('place_order_btn') + ' (₹' + finalPayableAmount + ')' }}
           </button>
         </form>
       </div>
@@ -2294,9 +2393,16 @@
               <span>{{ t('kirana_savings') }}:</span>
               <span>- ₹{{ lastOrderReceipt.total_savings }}</span>
             </div>
+            <div v-if="lastOrderReceipt.credit_used > 0" style="display: flex; justify-content: space-between; color: #047857; font-weight: bold;">
+              <span>💳 {{ t('store_credit_applied') }}:</span>
+              <span>- ₹{{ lastOrderReceipt.credit_used }}</span>
+            </div>
             <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 900; margin-top: 6px; border-top: 2px solid #000; padding-top: 4px;">
               <span>{{ t('payable_amount') }}:</span>
               <span>₹{{ lastOrderReceipt.final_amount }}</span>
+            </div>
+            <div v-if="lastOrderReceipt.credit_earned > 0" style="margin-top: 6px; background: #ecfdf5; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #064e3b; font-weight: bold; text-align: center;">
+              🎉 {{ t('store_credit_earned') }}: +₹{{ lastOrderReceipt.credit_earned }}!
             </div>
           </div>
 
@@ -3315,7 +3421,12 @@
               </div>
 
               <div style="margin-top: 16px;" v-if="getActiveVariant(selectedProductQuickView)">
-                <div v-if="getCartItemQuantity(selectedProductQuickView.id, getActiveVariant(selectedProductQuickView).id) === 0">
+                <div v-if="!getActiveVariant(selectedProductQuickView).is_available" class="out-of-stock-action-wrap">
+                  <button class="add-to-cart-btn btn-out-of-stock" style="padding: 12px 24px; font-size: 1rem;" disabled>
+                    🚫 {{ t('out_of_stock') }}
+                  </button>
+                </div>
+                <div v-else-if="getCartItemQuantity(selectedProductQuickView.id, getActiveVariant(selectedProductQuickView).id) === 0">
                   <button
                     class="add-to-cart-btn"
                     style="padding: 12px 24px; font-size: 1rem;"
@@ -3632,6 +3743,8 @@ const adminCustomers = ref([]);
 const customerSearch = ref('');
 const activeAuditedCustomer = ref(null);
 const isPosSubmitting = ref(false);
+const selectedPosCustomer = ref(null);
+const posUseStoreCredit = ref(false);
 
 const counterOrder = ref({
   customer_name: '',
@@ -3940,6 +4053,7 @@ const isCartOpen = ref(false);
 const showCheckoutModal = ref(false);
 const orderSubmitting = ref(false);
 const lastOrderReceipt = ref(null);
+const useStoreCredit = ref(false);
 
 const customerForm = ref({
   name: '',
@@ -4143,15 +4257,13 @@ function getAuthModalTitle() {
 
 function formatAuthError(data, defaultMsg) {
   const code = data?.code;
-  if (code === 'INVALID_PHONE') return t('auth_err_invalid_phone');
-  if (code === 'DUMMY_PHONE') return t('auth_err_dummy_phone');
-  if (code === 'PHONE_EXISTS') return t('auth_err_phone_exists');
-  if (code === 'USERNAME_EXISTS') return t('auth_err_username_exists');
-  if (code === 'EMAIL_EXISTS') return t('auth_err_email_exists');
-  if (code === 'INVALID_CREDENTIALS') return t('auth_err_invalid_credentials');
-  if (code === 'USER_NOT_FOUND') return t('auth_err_user_not_found');
-  if (code === 'INVALID_OTP') return t('auth_err_invalid_otp');
-  if (code === 'OTP_EXPIRED') return t('auth_err_otp_expired');
+  if (code) {
+    const key = 'auth_err_' + code.toLowerCase();
+    const translated = t(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+  }
   return data?.error || defaultMsg;
 }
 
@@ -4288,11 +4400,33 @@ async function handleResetPassword() {
   }
 }
 
+function isDummyPhone(phone) {
+  if (!phone || phone.length !== 10) return true;
+  if (new Set(phone).size <= 2) return true;
+  const seqs = [
+    '9876543210', '9876543211', '9876543212', '9876543213', '9876543214', '9876543215',
+    '9876543216', '9876543217', '9876543218', '9876543219', '0123456789', '1234567890',
+    '9123456789', '6789012345', '9876598765', '1234512345', '1122334455'
+  ];
+  if (seqs.includes(phone)) return true;
+  if (phone.slice(0, 3) === phone.slice(3, 6) && phone.slice(3, 6) === phone.slice(6, 9)) return true;
+  if (phone.slice(0, 2).repeat(5) === phone) return true;
+  if (phone.slice(0, 4) === phone.slice(4, 8)) return true;
+  for (const ch of new Set(phone)) {
+    if (phone.split(ch).length - 1 >= 7) return true;
+  }
+  return false;
+}
+
 async function handleRegister() {
   const phone = registerForm.value.phone.trim();
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
     authError.value = t('auth_err_invalid_phone');
+    return;
+  }
+  if (isDummyPhone(phone)) {
+    authError.value = t('auth_err_dummy_phone');
     return;
   }
   authSubmitting.value = true;
@@ -4705,6 +4839,37 @@ const cartPayableWithDelivery = computed(() => {
   return (Number(cartTotalAmount.value) + deliveryFee.value).toFixed(2);
 });
 
+// Store Credit Earning & Redemption Computations
+const estimatedEarnedCredit = computed(() => {
+  let earned = 0.0;
+  for (const item of cart.value) {
+    let isLoose = false;
+    let subtotal = 0.0;
+    if (item.is_custom_weight) {
+      isLoose = item.product ? Boolean(item.product.is_loose) : true;
+      subtotal = item.subtotal || 0;
+    } else if (item.variant) {
+      isLoose = item.product ? Boolean(item.product.is_loose) : false;
+      subtotal = (item.variant.selling_price || 0) * (item.quantity || 1);
+    }
+    const rate = isLoose ? 0.025 : 0.005; // 2.5% on loose mandi staples, 0.5% on packaged FMCG
+    earned += subtotal * rate;
+  }
+  return Math.round(earned * 100) / 100;
+});
+
+const appliedCreditAmount = computed(() => {
+  if (!useStoreCredit.value || !currentUser.value) return 0;
+  const avail = currentUser.value.wallet_balance || 0;
+  const totalBefore = Number(cartTotalAmount.value) + deliveryFee.value;
+  return Math.min(avail, totalBefore);
+});
+
+const finalPayableAmount = computed(() => {
+  const total = Number(cartTotalAmount.value) + deliveryFee.value - appliedCreditAmount.value;
+  return Math.max(0, total).toFixed(2);
+});
+
 const smartAddons = computed(() => {
   if (Number(cartTotalAmount.value) >= DELIVERY_FREE_THRESHOLD || cart.value.length === 0) {
     return [];
@@ -4773,6 +4938,7 @@ async function submitOrder() {
       customer_phone: phone,
       customer_address: deliveryAddressWithSlot,
       payment_method: customerForm.value.paymentMethod,
+      use_credit: useStoreCredit.value,
       items: cart.value.map(i => {
         if (i.is_custom_weight) {
           return {
@@ -4814,6 +4980,12 @@ async function submitOrder() {
     if (res.ok) {
       const data = await res.json();
       lastOrderReceipt.value = data.order;
+      if (data.user) {
+        currentUser.value = data.user;
+      } else if (currentUser.value && data.order) {
+        currentUser.value.wallet_balance = (currentUser.value.wallet_balance || 0) - (data.order.credit_used || 0) + (data.order.credit_earned || 0);
+      }
+      useStoreCredit.value = false;
       cart.value = [];
       customerForm.value.upiConfirmed = false;
       showCheckoutModal.value = false;
@@ -4844,6 +5016,9 @@ function shareOrderOnWhatsApp(order) {
     return `${idx + 1}. ${it.product_name} (${it.variant_label}) × ${it.quantity} = ₹${it.subtotal}`;
   }).join('\n');
 
+  const creditUsedLine = order.credit_used > 0 ? `\n💳 *स्टोअर क्रेडिट सूट:* -₹${order.credit_used}` : '';
+  const creditEarnedLine = order.credit_earned > 0 ? `\n🎉 *मिळवलेले स्टोअर क्रेडिट:* +₹${order.credit_earned}` : '';
+
   const text = 
 `🌾 *कोमल मार्ट (Komal Mart) - ऑर्डर पावती / बिल*
 ━━━━━━━━━━━━━━━━━━━━
@@ -4857,8 +5032,8 @@ function shareOrderOnWhatsApp(order) {
 ${itemsText}
 ━━━━━━━━━━━━━━━━━━━━
 💵 *कुल एमआरपी:* ₹${order.total_mrp}
-🎉 *किराना बचत:* -₹${order.total_savings}
-💰 *कुल देय राशि:* *₹${order.final_amount}*
+🎉 *किराना बचत:* -₹${order.total_savings}${creditUsedLine}
+💰 *कुल देय राशि:* *₹${order.final_amount}*${creditEarnedLine}
 
 🙏 धन्यवाद! फिर पधारें!`;
 
@@ -4981,6 +5156,44 @@ async function saveVariantPrice(variant) {
   }
 }
 
+async function toggleVariantStock(variant) {
+  const currentActive = variant.is_in_stock !== undefined ? variant.is_in_stock : variant.is_available;
+  const newActive = !currentActive;
+
+  variant.is_in_stock = newActive;
+  variant.is_available = newActive && (variant.stock_quantity === undefined || variant.stock_quantity > 0);
+
+  try {
+    const res = await fetch(`${API_BASE}/variants/${variant.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        is_available: newActive
+      })
+    });
+
+    if (res.ok) {
+      const msg = newActive
+        ? (currentLang.value === 'mr' ? `✅ ${variant.unit_size} आता स्टॉकमध्ये उपलब्ध आहे!` : (currentLang.value === 'hi' ? `✅ ${variant.unit_size} अब स्टॉक में उपलब्ध है!` : `✅ ${variant.unit_size} is now In Stock!`))
+        : (currentLang.value === 'mr' ? `⚠️ ${variant.unit_size} आता आउट-ऑफ-स्टॉक केले गेले.` : (currentLang.value === 'hi' ? `⚠️ ${variant.unit_size} अब आउट-ऑफ-स्टॉक कर दिया गया।` : `⚠️ ${variant.unit_size} marked Out of Stock.`));
+      showToast(msg);
+    } else {
+      variant.is_in_stock = currentActive;
+      variant.is_available = currentActive;
+      const err = await res.json();
+      showToast(`❌ ${err.error || 'स्टॉक अपडेट अयशस्वी'}`);
+    }
+  } catch (err) {
+    console.error('Toggle stock error:', err);
+    variant.is_in_stock = currentActive;
+    variant.is_available = currentActive;
+    showToast('❌ नेटवर्क त्रुटी.');
+  }
+}
+
 // --- ADMIN POS COUNTER BILLING METHODS ---
 function onPosProductSelect(prod) {
   posSelectedProduct.value = prod;
@@ -5016,7 +5229,8 @@ function addPosItem() {
       unit_price: rate,
       quantity: 1,
       mrp: mrp,
-      subtotal: subtotal
+      subtotal: subtotal,
+      is_loose: true
     });
   } else {
     const variant = posSelectedVariant.value || (prod.variants && prod.variants[0]);
@@ -5035,7 +5249,8 @@ function addPosItem() {
       unit_price: unitPrice,
       quantity: qty,
       mrp: mrp,
-      subtotal: subtotal
+      subtotal: subtotal,
+      is_loose: false
     });
   }
 
@@ -5063,7 +5278,29 @@ const counterOrderTotals = computed(() => {
   return { mrp, subtotal, savings };
 });
 
+const posEstimatedCredit = computed(() => {
+  let earned = 0.0;
+  for (const it of counterOrder.value.items) {
+    const isLoose = Boolean(it.is_loose);
+    const rate = isLoose ? 0.025 : 0.005; // 2.5% on loose, 0.5% on packaged
+    earned += (it.subtotal || 0) * rate;
+  }
+  return Math.round(earned * 100) / 100;
+});
+
+const posAppliedCredit = computed(() => {
+  if (!posUseStoreCredit.value || !selectedPosCustomer.value) return 0;
+  const avail = selectedPosCustomer.value.wallet_balance || 0;
+  return Math.min(avail, counterOrderTotals.value.subtotal);
+});
+
+const posFinalPayable = computed(() => {
+  return Math.max(0, counterOrderTotals.value.subtotal - posAppliedCredit.value).toFixed(2);
+});
+
 function selectRegisteredCustomerForPos(cust) {
+  selectedPosCustomer.value = cust || null;
+  posUseStoreCredit.value = false;
   if (!cust) {
     counterOrder.value.customer_name = '';
     counterOrder.value.customer_phone = '';
@@ -5098,6 +5335,7 @@ async function submitCounterOrder(action = 'view') {
       payment_status: counterOrder.value.payment_status,
       status: counterOrder.value.order_type === 'counter' ? 'Delivered' : 'Placed',
       user_id: counterOrder.value.user_id,
+      use_credit: posUseStoreCredit.value,
       items: counterOrder.value.items
     };
 
@@ -5131,6 +5369,8 @@ async function submitCounterOrder(action = 'view') {
         user_id: null,
         items: []
       };
+      selectedPosCustomer.value = null;
+      posUseStoreCredit.value = false;
 
       if (action === 'print') {
         printSingleOrder(createdOrder);

@@ -97,7 +97,181 @@ def send_admin_otp_email(to_email, otp):
             return False, str(e)
     else:
         print("[SMTP INFO] SMTP_USER/SMTP_PASS not set. Printed OTP to terminal console only.")
-        return False, "SMTP not configured"
+def is_dummy_phone(phone: str) -> bool:
+    if not phone or len(phone) != 10:
+        return True
+
+    # 1. Fewer than 3 unique digits (e.g., 9999999999, 9898989898, 9191919191)
+    if len(set(phone)) <= 2:
+        return True
+
+    # 2. Known sequential or ascending/descending patterns
+    sequences = {
+        "9876543210", "9876543211", "9876543212", "9876543213", "9876543214", "9876543215",
+        "9876543216", "9876543217", "9876543218", "9876543219", "0123456789", "1234567890",
+        "9123456789", "6789012345", "9876598765", "1234512345", "1122334455"
+    }
+    if phone in sequences:
+        return True
+
+    # 3. Repeating triplets (e.g. 9879879870 or 9879879879)
+    if phone[:3] == phone[3:6] == phone[6:9]:
+        return True
+
+    # 4. Repeating pairs (e.g. 9898989898)
+    if phone[:2] * 5 == phone:
+        return True
+
+    # 5. Repeating 4-digit prefix (e.g. 9876987612)
+    if phone[:4] == phone[4:8]:
+        return True
+
+    # 6. Any single digit appearing 7 or more times
+    for ch in set(phone):
+        if phone.count(ch) >= 7:
+            return True
+
+    return False
+
+SEARCH_ALIASES = {
+    # Rice / Grains
+    'rice': ['rice', 'chawal', 'chaawal', 'tandul', 'taandul', 'bhat', 'basmati', 'kolam', 'चावल', 'तांदूळ', 'भात', 'बासमती'],
+    'chawal': ['rice', 'chawal', 'chaawal', 'tandul', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
+    'chaawal': ['rice', 'chawal', 'chaawal', 'tandul', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
+    'tandul': ['rice', 'tandul', 'taandul', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
+    'taandul': ['rice', 'tandul', 'taandul', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
+    'bhat': ['rice', 'chawal', 'tandul', 'भात', 'चावल'],
+    'kolam': ['kolam', 'rice', 'कोलम', 'तांदूळ'],
+    'basmati': ['basmati', 'rice', 'chawal', 'बासमती', 'दावत', 'daawat'],
+
+    # Atta / Flours / Wheat
+    'atta': ['atta', 'aata', 'pith', 'peeth', 'gehu', 'gehun', 'flour', 'chakki', 'wheat', 'sharbati', 'आटा', 'पीठ', 'गहू'],
+    'aata': ['atta', 'aata', 'pith', 'flour', 'chakki', 'आटा', 'पीठ'],
+    'pith': ['atta', 'pith', 'peeth', 'flour', 'पीठ', 'आटा'],
+    'peeth': ['atta', 'pith', 'peeth', 'flour', 'पीठ', 'आटा'],
+    'gehu': ['atta', 'gehu', 'gehun', 'wheat', 'chakki', 'sharbati', 'गहू', 'आटा'],
+    'gehun': ['atta', 'gehu', 'gehun', 'wheat', 'chakki', 'sharbati', 'गहू', 'आटा'],
+    'wheat': ['atta', 'gehu', 'wheat', 'chakki', 'aashirvaad', 'fortune', 'गहू', 'आटा'],
+    'maida': ['maida', 'flour', 'मैदा'],
+    'besan': ['besan', 'gram flour', 'chana', 'हरभरा', 'बेसन', 'चना'],
+    'rava': ['rava', 'suji', 'sooji', 'semolina', 'रवा', 'सुजी'],
+    'suji': ['rava', 'suji', 'sooji', 'रवा', 'सुजी'],
+    'sooji': ['rava', 'suji', 'sooji', 'रवा', 'सुजी'],
+    'semolina': ['rava', 'suji', 'sooji', 'रवा'],
+    'poha': ['poha', 'pohe', 'flattened rice', 'पोहे', 'पोहा'],
+    'pohe': ['poha', 'pohe', 'पोहे', 'पोहा'],
+
+    # Dals & Pulses
+    'dal': ['dal', 'daal', 'dall', 'डाळ', 'दाल', 'toor', 'arhar', 'moong', 'urad', 'masoor', 'chana'],
+    'daal': ['dal', 'daal', 'डाळ', 'दाल', 'toor', 'arhar', 'moong', 'urad', 'masoor', 'chana'],
+    'toor': ['toor', 'tuvar', 'arhar', 'तूर', 'अरहर', 'tur'],
+    'tuvar': ['toor', 'tuvar', 'arhar', 'तूर', 'तुवर'],
+    'arhar': ['toor', 'arhar', 'tuvar', 'अरहर', 'तूर'],
+    'tur': ['toor', 'tuvar', 'arhar', 'तूर'],
+    'moong': ['moong', 'mung', 'mug', 'मूग', 'मूँग'],
+    'mung': ['moong', 'mung', 'mug', 'मूग', 'मूँग'],
+    'mug': ['moong', 'mung', 'mug', 'मूग'],
+    'urad': ['urad', 'udid', 'udad', 'उडीद', 'उड़द'],
+    'udid': ['urad', 'udid', 'उडीद', 'उड़द'],
+    'udad': ['urad', 'udid', 'उडीद', 'उड़द'],
+    'masoor': ['masoor', 'masur', 'मलका', 'मसूर'],
+    'masur': ['masoor', 'masur', 'मसूर'],
+    'chana': ['chana', 'channa', 'harbhara', 'चना', 'हरभरा', 'छोले', 'काबुली'],
+    'channa': ['chana', 'channa', 'harbhara', 'चना', 'हरभरा'],
+    'harbhara': ['chana', 'harbhara', 'हरभरा', 'चना'],
+    'rajma': ['rajma', 'rajmah', 'राजमा'],
+    'rajmah': ['rajma', 'राजमा'],
+    'chhole': ['chhole', 'chole', 'kabuli', 'chana', 'छोले', 'काबुली'],
+    'chole': ['chhole', 'chole', 'kabuli', 'chana', 'छोले', 'काबुली'],
+    'kabuli': ['kabuli', 'chhole', 'chana', 'काबुली', 'छोले'],
+
+    # Oils & Ghee
+    'oil': ['oil', 'tel', 'tail', 'तेल', 'mustard', 'sarson', 'ghee'],
+    'tel': ['oil', 'tel', 'tail', 'तेल', 'mustard', 'sarson'],
+    'tail': ['oil', 'tel', 'तेल'],
+    'sarson': ['sarson', 'sarso', 'mustard', 'mohari', 'मोहरी', 'सरसों', 'oil', 'tel'],
+    'sarso': ['sarson', 'sarso', 'mustard', 'सरसों', 'तेल', 'oil'],
+    'mustard': ['mustard', 'sarson', 'mohari', 'मोहरी', 'सरसों', 'oil', 'tel'],
+    'mohari': ['mustard', 'sarson', 'mohari', 'मोहरी', 'तेल'],
+    'ghee': ['ghee', 'ghi', 'toop', 'tup', 'तूप', 'घी', 'cow ghee', 'amul'],
+    'ghi': ['ghee', 'toop', 'tup', 'तूप', 'घी'],
+    'toop': ['ghee', 'toop', 'tup', 'तूप', 'घी'],
+    'tup': ['ghee', 'toop', 'tup', 'तूप', 'घी'],
+
+    # Salt, Sugar, Spices
+    'salt': ['salt', 'namak', 'meeth', 'mith', 'मीठ', 'नमक', 'tata salt'],
+    'namak': ['salt', 'namak', 'meeth', 'मीठ', 'नमक', 'tata'],
+    'meeth': ['salt', 'namak', 'meeth', 'मीठ', 'नमक', 'tata salt'],
+    'mith': ['salt', 'namak', 'meeth', 'मीठ', 'नमक'],
+    'sugar': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'sakhar', 'साखर', 'चीनी', 'शक्कर'],
+    'cheeni': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'चीनी', 'साखर'],
+    'chini': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'चीनी', 'साखर'],
+    'shakkar': ['sugar', 'shakkar', 'cheeni', 'saakhar', 'शक्कर', 'साखर'],
+    'saakhar': ['sugar', 'saakhar', 'sakhar', 'cheeni', 'साखर', 'चीनी'],
+    'sakhar': ['sugar', 'saakhar', 'sakhar', 'cheeni', 'साखर', 'चीनी'],
+    'haldi': ['haldi', 'halad', 'turmeric', 'हळद', 'हल्दी'],
+    'halad': ['haldi', 'halad', 'turmeric', 'हळद', 'हल्दी'],
+    'turmeric': ['turmeric', 'haldi', 'halad', 'हळद', 'हल्दी'],
+    'mirchi': ['mirch', 'mirchi', 'chilli', 'chili', 'tikhat', 'तिखट', 'मिर्च'],
+    'mirch': ['mirch', 'mirchi', 'chilli', 'tikhat', 'मिर्च', 'तिखट'],
+    'tikhat': ['mirch', 'mirchi', 'tikhat', 'तिखट', 'मिर्च'],
+    'chilli': ['mirch', 'mirchi', 'tikhat', 'chilli', 'मिर्च'],
+    'chili': ['mirch', 'mirchi', 'tikhat', 'chili', 'मिर्च'],
+    'masala': ['masala', 'everest', 'garam masala', 'मसाला'],
+    'dhania': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
+    'dhaniya': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
+
+    # Tea / Beverages
+    'tea': ['tea', 'chai', 'chaha', 'चहा', 'चाय', 'tata tea', 'red label', 'wagh bakri', 'taj mahal'],
+    'chai': ['tea', 'chai', 'chaha', 'चाय', 'चहा', 'tata tea', 'red label'],
+    'chaha': ['tea', 'chai', 'chaha', 'चहा', 'चाय', 'tata tea'],
+    'coffee': ['coffee', 'कॉफी'],
+
+    # Cleaning & Oral Care
+    'soap': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'rin'],
+    'sabun': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'rin'],
+    'saabun': ['soap', 'sabun', 'साबण', 'साबुन'],
+    'detergent': ['detergent', 'surf', 'surf excel', 'powder', 'सर्फ', 'डिटर्जंट'],
+    'surf': ['surf', 'surf excel', 'detergent', 'powder', 'सर्फ'],
+    'rin': ['rin', 'bar', 'साबण', 'रिन'],
+    'vim': ['vim', 'dishwash', 'व्हिम', 'विम', 'bar'],
+    'paste': ['toothpaste', 'paste', 'colgate', 'sensodyne', 'dabur', 'patanjali', 'टूथपेस्ट', 'पेस्ट'],
+    'toothpaste': ['toothpaste', 'paste', 'colgate', 'sensodyne', 'dabur', 'patanjali', 'टूथपेस्ट'],
+    'colgate': ['colgate', 'toothpaste', 'कोलगेट'],
+    'dant': ['dant', 'dantmanjan', 'dant kanti', 'दंत', 'पतंजली', 'डाबर', 'toothpaste'],
+    'dettol': ['dettol', 'soap', 'डेटॉल']
+}
+
+def calculate_order_credit(items_data):
+    """
+    Margin-based Store Credit Earning:
+    - Loose Mandi commodities (is_loose=True): Wholesale margin 15-25% -> 2.5% Store Credit
+    - Packaged Branded FMCG (is_loose=False): Thin margin 3-6% -> 0.5% Store Credit
+    """
+    total_credit = 0.0
+    for item in items_data:
+        subtotal = float(item.get('subtotal') or 0.0)
+        is_loose = bool(item.get('is_loose', False))
+
+        if item.get('variant_id'):
+            v = db.session.get(ProductVariant, item['variant_id'])
+            if v:
+                qty = int(item.get('quantity', 1))
+                if subtotal <= 0:
+                    subtotal = v.selling_price * qty
+                if v.product and v.product.is_loose:
+                    is_loose = True
+        elif item.get('product_id'):
+            prod = db.session.get(Product, item['product_id'])
+            if prod and prod.is_loose:
+                is_loose = True
+
+        if is_loose:
+            total_credit += subtotal * 0.025
+        else:
+            total_credit += subtotal * 0.005
+
+    return round(total_credit, 2)
 
 def create_app():
     app = Flask(__name__)
@@ -167,6 +341,23 @@ def create_app():
             cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users(username) WHERE username IS NOT NULL")
             cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users(phone)")
             conn.commit()
+
+            # Ensure users.wallet_balance column exists
+            cur.execute("PRAGMA table_info(users)")
+            current_user_cols = [r[1] for r in cur.fetchall()]
+            if 'wallet_balance' not in current_user_cols:
+                cur.execute("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0")
+                conn.commit()
+
+            # Ensure orders.credit_used and orders.credit_earned columns exist
+            cur.execute("PRAGMA table_info(orders)")
+            order_cols = [r[1] for r in cur.fetchall()]
+            if 'credit_used' not in order_cols:
+                cur.execute("ALTER TABLE orders ADD COLUMN credit_used FLOAT DEFAULT 0.0")
+                conn.commit()
+            if 'credit_earned' not in order_cols:
+                cur.execute("ALTER TABLE orders ADD COLUMN credit_earned FLOAT DEFAULT 0.0")
+                conn.commit()
         except Exception as e:
             print("Migration warning:", e)
         finally:
@@ -231,12 +422,8 @@ def create_app():
             return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
 
         # Reject dummy or fake phone numbers
-        if len(set(phone)) <= 1:
-            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 9999999999) चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
-
-        dummy_phones = {'1234567890', '0123456789', '1234512345', '9876598765', '1122334455'}
-        if phone in dummy_phones:
-            return jsonify({'error': 'हा डमी नंबर आहे. कृपया आपला खरा १० अंकी मोबाईल नंबर टाका.', 'code': 'DUMMY_PHONE'}), 400
+        if is_dummy_phone(phone):
+            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 1234567890, 9876543210) चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
 
         # Enforce unique phone
         if User.query.filter_by(phone=phone).first():
@@ -423,7 +610,15 @@ def create_app():
         if 'name' in data and data['name'].strip():
             user.name = data['name'].strip()
         if 'phone' in data and data['phone'].strip():
-            user.phone = data['phone'].strip()
+            new_phone = data['phone'].strip()
+            if not re.match(r'^[6-9]\d{9}$', new_phone):
+                return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका.', 'code': 'INVALID_PHONE'}), 400
+            if is_dummy_phone(new_phone):
+                return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
+            existing = User.query.filter_by(phone=new_phone).first()
+            if existing and existing.id != user.id:
+                return jsonify({'error': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'PHONE_EXISTS'}), 400
+            user.phone = new_phone
         if 'address' in data:
             user.address = data['address'].strip()
 
@@ -492,16 +687,30 @@ def create_app():
             is_loose = (loose_filter == 'true')
             query = query.filter_by(is_loose=is_loose)
 
-        # Precise search: only matches product name, hindi name, brand, or category
+        # Smart Hinglish & Phonetic Search Aliases Matching
         if search_query:
-            term = f"%{search_query.strip()}%"
-            query = query.join(Category).filter(
-                (Product.name.ilike(term)) |
-                (Product.name_hi.ilike(term)) |
-                (Product.brand.ilike(term)) |
-                (Category.name.ilike(term)) |
-                (Category.name_hi.ilike(term))
-            )
+            from sqlalchemy import or_
+            raw_query = search_query.strip().lower()
+            tokens = [t.strip() for t in raw_query.split() if t.strip()]
+
+            all_terms = set()
+            all_terms.add(raw_query)
+            for tok in tokens:
+                all_terms.add(tok)
+                if tok in SEARCH_ALIASES:
+                    for alias in SEARCH_ALIASES[tok]:
+                        all_terms.add(alias)
+
+            filter_clauses = []
+            for t in all_terms:
+                like_term = f"%{t}%"
+                filter_clauses.append(Product.name.ilike(like_term))
+                filter_clauses.append(Product.name_hi.ilike(like_term))
+                filter_clauses.append(Product.brand.ilike(like_term))
+                filter_clauses.append(Category.name.ilike(like_term))
+                filter_clauses.append(Category.name_hi.ilike(like_term))
+
+            query = query.join(Category).filter(or_(*filter_clauses)).distinct()
 
         products = query.all()
         result = [p.to_dict() for p in products]
@@ -600,6 +809,20 @@ def create_app():
 
         savings = round(total_mrp - final_amount, 2) if total_mrp > final_amount else 0.0
 
+        # Margin-based Store Credit Earning & Redemption
+        credit_earned = calculate_order_credit(data['items'])
+        use_credit = bool(data.get('use_credit', False))
+        credit_used = 0.0
+
+        if use_credit and user and user.wallet_balance and user.wallet_balance > 0:
+            credit_available = round(float(user.wallet_balance), 2)
+            credit_used = min(credit_available, final_amount)
+            final_amount = round(final_amount - credit_used, 2)
+            user.wallet_balance = round(user.wallet_balance - credit_used, 2)
+
+        if user:
+            user.wallet_balance = round((user.wallet_balance or 0.0) + credit_earned, 2)
+
         new_order = Order(
             order_number=order_number,
             user_id=user.id if user else None,
@@ -609,6 +832,8 @@ def create_app():
             total_mrp=round(total_mrp, 2),
             final_amount=round(final_amount, 2),
             total_savings=savings,
+            credit_used=round(credit_used, 2),
+            credit_earned=round(credit_earned, 2),
             payment_method=payment_method,
             payment_status=payment_status,
             status='Placed'
@@ -620,7 +845,8 @@ def create_app():
 
         return jsonify({
             'message': 'Order placed successfully! Bill generated.',
-            'order': new_order.to_dict()
+            'order': new_order.to_dict(),
+            'user': user.to_dict() if user else None
         }), 201
 
     @app.route('/api/orders/<string:order_number>', methods=['GET'])
@@ -954,6 +1180,20 @@ def create_app():
 
         savings = round(total_mrp - final_amount, 2) if total_mrp > final_amount else 0.0
 
+        # Margin-based Store Credit Earning & Redemption for Counter POS
+        credit_earned = calculate_order_credit(items_data)
+        use_credit = bool(data.get('use_credit', False))
+        credit_used = 0.0
+
+        if use_credit and linked_user and linked_user.wallet_balance and linked_user.wallet_balance > 0:
+            credit_available = round(float(linked_user.wallet_balance), 2)
+            credit_used = min(credit_available, final_amount)
+            final_amount = round(final_amount - credit_used, 2)
+            linked_user.wallet_balance = round(linked_user.wallet_balance - credit_used, 2)
+
+        if linked_user:
+            linked_user.wallet_balance = round((linked_user.wallet_balance or 0.0) + credit_earned, 2)
+
         new_order = Order(
             order_number=order_number,
             user_id=linked_user.id if linked_user else None,
@@ -963,6 +1203,8 @@ def create_app():
             total_mrp=round(total_mrp, 2),
             final_amount=round(final_amount, 2),
             total_savings=savings,
+            credit_used=round(credit_used, 2),
+            credit_earned=round(credit_earned, 2),
             payment_method=payment_method,
             payment_status=payment_status,
             status=order_status
@@ -974,7 +1216,8 @@ def create_app():
 
         return jsonify({
             'message': f'बिल #{order_number} सफलतापूर्वक दर्ज हुआ!',
-            'order': new_order.to_dict()
+            'order': new_order.to_dict(),
+            'customer': linked_user.to_dict() if linked_user else None
         }), 201
 
     # --- DEVICE PHOTO / CAMERA UPLOADS ---
