@@ -21,6 +21,9 @@ export const translations = {
     logout: "लॉगआउट",
     cart_bag: "थैली (Cart)",
     admin_badge: "दुकानदार ॲडमिन",
+    pwa_install_title: "कोमल मार्ट ॲप इन्स्टॉल करा",
+    pwa_install_sub: "मोबाईलवर १-टॅप झटपट किराणा खरेदी • थेट घरपोच",
+    pwa_install_btn: "ॲप इन्स्टॉल करा",
 
     // Language Selector
     lang_mr: "मराठी",
@@ -254,6 +257,9 @@ export const translations = {
     logout: "लॉगआउट",
     cart_bag: "थैला (Cart)",
     admin_badge: "दुकानदार एडमिन",
+    pwa_install_title: "कोमल मार्ट ॲप इन्स्टॉल करें",
+    pwa_install_sub: "मोबाइल पर १-टैप में सुपरफास्ट राशन ऑर्डर • फ्री डिलीवरी",
+    pwa_install_btn: "ॲप इन्स्टॉल करें",
 
     // Language Selector
     lang_mr: "मराठी",
@@ -487,6 +493,9 @@ export const translations = {
     logout: "Logout",
     cart_bag: "Cart",
     admin_badge: "Storekeeper Admin",
+    pwa_install_title: "Install Komal Mart App",
+    pwa_install_sub: "Fast 1-tap grocery ordering & doorstep delivery!",
+    pwa_install_btn: "Install App",
 
     // Language Selector
     lang_mr: "मराठी",

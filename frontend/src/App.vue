@@ -84,6 +84,33 @@
       </div>
     </div>
 
+    <!-- PWA Install Banner -->
+    <div v-if="showInstallBanner && !isAppInstalled" class="pwa-install-banner">
+      <div class="pwa-banner-inner">
+        <div class="pwa-banner-left">
+          <div class="pwa-app-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+          </div>
+          <div class="pwa-banner-info">
+            <strong class="pwa-banner-title">{{ t('pwa_install_title') }}</strong>
+            <span class="pwa-banner-sub">{{ t('pwa_install_sub') }}</span>
+          </div>
+        </div>
+        <div class="pwa-banner-right">
+          <button class="pwa-btn-install" @click="triggerInstall">
+            📲 {{ t('pwa_install_btn') }}
+          </button>
+          <button class="pwa-btn-dismiss" @click="dismissInstallBanner" title="Dismiss">
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Navigation Header -->
     <header class="kirana-header">
       <div class="header-container">
@@ -141,6 +168,11 @@
             <!-- Guest / Not Logged In -->
             <button v-else class="user-btn" @click="openAuthModal('login')">
               👤 {{ t('login_btn') }}
+            </button>
+
+            <!-- PWA Install Button in Header -->
+            <button v-if="canInstallPWA && !isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')">
+              📲 <span>{{ t('pwa_install_btn') }}</span>
             </button>
 
             <!-- Shopping Cart (Only for Customers / Guests) -->
@@ -3297,6 +3329,24 @@
         </div>
       </div>
     </div>
+
+    <!-- iOS PWA Install Instruction Modal -->
+    <div class="modal-overlay" v-if="showIOSModal" @click.self="showIOSModal = false">
+      <div class="modal-card" style="max-width: 420px; text-align: center; padding: 28px;">
+        <div style="font-size: 3rem; margin-bottom: 12px;">📲</div>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: #064e3b; margin-bottom: 8px;">Install Komal Mart on iPhone</h3>
+        <p style="font-size: 0.92rem; color: #4b5563; line-height: 1.5; margin-bottom: 20px;">
+          To install this app on your iPhone or iPad:
+          <br /><br />
+          1. Tap the <strong>Share</strong> button (📤) at the bottom of Safari.
+          <br />
+          2. Scroll down and tap <strong>"Add to Home Screen"</strong> (➕).
+        </p>
+        <button class="submit-btn" @click="showIOSModal = false" style="width: 100%;">
+          Got it! 👍
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -3305,6 +3355,42 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { translations, marathiProductNames, getLocalizedProductName, getLocalizedCategoryName } from './i18n.js';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:5000/api' : '/api';
+
+// PWA Installation State
+const deferredInstallPrompt = ref(null);
+const showInstallBanner = ref(false);
+const isAppInstalled = ref(false);
+const showIOSModal = ref(false);
+
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+};
+
+const canInstallPWA = computed(() => {
+  return !!deferredInstallPrompt.value || (!isAppInstalled.value && isIOS());
+});
+
+const triggerInstall = async () => {
+  if (deferredInstallPrompt.value) {
+    deferredInstallPrompt.value.prompt();
+    const { outcome } = await deferredInstallPrompt.value.userChoice;
+    if (outcome === 'accepted') {
+      showInstallBanner.value = false;
+      isAppInstalled.value = true;
+      showToast('🎉 कोमल मार्ट ॲप यशस्वीरित्या इन्स्टॉल झाले!');
+    }
+    deferredInstallPrompt.value = null;
+  } else if (isIOS()) {
+    showIOSModal.value = true;
+  } else {
+    showToast('💡 ब्राउझर मेनूवरून (⋮) "Install App" किंवा "Add to Home screen" निवडा.');
+  }
+};
+
+const dismissInstallBanner = () => {
+  showInstallBanner.value = false;
+  sessionStorage.setItem('pwa_banner_dismissed', 'true');
+};
 
 // Language State (Marathi default for Maharashtra / Mumbai, user-customizable)
 const currentLang = ref(localStorage.getItem('kirana_preferred_lang') || 'mr');
@@ -5220,6 +5306,28 @@ onMounted(() => {
     if (window.location.hash === '#admin' && !isAdminLoggedIn.value) {
       openAuthModal('admin');
     }
+  });
+
+  // PWA standalone detection
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    isAppInstalled.value = true;
+  }
+
+  // PWA install prompt handler
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt.value = e;
+    if (!sessionStorage.getItem('pwa_banner_dismissed') && !isAppInstalled.value) {
+      showInstallBanner.value = true;
+    }
+  });
+
+  // Track app installation completion
+  window.addEventListener('appinstalled', () => {
+    isAppInstalled.value = true;
+    showInstallBanner.value = false;
+    deferredInstallPrompt.value = null;
+    showToast('🎉 कोमल मार्ट ॲप होम स्क्रीनवर जोडले गेले!');
   });
 });
 </script>
