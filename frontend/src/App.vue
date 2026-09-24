@@ -1192,11 +1192,11 @@
                 <table v-else class="pos-item-table">
                   <thead>
                     <tr>
-                      <th>{{ currentLang === 'en' ? 'Item' : 'सामान' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Weight / Pack' : (currentLang === 'mr' ? 'वजन / पॅक' : 'वजन / पैक') }}</th>
-                      <th>{{ currentLang === 'en' ? 'Rate' : 'दर' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Qty' : 'नग' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Amount' : (currentLang === 'mr' ? 'रक्कम' : 'रकम') }}</th>
+                      <th>Item Description</th>
+                      <th>Weight / Pack</th>
+                      <th>Rate (₹)</th>
+                      <th>Qty</th>
+                      <th>Amount (₹)</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -3367,56 +3367,17 @@
           </div>
 
           <!-- Shop Owner UPI QR Code Display -->
-          <div v-if="customerForm.paymentMethod === 'UPI / QR Code'" class="upi-qr-card">
-            <div class="upi-header">
-              <span class="upi-badge">BHIM UPI • PhonePe • Google Pay • Paytm</span>
-              <h4>{{ t('upi_qr_title') }}</h4>
-            </div>
-
-            <!-- Mobile 1-Tap Pay Direct App Link -->
-            <a
-              :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Raushan%20Raj&am=${finalPayableAmount}&cu=INR&tn=KomalMart_Order`"
-              class="upi-intent-app-btn"
-            >
-              {{ t('upi_app_pay_btn') }}
-            </a>
-
-            <div class="upi-qr-frame" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin: 10px 0;">
-              <div class="qr-code-img-wrap" style="text-align: center;">
-                <img src="/komal-mart-upi-qr.jpeg" alt="Komal Mart UPI QR Code" style="width: 220px; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-              </div>
-              <div class="upi-details" style="margin-top: 12px; text-align: center; width: 100%;">
-                <div class="upi-shop-name" style="font-weight: 800; color: #0f172a; font-size: 1rem;">Komal Mart (Raushan Raj)</div>
-                <div class="upi-id-row" style="margin: 6px 0; font-size: 0.9rem;">
-                  <span>UPI ID:</span> <code style="font-weight: 800; color: #047857; background: #ecfdf5; padding: 3px 8px; border-radius: 6px;">thisisroushan01@okaxis</code>
-                </div>
-                <div class="upi-amount-row" style="margin-top: 6px;">
-                  <span style="font-size: 0.9rem; color: #475569;">{{ t('payable_amount') }}:</span>
-                  <strong style="color: #064e3b; font-size: 1.35rem; margin-left: 6px;">₹{{ finalPayableAmount }}</strong>
-                </div>
-                <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
-              </div>
-            </div>
-
-            <!-- Optional 12-digit UTR Input -->
-            <div class="upi-utr-wrap">
-              <label style="font-size: 0.82rem; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">
-                {{ t('upi_utr_label') }}
-              </label>
-              <input
-                type="text"
-                v-model="customerForm.utrNumber"
-                maxlength="16"
-                placeholder="उदा. 426812345678"
-                class="upi-utr-input"
-              />
-            </div>
-
-            <div class="upi-confirm-check">
-              <label>
-                <input type="checkbox" v-model="customerForm.upiConfirmed" />
-                <span>{{ t('upi_scan_confirm') }}</span>
-              </label>
+          <!-- Shop Owner UPI Payment Guidance -->
+          <div v-if="customerForm.paymentMethod === 'UPI / QR Code'" class="upi-qr-card" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 14px; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 4px;">📱</div>
+            <h4 style="color: #065f46; font-size: 1rem; font-weight: 800; margin: 0 0 6px;">
+              {{ currentLang === 'en' ? 'Pay via UPI (GPay • PhonePe • Paytm • BHIM)' : (currentLang === 'mr' ? 'UPI द्वारे पेमेंट (GPay • PhonePe • Paytm • BHIM)' : 'UPI द्वारा भुगतान (GPay • PhonePe • Paytm • BHIM)') }}
+            </h4>
+            <p style="font-size: 0.82rem; color: #166534; margin: 0 0 8px; line-height: 1.4;">
+              {{ currentLang === 'en' ? 'Click below to place order. Your unique order ticket and 1-tap UPI payment screen will open immediately.' : (currentLang === 'mr' ? 'खाली क्लिक करून ऑर्डर नोंदवा. तुमचा नंबर व १-टॅप UPI पेमेंट स्क्रीन त्वरित उघडेल.' : 'नीचे क्लिक करके ऑर्डर दर्ज करें। आपका बिल नंबर और १-टैप UPI पेमेंट स्क्रीन तुरंत खुलेगी।') }}
+            </p>
+            <div style="background: white; border: 1px dashed #10b981; border-radius: 8px; padding: 6px 10px; font-size: 0.82rem; color: #047857; font-weight: 700;">
+              ✨ {{ currentLang === 'en' ? 'Instant Soundbox & SMS Verification at Shop Counter' : (currentLang === 'mr' ? 'दुकान काऊंटरवर त्वरित साऊंडबॉक्स व SMS पडताळणी' : 'दुकान काउंटर पर त्वरित साउंडबॉक्स व SMS सत्यापन') }}
             </div>
           </div>
 
@@ -3465,12 +3426,13 @@
 
           <button
             type="submit"
-            :disabled="orderSubmitting || !isPincodeServiceable || (customerForm.paymentMethod === 'UPI / QR Code' && !customerForm.upiConfirmed)"
+            :disabled="orderSubmitting || !isPincodeServiceable"
             class="checkout-btn"
             :style="!isPincodeServiceable ? 'opacity: 0.6; cursor: not-allowed;' : ''"
           >
             <span v-if="!isPincodeServiceable">🚫 {{ currentLang === 'en' ? 'Delivery Unavailable Outside Wadala' : (currentLang === 'mr' ? 'वडाळा परिसराबाहेर डिलिव्हरी अनुपलब्ध' : 'वडाला क्षेत्र से बाहर डिलीवरी अनुपलब्ध') }}</span>
             <span v-else-if="orderSubmitting">{{ t('placing_order') }}</span>
+            <span v-else-if="customerForm.paymentMethod === 'UPI / QR Code'">📲 {{ currentLang === 'en' ? 'Place Order & Pay via UPI' : (currentLang === 'mr' ? 'ऑर्डर नोंदवा आणि UPI ने पे करा' : 'ऑर्डर दर्ज करें और UPI पे करें') }} (₹{{ finalPayableAmount }})</span>
             <span v-else>✅ {{ t('place_order_btn') }} (₹{{ finalPayableAmount }})</span>
           </button>
         </form>
@@ -3513,10 +3475,10 @@
           <table class="parcha-table">
             <thead>
               <tr>
-                <th>सामान विवरण</th>
-                <th>मात्रा</th>
-                <th>दर (₹)</th>
-                <th style="text-align: right;">रकम (₹)</th>
+                <th>Item Description</th>
+                <th>Qty</th>
+                <th>Rate (₹)</th>
+                <th style="text-align: right;">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
@@ -3669,9 +3631,9 @@
                 <table class="slip-table">
                   <thead>
                     <tr>
-                      <th style="text-align: left;">सामान</th>
-                      <th style="text-align: center;">नग</th>
-                      <th style="text-align: right;">रकम (₹)</th>
+                      <th style="text-align: left;">Item Description</th>
+                      <th style="text-align: center;">Qty</th>
+                      <th style="text-align: right;">Amount (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -6617,7 +6579,6 @@ async function submitOrder() {
 
     if (res.ok) {
       const data = await res.json();
-      lastOrderReceipt.value = data.order;
       if (data.user) {
         currentUser.value = data.user;
       } else if (currentUser.value && data.order) {
@@ -6633,6 +6594,11 @@ async function submitOrder() {
       fetchProducts();
       if (currentUser.value) {
         loadCustomerOrders();
+      }
+      if (data.order.payment_method && data.order.payment_method.toLowerCase().includes('upi')) {
+        openUpiPayForCustomerOrder(data.order);
+      } else {
+        lastOrderReceipt.value = data.order;
       }
     } else {
       const err = await res.json();

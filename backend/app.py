@@ -88,12 +88,24 @@ def send_admin_otp_email(to_email, otp):
             msg.attach(MIMEText(f"Your Komal Mart Admin 2FA Code is: {otp}. Valid for 5 minutes.", 'plain'))
             msg.attach(MIMEText(html_body, 'html'))
 
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=2.5)
+            # Attempt Port 465 SSL first (direct SSL avoids STARTTLS cloud timeout/blocking)
+            try:
+                server = smtplib.SMTP_SSL(SMTP_HOST, 465, timeout=7.0)
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(SMTP_USER, [to_email], msg.as_string())
+                server.quit()
+                print(f"[EMAIL SENT] Successfully sent 2FA OTP to {to_email} via Port 465 SSL")
+                return True, "Email dispatched successfully via SSL"
+            except Exception as e465:
+                print(f"[SMTP 465 SSL warning] {e465}, falling back to Port 587 STARTTLS...")
+
+            # Fallback to Port 587 STARTTLS
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=7.0)
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, [to_email], msg.as_string())
             server.quit()
-            print(f"[EMAIL SENT] Successfully sent 2FA OTP to {to_email}")
+            print(f"[EMAIL SENT] Successfully sent 2FA OTP to {to_email} via Port 587 STARTTLS")
             return True, "Email dispatched successfully"
         except Exception as e:
             print(f"[SMTP ERROR] Failed to send email to {to_email}: {e}")
@@ -847,6 +859,35 @@ def create_app():
         product = Product.query.get_or_404(product_id)
         return jsonify(product.to_dict())
 
+    def assign_unique_soundbox_paise(base_final_amount, order_number):
+        """
+        Guarantees 100% collision-free Soundbox payment announcements by assigning
+        a unique 2-digit paise suffix (11 to 99) not currently in use by any active
+        'Pending Verification' or unpaid UPI order for the same whole rupee amount.
+        """
+        base_rupees = int(base_final_amount)
+        active_pending = Order.query.filter(
+            Order.payment_status.in_(['Pending Verification', 'Unpaid']),
+            Order.payment_method.in_(['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR', 'UPI Instant'])
+        ).all()
+        occupied_paise = set()
+        for o in active_pending:
+            if int(o.final_amount) == base_rupees:
+                p = int(round((o.final_amount - int(o.final_amount)) * 100))
+                if p > 0:
+                    occupied_paise.add(p)
+
+        seq_match = re.search(r'\d+', order_number.split('-')[-1])
+        seq_val = int(seq_match.group()) if seq_match else random.randint(11, 99)
+        candidate_paise = (seq_val % 89) + 11
+
+        attempts = 0
+        while candidate_paise in occupied_paise and attempts < 89:
+            candidate_paise = ((candidate_paise - 10) % 89) + 11
+            attempts += 1
+
+        return round(base_rupees + (candidate_paise / 100.0), 2)
+
     # --- ORDER PLACEMENT (CUSTOMER & GUEST) ---
 
     @app.route('/api/orders', methods=['POST'])
@@ -985,16 +1026,10 @@ def create_app():
             user.wallet_balance = round((user.wallet_balance or 0.0) + credit_earned, 2)
 
         # Micro-Paisa Fingerprinting for UPI QR Orders
-        # If paying via UPI QR, add a unique 2-digit paise suffix (11 to 99) derived from the order sequence.
-        # This guarantees that if multiple customers place orders of identical amounts (e.g. ₹939), each order
-        # produces a 100% distinct Paytm Soundbox announcement (e.g. ₹939.14 vs ₹939.27 vs ₹939.58) and bank SMS,
-        # completely eliminating payment ambiguity between shop counter and admin laptop.
+        # If paying via UPI QR, assign an uncollided 2-digit paise suffix (11 to 99)
+        # guaranteed not in use by any active pending order for the same rupee total.
         if payment_method in ['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR']:
-            seq_match = re.search(r'\d+', order_number.split('-')[-1])
-            seq_val = int(seq_match.group()) if seq_match else random.randint(11, 99)
-            unique_paise = (seq_val % 89) + 11
-            base_rupees = int(final_amount)
-            final_amount = round(base_rupees + (unique_paise / 100.0), 2)
+            final_amount = assign_unique_soundbox_paise(final_amount, order_number)
 
         new_order = Order(
             order_number=order_number,
@@ -1533,6 +1568,10 @@ def create_app():
         # Store Credit is only credited to customer balance if payment is Paid/Received
         if linked_user and payment_status == 'Paid':
             linked_user.wallet_balance = round((linked_user.wallet_balance or 0.0) + credit_earned, 2)
+
+        # Micro-Paisa Fingerprinting for Counter POS UPI bills
+        if payment_method in ['UPI Instant', 'UPI / QR Code', 'UPI / QR']:
+            final_amount = assign_unique_soundbox_paise(final_amount, order_number)
 
         new_order = Order(
             order_number=order_number,
