@@ -56,8 +56,8 @@
       </div>
     </div>
 
-    <!-- Top Announcement Bar -->
-    <div class="top-announcement">
+    <!-- Top Announcement Bar (Hidden for Store Admin) -->
+    <div class="top-announcement" v-if="!isAdminLoggedIn">
       <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
         <span>🌾 <strong>{{ t('store_name_full') }}</strong> — {{ t('tagline_announcement') }}</span>
         <span style="display: inline-flex; align-items: center; gap: 6px;">🛵 {{ t('delivery_announcement') }}</span>
@@ -598,6 +598,7 @@
     <!-- ======================================================== -->
     <section class="main-layout" v-if="isAdminLoggedIn">
       <div class="admin-dashboard-card">
+        <div id="admin-tab-content-anchor"></div>
         <div class="admin-top-bar">
           <div class="admin-title-wrap">
             <h2 style="font-size: 1.45rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px; margin: 0;">
@@ -668,21 +669,21 @@
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'inventory' }"
-            @click="adminActiveTab = 'inventory'"
+            @click="switchAdminTab('inventory')"
           >
             📋 {{ t('admin_tab_inventory') }}
           </button>
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'pos' }"
-            @click="adminActiveTab = 'pos'; loadAdminCustomers();"
+            @click="switchAdminTab('pos')"
           >
             {{ t('admin_tab_pos') }}
           </button>
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'orders' }"
-            @click="loadAdminOrders"
+            @click="switchAdminTab('orders')"
           >
             🧾 {{ t('admin_tab_orders') }}
             <span v-if="unpaidAdminOrders.length > 0" class="tab-badge-danger" style="margin-left: 4px;">
@@ -692,7 +693,7 @@
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'customers' }"
-            @click="adminActiveTab = 'customers'; loadAdminCustomers();"
+            @click="switchAdminTab('customers')"
           >
             {{ t('admin_tab_customers') }}
             <span v-if="khataCustomersCount > 0" class="tab-badge-warning" style="margin-left: 4px;">
@@ -702,7 +703,7 @@
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'khata' }"
-            @click="adminActiveTab = 'khata'; loadAdminKhata();"
+            @click="switchAdminTab('khata')"
           >
             {{ t('admin_tab_khata') }}
             <span v-if="adminKhataSummary.total_market_udhaar > 0" class="tab-badge-danger" style="margin-left: 4px;">
@@ -712,14 +713,14 @@
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'zreport' }"
-            @click="adminActiveTab = 'zreport'; loadDailyZReport();"
+            @click="switchAdminTab('zreport')"
           >
             {{ t('admin_tab_zreport') }}
           </button>
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'restock' }"
-            @click="adminActiveTab = 'restock'; loadRestockAlerts();"
+            @click="switchAdminTab('restock')"
           >
             {{ t('admin_tab_restock') }}
             <span v-if="pendingRestockCount > 0" class="tab-badge-warning" style="margin-left: 4px;">
@@ -1016,7 +1017,7 @@
               </div>
 
               <!-- Order & Payment Type -->
-              <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="pos-type-grid">
                 <div class="pos-input-group">
                   <label class="pos-label">{{ currentLang === 'en' ? 'Order Type' : (currentLang === 'mr' ? 'ऑर्डर प्रकार' : 'ऑर्डर प्रकार') }}</label>
                   <select v-model="counterOrder.order_type" class="pos-select">
@@ -1426,7 +1427,7 @@
 
               <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 0.88rem; color: var(--text-main); flex-wrap: wrap; gap: 10px;">
                 <div>
-                  <strong>{{ currentLang === 'en' ? 'Customer:' : (currentLang === 'mr' ? 'ग्राहक:' : 'ग्राहक:') }}</strong> {{ ord.customer_name }} (📞 {{ ord.customer_phone }})<br />
+                  <strong>{{ currentLang === 'en' ? 'Customer:' : (currentLang === 'mr' ? 'ग्राहक:' : 'ग्राहक:') }}</strong> {{ ord.customer_name }} (<a :href="'tel:' + ord.customer_phone" class="phone-call-pill" title="Call Customer directly">📞 {{ ord.customer_phone }}</a>)<br />
                   <strong>{{ currentLang === 'en' ? 'Address:' : (currentLang === 'mr' ? 'पत्ता:' : 'पता:') }}</strong> {{ ord.customer_address }}
                 </div>
                 <div style="text-align: right;">
@@ -1443,8 +1444,16 @@
                 </span>
               </div>
 
-              <!-- Admin Action Buttons: View Full Invoice, Direct Print, WhatsApp -->
+              <!-- Admin Action Buttons: View Full Invoice, Direct Print, Call, WhatsApp -->
               <div class="admin-order-action-bar">
+                <a
+                  :href="'tel:' + ord.customer_phone"
+                  class="admin-action-btn"
+                  style="background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
+                  title="Call customer directly from phone"
+                >
+                  📞 {{ currentLang === 'en' ? 'Call' : 'कॉल' }}
+                </a>
                 <button
                   class="admin-action-btn view-bill-btn"
                   @click="viewOrderReceipt(ord)"
@@ -1465,12 +1474,34 @@
                 >
                   📥 PDF
                 </button>
-                <button
-                  class="admin-action-btn whatsapp-bill-btn"
-                  @click="shareOrderOnWhatsApp(ord)"
-                >
-                  {{ t('admin_whatsapp_direct') }}
-                </button>
+                
+                <!-- WhatsApp Status Menu -->
+                <div class="whatsapp-status-dropdown-wrap" style="position: relative;">
+                  <button
+                    type="button"
+                    class="admin-action-btn whatsapp-bill-btn"
+                    @click="toggleWhatsAppOrderMenu(ord.id)"
+                  >
+                    📲 WhatsApp ▾
+                  </button>
+                  <div v-if="activeWhatsAppOrderMenuId === ord.id" class="whatsapp-status-popover">
+                    <button type="button" @click="sendAdminWhatsAppStatus(ord, 'confirmed'); activeWhatsAppOrderMenuId = null">
+                      📦 {{ currentLang === 'en' ? 'Order Confirmed' : 'ऑर्डर कन्फर्म झाली' }}
+                    </button>
+                    <button type="button" @click="sendAdminWhatsAppStatus(ord, 'out_for_delivery'); activeWhatsAppOrderMenuId = null">
+                      🛵 {{ currentLang === 'en' ? 'Out for Delivery' : 'डिलिव्हरी निघाली' }}
+                    </button>
+                    <button type="button" @click="sendAdminWhatsAppStatus(ord, 'delivered'); activeWhatsAppOrderMenuId = null">
+                      ✅ {{ currentLang === 'en' ? 'Delivered' : 'डिलिव्हरी पूर्ण झाली' }}
+                    </button>
+                    <button type="button" @click="sendAdminWhatsAppStatus(ord, 'verified'); activeWhatsAppOrderMenuId = null" v-if="ord.payment_status === 'Paid'">
+                      🟢 {{ currentLang === 'en' ? 'Payment Verified' : 'पेमेंट पडताळणी झाली' }}
+                    </button>
+                    <button type="button" @click="shareOrderOnWhatsApp(ord); activeWhatsAppOrderMenuId = null" style="border-top: 1px solid #e2e8f0; font-weight: 800; color: #064e3b;">
+                      📄 {{ t('admin_whatsapp_direct') }} (Full Bill)
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1521,8 +1552,8 @@
             </span>
           </div>
 
-          <!-- Customers Table -->
-          <div class="admin-table-wrap" style="margin-top: 14px;">
+          <!-- Customers Table (Desktop / PC View) -->
+          <div class="admin-table-wrap desktop-table-view" style="margin-top: 14px;">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -1547,7 +1578,11 @@
                     <strong>{{ c.name }}</strong>
                     <div style="font-size: 0.76rem; color: var(--text-subtle);">{{ c.email }}</div>
                   </td>
-                  <td>📞 {{ c.phone }}</td>
+                  <td>
+                    <a :href="'tel:' + c.phone" class="phone-call-pill" title="Click to call customer">
+                      📞 {{ c.phone }}
+                    </a>
+                  </td>
                   <td>{{ c.created_at }}</td>
                   <td><strong>{{ c.total_orders }}</strong></td>
                   <td><strong>₹{{ c.total_spent }}</strong></td>
@@ -1573,6 +1608,78 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Customer Directory Cards (Phone Screens <= 768px) -->
+          <div class="admin-mobile-customer-list">
+            <div v-if="filteredAdminCustomers.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+              {{ currentLang === 'en' ? 'No customers found.' : (currentLang === 'mr' ? 'कोणताही ग्राहक सापडला नाही.' : 'कोई ग्राहक नहीं मिला।') }}
+            </div>
+            <div
+              v-for="c in filteredAdminCustomers"
+              :key="'mob-cust-' + c.id"
+              class="admin-mob-item-card"
+            >
+              <div class="admin-mob-card-head">
+                <div>
+                  <div class="admin-mob-name">{{ c.name }}</div>
+                  <div style="font-size: 0.74rem; color: var(--text-muted);">{{ c.email || 'Mobile Account' }} • Joined {{ c.created_at }}</div>
+                </div>
+                <div>
+                  <span v-if="c.unpaid_balance > 0" class="cust-balance-danger">
+                    🔴 ₹{{ c.unpaid_balance }} Due
+                  </span>
+                  <span v-else class="cust-balance-success">
+                    🟢 Settled
+                  </span>
+                </div>
+              </div>
+
+              <!-- Stats Pill Grid -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0; background: #f8fafc; padding: 8px 10px; border-radius: 8px;">
+                <div style="font-size: 0.78rem;">
+                  <span style="color: var(--text-muted); display: block;">Orders:</span>
+                  <strong>{{ c.total_orders }}</strong>
+                </div>
+                <div style="font-size: 0.78rem;">
+                  <span style="color: var(--text-muted); display: block;">Spent:</span>
+                  <strong>₹{{ c.total_spent }}</strong>
+                </div>
+                <div style="font-size: 0.78rem;">
+                  <span style="color: var(--text-muted); display: block;">Credit:</span>
+                  <strong style="color: #047857;">₹{{ (c.wallet_balance || 0).toFixed(2) }}</strong>
+                </div>
+              </div>
+
+              <!-- Mobile Actions Bar: 1-Tap Call, Past Bills & Settle -->
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a
+                  :href="'tel:' + c.phone"
+                  class="admin-action-btn"
+                  style="flex: 1; min-width: 130px; background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px;"
+                  title="Call Customer"
+                >
+                  📞 {{ currentLang === 'en' ? 'Call' : 'कॉल' }} ({{ c.phone }})
+                </a>
+                <button
+                  type="button"
+                  @click="openCustomerAudit(c)"
+                  class="admin-action-btn"
+                  style="flex: 1; min-width: 120px; background: #065f46; color: white; border: none; font-weight: 800; padding: 8px;"
+                >
+                  🧾 {{ currentLang === 'en' ? 'Past Bills' : (currentLang === 'mr' ? 'जुनी बिले' : 'पुराने बिल') }}
+                </button>
+                <button
+                  v-if="c.unpaid_balance > 0"
+                  type="button"
+                  @click="openKhataPayForCustomer(c)"
+                  class="admin-action-btn"
+                  style="background: #ecfdf5; border-color: #86efac; color: #047857; font-weight: 800; padding: 8px 12px;"
+                >
+                  💰 {{ currentLang === 'en' ? 'Settle' : 'जमा' }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1621,8 +1728,8 @@
             </button>
           </div>
 
-          <!-- Khata Table -->
-          <div class="admin-table-wrap" style="margin-top: 14px;">
+          <!-- Khata Table (Desktop / PC View) -->
+          <div class="admin-table-wrap desktop-table-view" style="margin-top: 14px;">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -1645,7 +1752,11 @@
                     <strong>{{ c.customer_name }}</strong>
                     <div v-if="c.customer_address" style="font-size: 0.74rem; color: var(--text-subtle);">📍 {{ c.customer_address }}</div>
                   </td>
-                  <td>📞 {{ c.customer_phone }}</td>
+                  <td>
+                    <a :href="'tel:' + c.customer_phone" class="phone-call-pill" title="Click to call customer">
+                      📞 {{ c.customer_phone }}
+                    </a>
+                  </td>
                   <td>
                     <span class="status-badge unpaid" style="font-size: 0.76rem;">
                       {{ c.unpaid_orders.length }} {{ t('admin_khata_bills_due_suffix') }}
@@ -1688,6 +1799,72 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Khata Cards (Phone Screens <= 768px) -->
+          <div class="admin-mobile-khata-list">
+            <div v-if="filteredKhataList.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+              {{ khataLoading ? 'Loading ledger...' : 'Zero dues outstanding! All bills are settled. 🎉' }}
+            </div>
+            <div
+              v-for="c in filteredKhataList"
+              :key="'mob-khata-' + c.customer_phone"
+              class="admin-mob-item-card"
+            >
+              <div class="admin-mob-card-head">
+                <div>
+                  <div class="admin-mob-name">{{ c.customer_name }}</div>
+                  <div style="font-size: 0.74rem; color: var(--text-muted);" v-if="c.customer_address">📍 {{ c.customer_address }}</div>
+                  <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                    Last bill: {{ c.last_order_date }} • {{ c.unpaid_orders.length }} bills due
+                  </div>
+                </div>
+                <div style="text-align: right;">
+                  <span style="font-size: 0.72rem; color: #991b1b; font-weight: 700; display: block;">Net Due</span>
+                  <strong style="color: #dc2626; font-size: 1.25rem; font-weight: 900;">
+                    ₹{{ c.net_balance_due }}
+                  </strong>
+                </div>
+              </div>
+
+              <!-- Mobile Actions: 1-Tap Call, Pay, WhatsApp Reminder & Statement -->
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a
+                  :href="'tel:' + c.customer_phone"
+                  class="admin-action-btn"
+                  style="flex: 1; min-width: 125px; background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px;"
+                  title="Call Customer"
+                >
+                  📞 {{ currentLang === 'en' ? 'Call' : 'कॉल' }} ({{ c.customer_phone }})
+                </a>
+                <button
+                  type="button"
+                  @click="openKhataPay(c)"
+                  class="admin-action-btn"
+                  style="background: #059669; color: white; border: none; font-weight: 800; padding: 8px 12px;"
+                >
+                  💰 {{ t('admin_khata_btn_pay') }}
+                </button>
+                <button
+                  type="button"
+                  @click="sendKhataWhatsAppReminder(c)"
+                  class="admin-action-btn"
+                  style="background: #25d366; color: white; border: none; font-weight: 800; padding: 8px 10px;"
+                  title="WhatsApp Reminder"
+                >
+                  📲 {{ t('admin_khata_btn_remind') }}
+                </button>
+                <button
+                  type="button"
+                  @click="openKhataStatement(c.customer_phone)"
+                  class="admin-action-btn"
+                  style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 700; padding: 8px 10px;"
+                  title="View Statement"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2035,7 +2212,7 @@
               👥 {{ activeAuditedCustomer.name }} — {{ currentLang === 'en' ? 'Purchase History & Past Bills' : (currentLang === 'mr' ? 'खरेदी इतिहास व जुनी बिले' : 'खरीदारी इतिहास व पुराने बिल') }}
             </h3>
             <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-              📞 {{ activeAuditedCustomer.phone }} | ✉️ {{ activeAuditedCustomer.email || (currentLang === 'en' ? 'No email registered' : (currentLang === 'mr' ? 'ईमेल नोंदवलेला नाही' : 'ईमेल दर्ज नहीं')) }} | 📍 {{ activeAuditedCustomer.address || (currentLang === 'en' ? 'No address registered' : (currentLang === 'mr' ? 'पत्ता नोंदवलेला नाही' : 'पता दर्ज नहीं')) }}
+              <a :href="'tel:' + activeAuditedCustomer.phone" class="phone-call-pill" title="Click to call customer">📞 {{ activeAuditedCustomer.phone }}</a> | ✉️ {{ activeAuditedCustomer.email || (currentLang === 'en' ? 'No email registered' : (currentLang === 'mr' ? 'ईमेल नोंदवलेला नाही' : 'ईमेल दर्ज नहीं')) }} | 📍 {{ activeAuditedCustomer.address || (currentLang === 'en' ? 'No address registered' : (currentLang === 'mr' ? 'पत्ता नोंदवलेला नाही' : 'पता दर्ज नहीं')) }}
             </div>
           </div>
           <button class="close-btn" @click="activeAuditedCustomer = null">✕</button>
@@ -2256,7 +2433,7 @@
               📒 {{ activeKhataStatement?.customer_name }} — {{ currentLang === 'en' ? 'Khata Ledger Statement' : (currentLang === 'mr' ? 'खाते बही स्टेटमेंट' : 'खाता बही स्टेटमेंट') }}
             </h3>
             <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-              📞 {{ activeKhataStatement?.customer_phone }} | {{ currentLang === 'en' ? 'Total Due:' : (currentLang === 'mr' ? 'एकूण बाकी:' : 'कुल बकाया:') }} <strong style="color: #dc2626;">₹{{ activeKhataStatement?.unpaid_total }}</strong> | {{ currentLang === 'en' ? 'Total Paid:' : (currentLang === 'mr' ? 'एकूण भरलेली रक्कम:' : 'कुल भुगतान:') }} <strong style="color: #059669;">₹{{ activeKhataStatement?.paid_total }}</strong>
+              <a :href="'tel:' + activeKhataStatement?.customer_phone" class="phone-call-pill" title="Click to call customer">📞 {{ activeKhataStatement?.customer_phone }}</a> | {{ currentLang === 'en' ? 'Total Due:' : (currentLang === 'mr' ? 'एकूण बाकी:' : 'कुल बकाया:') }} <strong style="color: #dc2626;">₹{{ activeKhataStatement?.unpaid_total }}</strong> | {{ currentLang === 'en' ? 'Total Paid:' : (currentLang === 'mr' ? 'एकूण भरलेली रक्कम:' : 'कुल भुगतान:') }} <strong style="color: #059669;">₹{{ activeKhataStatement?.paid_total }}</strong>
             </div>
           </div>
           <button class="close-btn" @click="showKhataStatementModal = false">✕</button>
@@ -4122,6 +4299,15 @@
           >
             ✅ {{ currentLang === 'en' ? 'Submit for Verification' : (currentLang === 'mr' ? 'पडताळणीसाठी सबमिट करा' : 'सत्यापन के लिए सबमिट करें') }}
           </button>
+
+          <button
+            type="button"
+            class="checkout-btn"
+            style="background: #25d366; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;"
+            @click="sendCustomerUpiProofWhatsApp(pendingUpiOrder)"
+          >
+            📲 {{ currentLang === 'en' ? 'Send Payment Confirmation on WhatsApp (1-Tap)' : (currentLang === 'mr' ? 'WhatsApp वर पेमेंट पावती पाठवा (१-टॅप)' : 'WhatsApp पर पेमेंट पर्ची भेजें (१-टैप)') }}
+          </button>
         </div>
       </div>
     </div>
@@ -4656,7 +4842,7 @@
       <button
         class="bottom-nav-item"
         :class="{ active: adminActiveTab === 'inventory' }"
-        @click="adminActiveTab = 'inventory'"
+        @click="switchAdminTab('inventory')"
       >
         <span class="bottom-nav-icon">📋</span>
         <span class="bottom-nav-label">{{ t('admin_tab_inventory') }}</span>
@@ -4665,7 +4851,7 @@
       <button
         class="bottom-nav-item"
         :class="{ active: adminActiveTab === 'pos' }"
-        @click="adminActiveTab = 'pos'; loadAdminCustomers();"
+        @click="switchAdminTab('pos')"
       >
         <span class="bottom-nav-icon">⚡</span>
         <span class="bottom-nav-label">POS</span>
@@ -4674,7 +4860,7 @@
       <button
         class="bottom-nav-item"
         :class="{ active: adminActiveTab === 'orders' }"
-        @click="loadAdminOrders"
+        @click="switchAdminTab('orders')"
       >
         <div class="bottom-nav-cart-icon-wrapper">
           <span class="bottom-nav-icon">🧾</span>
@@ -4691,7 +4877,7 @@
       <button
         class="bottom-nav-item"
         :class="{ active: adminActiveTab === 'customers' }"
-        @click="adminActiveTab = 'customers'; loadAdminCustomers();"
+        @click="switchAdminTab('customers')"
       >
         <div class="bottom-nav-cart-icon-wrapper">
           <span class="bottom-nav-icon">👥</span>
@@ -4705,7 +4891,7 @@
       <button
         class="bottom-nav-item"
         :class="{ active: adminActiveTab === 'khata' }"
-        @click="adminActiveTab = 'khata'; loadAdminKhata();"
+        @click="switchAdminTab('khata')"
       >
         <div class="bottom-nav-cart-icon-wrapper">
           <span class="bottom-nav-icon">📒</span>
@@ -7153,6 +7339,85 @@ ${billsText}
   window.open(url, '_blank');
 }
 
+function openKhataPayForCustomer(c) {
+  if (!c) return;
+  openKhataPay({
+    customer_phone: c.phone,
+    customer_name: c.name || 'Customer',
+    net_balance_due: c.unpaid_balance || 0
+  });
+}
+
+// WhatsApp Order Status Dispatch & Customer UPI Confirmation State & Actions
+const activeWhatsAppOrderMenuId = ref(null);
+
+function toggleWhatsAppOrderMenu(orderId) {
+  activeWhatsAppOrderMenuId.value = activeWhatsAppOrderMenuId.value === orderId ? null : orderId;
+}
+
+function sendAdminWhatsAppStatus(order, statusType) {
+  if (!order || !order.customer_phone) {
+    showToast(currentLang.value === 'en' ? 'Customer phone not available' : 'ग्राहक संपर्क क्रमांक उपलब्ध नाही', 'error');
+    return;
+  }
+  let rawPhone = String(order.customer_phone).replace(/\D/g, '');
+  if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+  const custName = order.customer_name || 'Customer';
+  const orderNum = order.order_number || ('KM-' + order.id);
+  const amount = Number(order.final_amount || 0).toFixed(2);
+
+  let msg = '';
+  if (statusType === 'confirmed') {
+    msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (98765-43210)`;
+  } else if (statusType === 'out_for_delivery') {
+    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता के लिए कॉल करें: 98765-43210. धन्यवाद! 🙏`;
+  } else if (statusType === 'delivered') {
+    msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
+  } else if (statusType === 'verified') {
+    msg = `नमस्ते ${custName} जी, आपके ऑर्डर #${orderNum} का UPI पेमेंट (₹${amount}) सफलतापूर्वक वेरिफाई हो गया है! ✅\nऑर्डर डिलीवरी के लिए तैयार किया जा रहा है। धन्यवाद! 🙏\n- कोमल मार्ट`;
+  } else {
+    msg = `नमस्ते ${custName} जी, आपके कोमल मार्ट ऑर्डर #${orderNum} का स्टेटस अपडेट: ठीक है।`;
+  }
+
+  const url = `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function sendCustomerUpiProofWhatsApp(order) {
+  if (!order) return;
+  const storePhone = '919876543210';
+  const orderNum = order.order_number || ('KM-' + order.id);
+  const amount = Number(order.final_amount || 0).toFixed(2);
+  const name = order.customer_name || currentUser.value?.name || 'Customer';
+  const phone = order.customer_phone || currentUser.value?.phone || '';
+
+  const msg = `नमस्ते कोमल मार्ट! 🙏\nमैंने ऑर्डर #${orderNum} के लिए ₹${amount} का UPI पेमेंट कर दिया है।\n\n👤 ग्राहक: ${name}\n📱 मोबाइल: ${phone}\n💰 भुगतान राशि: ₹${amount}\n\nकृपया पेमेंट वेरिफाई करके मेरा ऑर्डर कन्फर्म करें। धन्यवाद!`;
+
+  const url = `https://wa.me/${storePhone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function switchAdminTab(tabName) {
+  adminActiveTab.value = tabName;
+  if (tabName === 'pos' || tabName === 'customers') {
+    loadAdminCustomers();
+  } else if (tabName === 'khata') {
+    loadAdminKhata();
+  } else if (tabName === 'orders') {
+    loadAdminOrders();
+  } else if (tabName === 'zreport') {
+    loadDailyZReport();
+  } else if (tabName === 'restock') {
+    loadRestockAlerts();
+  }
+  nextTick(() => {
+    const anchor = document.getElementById('admin-tab-content-anchor');
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+}
+
 async function loadCustomerKhata() {
   if (!authToken.value) return;
   customerKhataLoading.value = true;
@@ -7170,8 +7435,10 @@ async function loadCustomerKhata() {
   }
 }
 
-async function loadAdminOrders() {
-  adminActiveTab.value = 'orders';
+async function loadAdminOrders(shouldSwitchTab = false) {
+  if (shouldSwitchTab) {
+    adminActiveTab.value = 'orders';
+  }
   try {
     const res = await fetch(`${API_BASE}/admin/orders`, {
       headers: { 'Authorization': `Bearer ${authToken.value}` }

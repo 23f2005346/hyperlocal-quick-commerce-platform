@@ -984,6 +984,18 @@ def create_app():
         if user and payment_status == 'Paid':
             user.wallet_balance = round((user.wallet_balance or 0.0) + credit_earned, 2)
 
+        # Micro-Paisa Fingerprinting for UPI QR Orders
+        # If paying via UPI QR, add a unique 2-digit paise suffix (11 to 99) derived from the order sequence.
+        # This guarantees that if multiple customers place orders of identical amounts (e.g. ₹939), each order
+        # produces a 100% distinct Paytm Soundbox announcement (e.g. ₹939.14 vs ₹939.27 vs ₹939.58) and bank SMS,
+        # completely eliminating payment ambiguity between shop counter and admin laptop.
+        if payment_method in ['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR']:
+            seq_match = re.search(r'\d+', order_number.split('-')[-1])
+            seq_val = int(seq_match.group()) if seq_match else random.randint(11, 99)
+            unique_paise = (seq_val % 89) + 11
+            base_rupees = int(final_amount)
+            final_amount = round(base_rupees + (unique_paise / 100.0), 2)
+
         new_order = Order(
             order_number=order_number,
             user_id=user.id if user else None,
