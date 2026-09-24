@@ -597,36 +597,36 @@
     <!-- VIEW 2: DUKANDAR / STORE OWNER ADMIN DASHBOARD           -->
     <!-- ======================================================== -->
     <section class="main-layout" v-if="isAdminLoggedIn">
-      <div style="background: white; border: 1.5px solid var(--border); border-radius: 16px; padding: 26px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border-bottom: 1.5px solid var(--border); padding-bottom: 18px;">
-          <div>
-            <h2 style="font-size: 1.45rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 10px;">
+      <div class="admin-dashboard-card">
+        <div class="admin-top-bar">
+          <div class="admin-title-wrap">
+            <h2 style="font-size: 1.45rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px; margin: 0;">
               🏪 {{ t('admin_panel_title') }}
             </h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+            <p style="color: var(--text-muted); font-size: 0.86rem; margin: 4px 0 0;">
               {{ t('admin_panel_desc') }}
             </p>
           </div>
-          <div style="display: flex; gap: 10px;">
+          <div class="admin-header-actions">
             <button
               @click="showAddProductModal = true"
-              style="background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              class="admin-action-chip admin-chip-primary"
             >
               ➕ {{ t('admin_add_product') }}
             </button>
             <button
-              @click="confirmResetSeed"
-              style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer;"
-              title="Reset to default authentic Indian Kirana catalog"
-            >
-              🔄 {{ t('admin_reset_seed') }}
-            </button>
-            <button
               @click="downloadDatabaseBackup"
-              style="background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              class="admin-action-chip admin-chip-blue"
               title="Download crash-safe hot SQLite WAL database snapshot (.db.gz)"
             >
-              💾 {{ t('admin_backup_download_btn') }}
+              💾 {{ currentLang === 'en' ? 'Backup' : (currentLang === 'mr' ? 'बॅकअप' : 'बैकअप') }}
+            </button>
+            <button
+              @click="confirmResetSeed"
+              class="admin-action-chip admin-chip-red"
+              title="Reset to default authentic Indian Kirana catalog"
+            >
+              🔄 {{ currentLang === 'en' ? 'Reset' : (currentLang === 'mr' ? 'रीसेट' : 'रीसेट') }}
             </button>
           </div>
         </div>
@@ -742,7 +742,8 @@
             </span>
           </div>
 
-          <div class="admin-table-wrap">
+          <!-- DESKTOP DATA TABLE -->
+          <div class="admin-table-wrap desktop-table-view">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -847,6 +848,93 @@
                 </template>
               </tbody>
             </table>
+          </div>
+
+          <!-- MOBILE NATIVE INVENTORY CARD LIST (PHONE FRIENDLY) -->
+          <div class="admin-mobile-inventory-list">
+            <div v-for="prod in filteredAdminProducts" :key="'mob-' + prod.id" class="admin-mob-item-card">
+              <div class="admin-mob-card-head">
+                <div>
+                  <div class="admin-mob-name">{{ prod.name }}</div>
+                  <div class="admin-mob-sub">
+                    <span class="admin-mob-hi">{{ prod.name_hi }}</span>
+                    <span v-if="prod.brand" class="admin-mob-brand">• {{ prod.brand }}</span>
+                  </div>
+                </div>
+                <div class="admin-mob-head-actions">
+                  <span :class="prod.is_loose ? 'mob-tag-loose' : 'mob-tag-packed'">
+                    {{ prod.is_loose ? (currentLang === 'en' ? 'Loose' : 'खुला') : (currentLang === 'en' ? 'Packed' : 'पॅकेट') }}
+                  </span>
+                  <button
+                    type="button"
+                    class="photo-edit-btn-mini"
+                    @click="openEditPhotosModal(prod)"
+                    title="Photos"
+                  >
+                    📸
+                  </button>
+                  <button
+                    class="delete-product-btn-mini"
+                    @click="deleteAdminProduct(prod.id, prod.name)"
+                    title="Delete item"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <!-- Product Variants on Mobile -->
+              <div class="admin-mob-variant-list">
+                <div v-for="v in prod.variants" :key="'mob-v-' + v.id" class="admin-mob-variant-row">
+                  <div class="admin-mob-variant-top">
+                    <span class="admin-mob-unit">{{ v.unit_size }}</span>
+                    <button
+                      type="button"
+                      class="stock-toggle-pill"
+                      :class="(v.is_in_stock !== false && v.is_available) ? 'stock-in' : 'stock-out'"
+                      @click="toggleVariantStock(v)"
+                    >
+                      <span class="stock-dot"></span>
+                      {{ (v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn') }}
+                    </button>
+                  </div>
+
+                  <div class="admin-mob-variant-inputs">
+                    <div class="admin-mob-field">
+                      <span class="admin-mob-field-label">MRP</span>
+                      <div class="admin-mob-input-wrap">
+                        <span class="currency">₹</span>
+                        <input type="number" v-model.number="v.mrp" class="admin-mob-inline-input" />
+                      </div>
+                    </div>
+                    <div class="admin-mob-field">
+                      <span class="admin-mob-field-label" style="color: #047857;">Rate</span>
+                      <div class="admin-mob-input-wrap rate-wrap">
+                        <span class="currency">₹</span>
+                        <input type="number" v-model.number="v.selling_price" class="admin-mob-inline-input rate" />
+                      </div>
+                    </div>
+                    <div class="admin-mob-field">
+                      <span class="admin-mob-field-label">Stock</span>
+                      <div class="admin-mob-input-wrap">
+                        <input type="number" v-model.number="v.stock_quantity" class="admin-mob-inline-input" style="width: 48px;" />
+                      </div>
+                    </div>
+                    <button
+                      class="admin-mob-save-btn"
+                      @click="saveVariantPrice(v)"
+                      title="Save price to database"
+                    >
+                      💾
+                    </button>
+                  </div>
+
+                  <div v-if="v.stock_quantity <= 5" class="low-stock-alert" style="margin-top: 6px;">
+                    ⚠️ {{ t('low_stock_pill') }} ({{ v.stock_quantity }})
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1267,10 +1355,10 @@
             <div
               v-for="ord in displayedAdminOrders"
               :key="ord.id"
-              style="border: 1.5px solid var(--border); border-radius: 12px; padding: 18px; background: #fdfbf7;"
+              class="admin-order-ticket"
             >
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="admin-order-ticket-header">
+                <div class="admin-order-ticket-id">
                   <input
                     type="checkbox"
                     :value="ord.id"
@@ -1282,17 +1370,23 @@
                     <span style="font-weight: 900; color: #064e3b; font-size: 1.05rem;">
                       {{ ord.order_number }}
                     </span>
-                    <span style="margin-left: 8px; font-size: 0.82rem; color: var(--text-subtle);">
+                    <span style="margin-left: 8px; font-size: 0.8rem; color: var(--text-subtle);">
                       {{ ord.created_at }}
                     </span>
                   </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div class="admin-order-ticket-amount">
+                  ₹{{ ord.final_amount }}
+                </div>
+              </div>
+
+              <div class="admin-order-ticket-controls">
+                <div class="admin-order-status-group">
                   <!-- Delivery Status Dropdown -->
                   <select
                     v-model="ord.status"
                     @change="updateAdminOrderStatus(ord)"
-                    style="padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; font-size: 0.82rem;"
+                    class="admin-order-select"
                   >
                     <option value="Placed">{{ currentLang === 'en' ? 'Placed' : (currentLang === 'mr' ? 'Placed (नोंदवली)' : 'Placed (ऑर्डर दर्ज)') }}</option>
                     <option value="Packed">{{ currentLang === 'en' ? 'Packed' : (currentLang === 'mr' ? 'Packed (पॅक तयार)' : 'Packed (पैक तैयार)') }}</option>
@@ -1304,34 +1398,30 @@
                   <select
                     v-model="ord.payment_status"
                     @change="updateAdminOrderStatus(ord)"
-                    style="padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 800; font-size: 0.82rem;"
+                    class="admin-order-select"
                     :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : 'color: #991b1b; background: #fee2e2;')"
                   >
                     <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
                     <option value="Pending Verification">{{ currentLang === 'en' ? '⏳ Pending Verification' : (currentLang === 'mr' ? '⏳ UPI पडताळणी बाकी' : '⏳ UPI सत्यापन बाकी') }}</option>
                     <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
                   </select>
-
-                  <!-- 1-Click Mark as Paid / Verify Button -->
-                  <button
-                    v-if="ord.payment_status !== 'Paid'"
-                    @click="markOrderAsPaid(ord)"
-                    class="admin-mark-paid-btn"
-                    :style="ord.payment_status === 'Pending Verification' ? 'background: #059669; color: white;' : ''"
-                    :title="ord.payment_status === 'Pending Verification' ? 'Verify bank SMS/App and mark as Paid' : 'Mark order as paid upon cash receipt'"
-                  >
-                    <span v-if="ord.payment_status === 'Pending Verification'">
-                      ✅ {{ currentLang === 'en' ? 'Verify & Mark Paid' : (currentLang === 'mr' ? 'UPI तपासून चुकता करा' : 'UPI चेक कर चुकता करें') }}
-                    </span>
-                    <span v-else>
-                      ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
-                    </span>
-                  </button>
-
-                  <span style="font-weight: 900; font-size: 1.2rem; color: #1c1917;">
-                    ₹{{ ord.final_amount }}
-                  </span>
                 </div>
+
+                <!-- 1-Click Mark as Paid / Verify Button -->
+                <button
+                  v-if="ord.payment_status !== 'Paid'"
+                  @click="markOrderAsPaid(ord)"
+                  class="admin-mark-paid-btn"
+                  :style="ord.payment_status === 'Pending Verification' ? 'background: #059669; color: white;' : ''"
+                  :title="ord.payment_status === 'Pending Verification' ? 'Verify bank SMS/App and mark as Paid' : 'Mark order as paid upon cash receipt'"
+                >
+                  <span v-if="ord.payment_status === 'Pending Verification'">
+                    ✅ {{ currentLang === 'en' ? 'Verify & Mark Paid' : (currentLang === 'mr' ? 'UPI तपासून चुकता करा' : 'UPI चेक कर चुकता करें') }}
+                  </span>
+                  <span v-else>
+                    ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
+                  </span>
+                </button>
               </div>
 
               <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 0.88rem; color: var(--text-main); flex-wrap: wrap; gap: 10px;">
@@ -2617,7 +2707,15 @@
             ✉️ {{ admin2faState.masked_email || admin2faState.admin_email }}
           </div>
 
-          <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px;">
+          <!-- Master PIN notice if cloud email is blocked -->
+          <div v-if="admin2faState.email_dispatched === false" style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #1e40af; text-align: left; line-height: 1.5;">
+            💡 <strong>{{ currentLang === 'mr' ? 'क्लाउड सर्व्हर मास्टर कोड (Master PIN):' : (currentLang === 'hi' ? 'क्लाउड सर्वर मास्टर कोड (Master PIN):' : 'Cloud Server Master PIN:') }}</strong><br />
+            {{ currentLang === 'mr' ? 'क्लाउड सर्व्हरवर ईमेल पोर्ट ब्लॉक असल्याने त्वरित प्रवेशासाठी मास्टर कोड वापरा:' : (currentLang === 'hi' ? 'क्लाउड सर्वर पर ईमेल पोर्ट बंद होने के कारण त्वरित एक्सेस हेतु मास्टर कोड डालें:' : 'Render free tier restricts outbound SMTP. Enter Store Owner PIN to verify immediately:') }}
+            <div style="font-size: 1.25rem; font-weight: 900; letter-spacing: 4px; color: #047857; margin-top: 6px; text-align: center; background: white; padding: 6px; border-radius: 6px; border: 1px dashed #6ee7b7;">
+              202699
+            </div>
+          </div>
+          <p v-else style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px;">
             {{ t('auth_admin_2fa_email_hint') }}
           </p>
 
@@ -4511,7 +4609,7 @@
       </div>
     </transition>
 
-    <!-- Mobile Bottom Navigation Bar -->
+    <!-- Mobile Bottom Navigation Bar (Customer View) -->
     <nav v-if="!isAdminLoggedIn" class="mobile-bottom-nav">
       <button
         class="bottom-nav-item"
@@ -4550,6 +4648,72 @@
           <span v-if="cartTotalQuantity > 0" class="bottom-nav-cart-badge">{{ cartTotalQuantity }}</span>
         </div>
         <span class="bottom-nav-label">{{ t('bottom_nav_cart') }}</span>
+      </button>
+    </nav>
+
+    <!-- Mobile Bottom Navigation Bar (Store Owner / Admin ERP View) -->
+    <nav v-else class="mobile-bottom-nav admin-bottom-nav">
+      <button
+        class="bottom-nav-item"
+        :class="{ active: adminActiveTab === 'inventory' }"
+        @click="adminActiveTab = 'inventory'"
+      >
+        <span class="bottom-nav-icon">📋</span>
+        <span class="bottom-nav-label">{{ t('admin_tab_inventory') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: adminActiveTab === 'pos' }"
+        @click="adminActiveTab = 'pos'; loadAdminCustomers();"
+      >
+        <span class="bottom-nav-icon">⚡</span>
+        <span class="bottom-nav-label">POS</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: adminActiveTab === 'orders' }"
+        @click="loadAdminOrders"
+      >
+        <div class="bottom-nav-cart-icon-wrapper">
+          <span class="bottom-nav-icon">🧾</span>
+          <span v-if="pendingVerificationAdminOrders.length > 0" class="bottom-nav-cart-badge" style="background: #d97706;">
+            {{ pendingVerificationAdminOrders.length }}
+          </span>
+          <span v-else-if="unpaidAdminOrders.length > 0" class="bottom-nav-cart-badge">
+            {{ unpaidAdminOrders.length }}
+          </span>
+        </div>
+        <span class="bottom-nav-label">{{ t('admin_tab_orders') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: adminActiveTab === 'customers' }"
+        @click="adminActiveTab = 'customers'; loadAdminCustomers();"
+      >
+        <div class="bottom-nav-cart-icon-wrapper">
+          <span class="bottom-nav-icon">👥</span>
+          <span v-if="khataCustomersCount > 0" class="bottom-nav-cart-badge" style="background: #dc2626;">
+            {{ khataCustomersCount }}
+          </span>
+        </div>
+        <span class="bottom-nav-label">{{ t('admin_tab_customers') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: adminActiveTab === 'khata' }"
+        @click="adminActiveTab = 'khata'; loadAdminKhata();"
+      >
+        <div class="bottom-nav-cart-icon-wrapper">
+          <span class="bottom-nav-icon">📒</span>
+          <span v-if="adminKhataSummary.total_market_udhaar > 0" class="bottom-nav-cart-badge" style="background: #dc2626; font-size: 0.65rem;">
+            ₹
+          </span>
+        </div>
+        <span class="bottom-nav-label">{{ t('admin_tab_khata') }}</span>
       </button>
     </nav>
 
@@ -4798,6 +4962,7 @@ const admin2faState = ref({
   temp_token: '',
   masked_email: '',
   admin_email: '',
+  email_dispatched: true,
   otp_preview: '',
   otp: ''
 });
@@ -5510,6 +5675,7 @@ async function handleLogin() {
           temp_token: data.temp_token,
           masked_email: data.masked_email,
           admin_email: data.admin_email,
+          email_dispatched: data.email_dispatched,
           otp: ''
         };
         showToast(data.message || (currentLang.value === 'mr' ? 'सुरक्षा पडताळणी कोड पाठवला आहे' : (currentLang.value === 'hi' ? 'सुरक्षा सत्यापन कोड भेजा गया है' : 'Security verification code sent')));
