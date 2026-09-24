@@ -177,7 +177,7 @@
             </button>
 
             <!-- PWA Install Button in Header -->
-            <button v-if="canInstallPWA && !isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')">
+            <button v-if="!isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')">
               📲 <span>{{ t('pwa_install_btn') }}</span>
             </button>
 
@@ -3070,7 +3070,7 @@
 
             <!-- Mobile 1-Tap Pay Direct App Link -->
             <a
-              :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Komal%20Mart&am=${finalPayableAmount}&cu=INR&tn=KomalMart_Order`"
+              :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Raushan%20Raj&am=${finalPayableAmount}&cu=INR&tn=KomalMart_Order`"
               class="upi-intent-app-btn"
             >
               {{ t('upi_app_pay_btn') }}
@@ -3947,7 +3947,7 @@
 
           <!-- Mobile 1-Tap Pay Direct App Link -->
           <a
-            :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Komal%20Mart&am=${pendingUpiOrder.final_amount}&cu=INR&tn=KomalMart_${pendingUpiOrder.order_number}`"
+            :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Raushan%20Raj&am=${pendingUpiOrder.final_amount}&cu=INR&tn=KomalMart_${pendingUpiOrder.order_number}`"
             class="upi-intent-app-btn"
           >
             {{ t('upi_app_pay_btn') }}
@@ -4094,7 +4094,7 @@
     <!-- MONTHLY RATION CHECKLIST MODAL (एकमुश्त राशन पर्चा)      -->
     <!-- ======================================================== -->
     <div class="modal-overlay" v-if="showMonthlyParchaModal" @click.self="showMonthlyParchaModal = false">
-      <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-card" style="max-width: 520px; width: 95%; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; padding: 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <div>
             <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
@@ -4509,30 +4509,74 @@
 
     <!-- Phone QR Code Modal -->
     <div class="modal-overlay" v-if="showQRModal" @click.self="showQRModal = false">
-      <div class="modal-card" style="max-width: 440px; text-align: center; padding: 28px;">
-        <div style="font-size: 2.5rem; margin-bottom: 8px;">📱</div>
-        <h3 style="font-size: 1.35rem; font-weight: 800; color: #064e3b; margin-bottom: 6px;">
+      <div class="modal-card" style="max-width: 440px; text-align: center; padding: 24px;">
+        <div style="font-size: 2.2rem; margin-bottom: 6px;">📱</div>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: #064e3b; margin-bottom: 4px;">
           Open & Install on Phone
         </h3>
-        <p style="font-size: 0.88rem; color: #64748b; line-height: 1.4; margin-bottom: 16px;">
-          Scan this QR code with your phone's camera or Google Lens to open <strong>Komal Mart</strong> directly on your mobile!
+        <p style="font-size: 0.84rem; color: #64748b; line-height: 1.4; margin-bottom: 12px;">
+          Scan this QR code with your phone camera or Google Lens to open <strong>Komal Mart</strong> instantly on mobile!
         </p>
 
-        <div style="background: #f8fafc; border: 2.5px dashed #059669; border-radius: 16px; padding: 14px; display: inline-block; margin-bottom: 16px;">
-          <img src="/phone-qr.png" alt="Scan to open on phone" width="220" height="220" style="display: block; border-radius: 8px;" />
+        <div style="background: #ffffff; border: 2.5px dashed #059669; border-radius: 16px; padding: 14px; display: inline-block; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+          <img :src="`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(currentOrigin)}`" alt="Scan to open on phone" width="200" height="200" style="display: block; border-radius: 8px; margin: 0 auto;" />
         </div>
 
-        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 0.84rem; color: #065f46; text-align: left;">
-          <strong>💡 3 Quick Steps:</strong>
-          <ol style="margin: 6px 0 0 16px; padding: 0; line-height: 1.5;">
-            <li>Ensure phone & laptop are on the same Wi-Fi.</li>
-            <li>Scan the QR code with phone camera / Lens.</li>
-            <li>Tap <strong>"Install App"</strong> on phone to add the app icon!</li>
+        <div style="background: #f1f5f9; border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; word-break: break-all; font-weight: 700; color: #064e3b; font-size: 0.86rem;">
+          🔗 {{ currentOrigin }}
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap;">
+          <button type="button" @click="copyLiveLink" class="user-btn" style="padding: 7px 14px; font-size: 0.82rem; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">
+            📋 Copy Link
+          </button>
+          <a :href="`https://api.whatsapp.com/send?text=${encodeURIComponent('Komal Mart - Order Daily Kirana Online: ' + currentOrigin)}`" target="_blank" rel="noopener noreferrer" style="text-decoration: none; padding: 7px 14px; font-size: 0.82rem; border-radius: 8px; background: #25D366; color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+            💬 WhatsApp
+          </a>
+        </div>
+
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #065f46; text-align: left;">
+          <strong>💡 2 Quick Steps:</strong>
+          <ol style="margin: 4px 0 0 16px; padding: 0; line-height: 1.45;">
+            <li>Scan QR with phone camera or click link.</li>
+            <li>Tap <strong>"Install App"</strong> on phone for 1-tap ordering!</li>
           </ol>
         </div>
 
         <button class="submit-btn" @click="showQRModal = false" style="width: 100%;">
           Close
+        </button>
+      </div>
+    </div>
+
+    <!-- PWA Install Guide Modal (For Desktop Browser) -->
+    <div class="modal-overlay" v-if="showInstallGuideModal" @click.self="showInstallGuideModal = false">
+      <div class="modal-card" style="max-width: 440px; text-align: center; padding: 24px;">
+        <div style="font-size: 2.2rem; margin-bottom: 6px;">💻</div>
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: #064e3b; margin-bottom: 8px;">
+          Install Komal Mart
+        </h3>
+        <p style="font-size: 0.86rem; color: #475569; margin-bottom: 16px; line-height: 1.45;">
+          Install Komal Mart on your laptop or phone for faster checkout and 1-click home screen access!
+        </p>
+
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; text-align: left; font-size: 0.84rem; color: #1e293b; margin-bottom: 16px;">
+          <div style="margin-bottom: 12px;">
+            <strong style="color: #065f46;">💻 On Laptop (Chrome / Brave / Edge):</strong>
+            <div style="color: #64748b; margin-top: 3px;">
+              Look at the right side of the address bar at the top ↗️. Click the <strong>Install icon (⊕ or screen)</strong>, or open browser menu (⋮) ➔ <em>Install Komal Mart</em>.
+            </div>
+          </div>
+          <div>
+            <strong style="color: #065f46;">📱 On Mobile Phone:</strong>
+            <div style="color: #64748b; margin-top: 3px;">
+              Open Chrome menu (⋮) ➔ tap <strong>"Add to Home screen"</strong> (किंवा ॲप इन्स्टॉल करा).
+            </div>
+          </div>
+        </div>
+
+        <button class="checkout-btn" @click="showInstallGuideModal = false" style="width: 100%;">
+          Got it! 👍
         </button>
       </div>
     </div>
@@ -4551,6 +4595,15 @@ const showInstallBanner = ref(false);
 const isAppInstalled = ref(false);
 const showIOSModal = ref(false);
 const showQRModal = ref(false);
+const showInstallGuideModal = ref(false);
+const currentOrigin = ref(typeof window !== 'undefined' ? window.location.origin : 'https://komalmart.onrender.com');
+
+function copyLiveLink() {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(currentOrigin.value);
+    showToast(currentLang.value === 'en' ? '📋 Site link copied to clipboard!' : (currentLang.value === 'mr' ? '📋 साइटची लिंक कॉपी केली!' : '📋 साइट लिंक कॉपी हो गई!'));
+  }
+}
 
 const isIOS = () => {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -4573,7 +4626,7 @@ const triggerInstall = async () => {
   } else if (isIOS()) {
     showIOSModal.value = true;
   } else {
-    showToast('💡 ब्राउझर मेनूवरून (⋮) "Install App" किंवा "Add to Home screen" निवडा.');
+    showInstallGuideModal.value = true;
   }
 };
 
@@ -5570,11 +5623,15 @@ async function updateCustomerProfile() {
       customerForm.value.name = data.user.name;
       customerForm.value.phone = data.user.phone;
       customerForm.value.address = data.user.address;
-      showToast('✅ पता व प्रोफाइल अपडेट हो गया!');
+      showToast(currentLang.value === 'en' ? '✅ Address & profile updated!' : (currentLang.value === 'mr' ? '✅ पत्ता व प्रोफाईल अपडेट झाले!' : '✅ पता व प्रोफाइल अपडेट हो गया!'));
       showAccountModal.value = false;
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`⚠️ ${err.error || (currentLang.value === 'en' ? 'Update failed' : 'अपडेट अयशस्वी')}`, 'error');
     }
   } catch (err) {
     console.error('Profile update error:', err);
+    showToast(currentLang.value === 'en' ? '⚠️ Network error updating profile' : '⚠️ प्रोफाइल अपडेट करताना त्रुटी आली', 'error');
   }
 }
 

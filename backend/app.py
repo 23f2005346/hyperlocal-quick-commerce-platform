@@ -710,14 +710,15 @@ def create_app():
             user.name = data['name'].strip()
         if 'phone' in data and data['phone'].strip():
             new_phone = data['phone'].strip()
-            if not re.match(r'^[6-9]\d{9}$', new_phone):
-                return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका.', 'code': 'INVALID_PHONE'}), 400
-            if is_dummy_phone(new_phone):
-                return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
-            existing = User.query.filter_by(phone=new_phone).first()
-            if existing and existing.id != user.id:
-                return jsonify({'error': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'PHONE_EXISTS'}), 400
-            user.phone = new_phone
+            if new_phone != user.phone:
+                if not re.match(r'^[6-9]\d{9}$', new_phone):
+                    return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका.', 'code': 'INVALID_PHONE'}), 400
+                if is_dummy_phone(new_phone):
+                    return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
+                existing = User.query.filter_by(phone=new_phone).first()
+                if existing and existing.id != user.id:
+                    return jsonify({'error': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'PHONE_EXISTS'}), 400
+                user.phone = new_phone
         if 'address' in data:
             user.address = data['address'].strip()
 
