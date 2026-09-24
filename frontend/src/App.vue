@@ -159,14 +159,14 @@
           <!-- CUSTOMER OR GUEST CONTROLS -->
           <template v-else>
             <!-- Logged in Customer -->
-            <div v-if="currentUser" style="display: flex; align-items: center; gap: 8px;">
+            <div v-if="currentUser" style="display: flex; align-items: center; gap: 6px;">
               <button class="store-credit-header-badge" @click="openAccountModal" :title="t('store_credit_balance')">
                 💳 <strong>₹{{ (currentUser.wallet_balance || 0).toFixed(2) }}</strong>
               </button>
               <button class="user-btn" @click="openAccountModal">
-                👤 {{ t('greeting') }}, {{ currentUser.name.split(' ')[0] }}! ({{ t('account') }})
+                👤 <span class="desktop-only">{{ t('greeting') }}, </span>{{ currentUser.name.split(' ')[0] }}<span class="desktop-only">! ({{ t('account') }})</span>
               </button>
-              <button class="user-btn" @click="logout" :title="t('logout')" style="padding: 8px 12px;">
+              <button class="user-btn desktop-only" @click="logout" :title="t('logout')" style="padding: 8px 12px;">
                 🚪
               </button>
             </div>
@@ -176,18 +176,18 @@
               👤 {{ t('login_btn') }}
             </button>
 
-            <!-- PWA Install Button in Header -->
-            <button v-if="!isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')">
+            <!-- PWA Install Button in Header (Desktop Only) -->
+            <button v-if="!isAppInstalled" class="pwa-header-btn desktop-only" @click="triggerInstall" :title="t('pwa_install_btn')">
               📲 <span>{{ t('pwa_install_btn') }}</span>
             </button>
 
-            <!-- QR Code Button to Open on Phone -->
+            <!-- QR Code Button to Open on Phone (Desktop Only) -->
             <button class="qr-header-btn desktop-only" @click="showQRModal = true" title="Scan to open on Phone">
               📱 <span>Scan on Phone</span>
             </button>
 
-            <!-- Shopping Cart (Only for Customers / Guests) -->
-            <button class="cart-btn" @click="isCartOpen = true">
+            <!-- Shopping Cart (Only for Desktop Header; Mobile uses Bottom Bar) -->
+            <button class="cart-btn desktop-only" @click="isCartOpen = true">
               🛒 <span>{{ t('cart_bag') }}</span>
               <span class="cart-badge">{{ cartTotalQuantity }}</span>
               <span v-if="cartTotalAmount > 0">₹{{ cartTotalAmount }}</span>
@@ -4107,10 +4107,42 @@
           <button class="close-btn" @click="showMonthlyParchaModal = false">✕</button>
         </div>
 
-        <!-- Checklist of monthly staples -->
+        <!-- Custom Search to add ANY grocery from catalog -->
+        <div class="parcha-search-box">
+          <input
+            type="text"
+            v-model="parchaSearchQuery"
+            :placeholder="currentLang === 'en' ? '🔍 Search & add other grocery (oil, spices, soap)...' : (currentLang === 'mr' ? '🔍 पर्चा मध्ये इतर सामान जोडा (उदा. तेल, मसाले, साबण)...' : '🔍 पर्चा में और सामान जोड़ें (उदा. तेल, मसाले, साबुन)...')"
+            class="form-input"
+            style="padding: 9px 12px; font-size: 0.85rem; border-radius: 10px; border: 1.5px solid #a7f3d0;"
+          />
+          <div v-if="parchaSearchQuery.trim() && parchaSearchResults.length > 0" class="parcha-search-dropdown">
+            <div
+              v-for="p in parchaSearchResults"
+              :key="p.id"
+              class="parcha-search-item"
+              @click="addProductToParcha(p)"
+            >
+              <img :src="p.image_url ? p.image_url.split('||')[0] : '/placeholder.png'" class="parcha-search-thumb" @error="handleImageFallback($event)" />
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 700; font-size: 0.86rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  {{ getLocalizedProductName(p, currentLang) }}
+                </div>
+                <div style="font-size: 0.74rem; color: #64748b;">
+                  {{ p.variants && p.variants[0] ? p.variants[0].unit_size + ' • ₹' + p.variants[0].selling_price : '' }}
+                </div>
+              </div>
+              <button type="button" class="btn-add-parcha">
+                + {{ currentLang === 'en' ? 'Add' : (currentLang === 'mr' ? 'जोडा' : 'जोड़ें') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checklist of monthly staples & custom items -->
         <div class="parcha-items-grid">
           <div
-            v-for="item in monthlyParchaItems"
+            v-for="(item, idx) in monthlyParchaItems"
             :key="item.id"
             class="parcha-item-card"
             :class="{ selected: item.selected }"
@@ -4121,15 +4153,33 @@
               <div class="parcha-item-title">{{ item.name }}</div>
               <div class="parcha-item-sub">{{ item.variantUnit }} • {{ item.isLoose ? 'खुला मंडी तोल' : 'ब्रांडेड पैक' }}</div>
               <div class="parcha-item-prices">
-                <span class="parcha-item-selling">₹{{ item.fallbackPrice }}</span>
-                <span class="parcha-item-mrp" v-if="item.mrp > item.fallbackPrice">₹{{ item.mrp }}</span>
+                <span class="parcha-item-selling">₹{{ (item.fallbackPrice * (item.quantity || 1)) }}</span>
+                <span class="parcha-item-mrp" v-if="item.mrp > item.fallbackPrice">₹{{ (item.mrp * (item.quantity || 1)) }}</span>
               </div>
             </div>
+
+            <!-- Quantity Stepper -->
+            <div class="parcha-stepper" @click.stop v-if="item.selected">
+              <button type="button" @click.stop="updateParchaQty(item, -1)">-</button>
+              <span>{{ item.quantity || 1 }}</span>
+              <button type="button" @click.stop="updateParchaQty(item, 1)">+</button>
+            </div>
+
             <div class="parcha-checkbox-wrap">
               <div class="parcha-custom-check">
                 <span v-if="item.selected">✓</span>
               </div>
             </div>
+
+            <!-- Remove Button -->
+            <button
+              type="button"
+              class="parcha-remove-btn"
+              title="Remove item"
+              @click.stop="removeParchaItem(idx)"
+            >
+              ✕
+            </button>
           </div>
         </div>
 
@@ -4564,7 +4614,8 @@
           <div style="margin-bottom: 12px;">
             <strong style="color: #065f46;">💻 On Laptop (Chrome / Brave / Edge):</strong>
             <div style="color: #64748b; margin-top: 3px;">
-              Look at the right side of the address bar at the top ↗️. Click the <strong>Install icon (⊕ or screen)</strong>, or open browser menu (⋮) ➔ <em>Install Komal Mart</em>.
+              • If you see the <strong>[ ↗ ]</strong> icon in your URL bar ↗️, <strong>Komal Mart is already installed</strong>! Click it to open the desktop app window.<br>
+              • If not installed yet, click the <strong>⊕ (Install)</strong> icon in the address bar or browser menu (⋮) ➔ <em>Install Komal Mart</em>.
             </div>
           </div>
           <div>
@@ -4575,8 +4626,8 @@
           </div>
         </div>
 
-        <button class="checkout-btn" @click="showInstallGuideModal = false" style="width: 100%;">
-          Got it! 👍
+        <button class="submit-btn" @click="showInstallGuideModal = false" style="width: 100%;">
+          Close Instructions
         </button>
       </div>
     </div>
@@ -5158,6 +5209,7 @@ const deliverySlotOptions = computed(() => [
 
 // Monthly Ration Checklist State
 const showMonthlyParchaModal = ref(false);
+const parchaSearchQuery = ref('');
 const monthlyParchaItems = ref([
   {
     id: 'm1',
@@ -5169,6 +5221,7 @@ const monthlyParchaItems = ref([
     isLoose: true,
     customWeight: 10,
     selected: true,
+    quantity: 1,
     image: '/products/chakki-atta.jpg'
   },
   {
@@ -5181,6 +5234,7 @@ const monthlyParchaItems = ref([
     isLoose: true,
     customWeight: 5,
     selected: true,
+    quantity: 1,
     image: '/products/basmati-rice.jpg'
   },
   {
@@ -5193,6 +5247,7 @@ const monthlyParchaItems = ref([
     isLoose: true,
     customWeight: 2,
     selected: true,
+    quantity: 1,
     image: '/products/toor-dal.jpg'
   },
   {
@@ -5205,6 +5260,7 @@ const monthlyParchaItems = ref([
     isLoose: true,
     customWeight: 1,
     selected: true,
+    quantity: 1,
     image: '/products/moong-dal-dhuli.jpg'
   },
   {
@@ -5217,6 +5273,7 @@ const monthlyParchaItems = ref([
     isLoose: true,
     customWeight: 2,
     selected: true,
+    quantity: 1,
     image: '/products/fortune-oil.jpg'
   },
   {
@@ -5228,6 +5285,7 @@ const monthlyParchaItems = ref([
     mrp: 28,
     isLoose: false,
     selected: true,
+    quantity: 1,
     image: '/products/tata-salt.jpg'
   },
   {
@@ -5239,6 +5297,7 @@ const monthlyParchaItems = ref([
     mrp: 330,
     isLoose: false,
     selected: true,
+    quantity: 1,
     image: '/products/tata-tea.jpg'
   },
   {
@@ -5250,14 +5309,62 @@ const monthlyParchaItems = ref([
     mrp: 130,
     isLoose: false,
     selected: true,
+    quantity: 1,
     image: '/products/colgate-paste.jpg'
   }
 ]);
 
+const parchaSearchResults = computed(() => {
+  const q = parchaSearchQuery.value.trim().toLowerCase();
+  if (!q) return [];
+  const existingNames = new Set(monthlyParchaItems.value.map(it => (it.name || '').toLowerCase()));
+  return products.value.filter(p => {
+    const nameMatch = p.name.toLowerCase().includes(q) || (p.name_hi && p.name_hi.includes(q)) || (p.name_mr && p.name_mr.includes(q));
+    const catMatch = p.category && p.category.toLowerCase().includes(q);
+    return (nameMatch || catMatch) && !existingNames.has(p.name.toLowerCase());
+  }).slice(0, 8);
+});
+
+function addProductToParcha(prod) {
+  const v = prod.variants && prod.variants.length > 0 ? prod.variants[0] : null;
+  const price = v ? v.selling_price : (prod.selling_price || 50);
+  const mrp = v ? v.mrp : (prod.mrp || price + 10);
+  const unitSize = v ? v.unit_size : '1 Unit';
+
+  monthlyParchaItems.value.unshift({
+    id: `custom_${prod.id}_${Date.now()}`,
+    productId: prod.id,
+    name: getLocalizedProductName(prod, currentLang.value),
+    productQuery: prod.name,
+    variantUnit: unitSize,
+    fallbackPrice: price,
+    mrp: mrp,
+    isLoose: !!prod.is_loose,
+    customWeight: prod.is_loose ? (parseFloat(unitSize) || 1) : null,
+    selected: true,
+    quantity: 1,
+    image: prod.image_url ? prod.image_url.split('||')[0] : '/placeholder.png'
+  });
+  parchaSearchQuery.value = '';
+  showToast(currentLang.value === 'en' ? `Added ${prod.name} to Monthly Parcha!` : `पर्चा मध्ये जोडले!`);
+}
+
+function updateParchaQty(item, delta) {
+  const current = item.quantity || 1;
+  const next = current + delta;
+  if (next >= 1) {
+    item.quantity = next;
+  }
+}
+
+function removeParchaItem(index) {
+  monthlyParchaItems.value.splice(index, 1);
+}
+
 const monthlyParchaTotal = computed(() => {
   return monthlyParchaItems.value
     .filter(it => it.selected)
-    .reduce((sum, it) => sum + it.fallbackPrice, 0);
+    .reduce((sum, it) => sum + (it.fallbackPrice * (it.quantity || 1)), 0);
 });
 
 const monthlyParchaSelectedCount = computed(() => {
@@ -6176,8 +6283,10 @@ function addMonthlyParchaToCart() {
   let addedCount = 0;
   monthlyParchaItems.value.forEach(mItem => {
     if (!mItem.selected) return;
+    const qty = mItem.quantity || 1;
 
     const matchedProduct = products.value.find(p => 
+      (mItem.productId && p.id === mItem.productId) ||
       p.name.toLowerCase().includes(mItem.productQuery.toLowerCase()) || 
       (p.name_hi && p.name_hi.includes(mItem.productQuery))
     );
@@ -6198,7 +6307,7 @@ function addMonthlyParchaToCart() {
 
       const existing = cart.value.find(item => item.is_custom_weight && item.product.id === prodObj.id && item.custom_weight === wt);
       if (existing) {
-        existing.quantity += 1;
+        existing.quantity += qty;
         existing.subtotal = Math.round(existing.quantity * subtotal * 100) / 100;
         existing.mrp = Math.round(existing.quantity * mrp * 100) / 100;
       } else {
@@ -6211,17 +6320,19 @@ function addMonthlyParchaToCart() {
           unit_price: rate,
           single_subtotal: subtotal,
           single_mrp: mrp,
-          subtotal: subtotal,
-          mrp: mrp,
-          quantity: 1
+          subtotal: Math.round(subtotal * qty * 100) / 100,
+          mrp: Math.round(mrp * qty * 100) / 100,
+          quantity: qty
         });
       }
-      addedCount++;
+      addedCount += qty;
     } else {
       if (matchedProduct && matchedProduct.variants && matchedProduct.variants.length > 0) {
         const variant = matchedProduct.variants.find(v => v.unit_size.toLowerCase().includes(mItem.variantUnit.toLowerCase())) || matchedProduct.variants[0];
-        addToCart(matchedProduct, variant);
-        addedCount++;
+        for (let i = 0; i < qty; i++) {
+          addToCart(matchedProduct, variant);
+        }
+        addedCount += qty;
       } else {
         const fallbackVariant = {
           id: `var_${mItem.id}`,
@@ -6235,8 +6346,10 @@ function addMonthlyParchaToCart() {
           image_url: mItem.image,
           variants: [fallbackVariant]
         };
-        addToCart(prodObj, fallbackVariant);
-        addedCount++;
+        for (let i = 0; i < qty; i++) {
+          addToCart(prodObj, fallbackVariant);
+        }
+        addedCount += qty;
       }
     }
   });
