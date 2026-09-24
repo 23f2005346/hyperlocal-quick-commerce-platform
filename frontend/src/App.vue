@@ -166,8 +166,8 @@
               <button class="user-btn" @click="openAccountModal">
                 👤 <span class="desktop-only">{{ t('greeting') }}, </span>{{ currentUser.name.split(' ')[0] }}<span class="desktop-only">! ({{ t('account') }})</span>
               </button>
-              <button class="user-btn desktop-only" @click="logout" :title="t('logout')" style="padding: 8px 12px;">
-                🚪
+              <button class="user-btn user-logout-btn" @click="logout" :title="t('logout')" style="padding: 7px 10px; color: #dc2626; border-color: #fecaca; background: #fff1f2;">
+                🚪<span class="desktop-only" style="margin-left: 4px;">{{ t('logout') }}</span>
               </button>
             </div>
 
@@ -2239,7 +2239,16 @@
           <h3 style="font-size: 1.3rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
             👤 {{ t('my_account') }}
           </h3>
-          <button class="close-btn" @click="showAccountModal = false">✕</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button
+              class="account-modal-logout-btn"
+              @click="logout"
+              style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+            >
+              🚪 {{ t('logout') }}
+            </button>
+            <button class="close-btn" @click="showAccountModal = false">✕</button>
+          </div>
         </div>
 
         <!-- Store Credit Balance Card -->
@@ -2406,6 +2415,16 @@
               💾 {{ currentLang === 'en' ? 'Save Address & Settings' : (currentLang === 'mr' ? 'पत्ता व सेटिंग्ज सेव्ह करा' : 'पता व सेटिंग्स सेव करें') }}
             </button>
           </form>
+
+          <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border); text-align: center;">
+            <button
+              type="button"
+              @click="logout"
+              style="background: #fff1f2; color: #e11d48; border: 1.5px solid #fecdd3; padding: 10px 16px; border-radius: 8px; font-weight: 800; font-size: 0.92rem; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;"
+            >
+              🚪 {{ t('logout') }}
+            </button>
+          </div>
         </div>
 
         <!-- CUSTOMER TAB 3: LANGUAGE PREFERENCE -->
@@ -2717,6 +2736,17 @@
           <button type="submit" class="checkout-btn" :disabled="authSubmitting">
             {{ authSubmitting ? t('auth_btn_submitting') : (authMode === 'admin' ? t('auth_btn_admin_login') : t('auth_btn_login')) }}
           </button>
+
+          <p v-if="authMode === 'login'" style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
+            <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none;">
+              🔐 {{ currentLang === 'mr' ? 'दुकानदार / ॲडमिन पोर्टल लॉगिन' : (currentLang === 'hi' ? 'दुकानदार / एडमिन पोर्टल लॉगिन' : 'Store Owner / Admin Portal Access') }}
+            </a>
+          </p>
+          <p v-else-if="authMode === 'admin'" style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
+            <a href="javascript:void(0)" @click="openAuthModal('login')" style="color: #047857; font-weight: 700; text-decoration: none;">
+              👤 {{ currentLang === 'mr' ? 'ग्राहक लॉगिनकडे परत जा' : (currentLang === 'hi' ? 'ग्राहक लॉगिन पर वापस जाएं' : 'Back to Customer Login') }}
+            </a>
+          </p>
         </form>
 
         <!-- VIEW D: REGISTER FORM (CUSTOMER) -->
@@ -5464,7 +5494,15 @@ async function handleLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(authForm.value)
     });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      authError.value = res.status >= 500
+        ? (currentLang.value === 'mr' ? 'सर्व्हरवर तांत्रिक अडचण आली आहे (500). कृपया थोड्या वेळाने प्रयत्न करा.' : (currentLang.value === 'hi' ? 'सर्वर पर तकनीकी समस्या आई है (500)। कृपया थोड़ी देर बाद प्रयास करें।' : 'Server encountered an internal error (500). Please try again shortly.'))
+        : t('auth_err_network');
+      return;
+    }
     if (res.ok) {
       if (data.require_2fa) {
         admin2faState.value = {
@@ -5519,7 +5557,15 @@ async function handleVerifyAdmin2Fa() {
         otp: admin2faState.value.otp.trim()
       })
     });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      authError.value = res.status >= 500
+        ? (currentLang.value === 'mr' ? 'सर्व्हरवर तांत्रिक अडचण आली आहे (500). कृपया थोड्या वेळाने प्रयत्न करा.' : (currentLang.value === 'hi' ? 'सर्वर पर तकनीकी समस्या आई है (500)। कृपया थोड़ी देर बाद प्रयास करें।' : 'Server encountered an internal error (500). Please try again shortly.'))
+        : t('auth_err_network');
+      return;
+    }
     if (res.ok) {
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
@@ -5622,7 +5668,15 @@ async function handleRegister() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      authError.value = res.status >= 500
+        ? (currentLang.value === 'mr' ? 'सर्व्हरवर तांत्रिक अडचण आली आहे (500). कृपया थोड्या वेळाने प्रयत्न करा.' : (currentLang.value === 'hi' ? 'सर्वर पर तकनीकी समस्या आई है (500)। कृपया थोड़ी देर बाद प्रयास करें।' : 'Server encountered an internal error (500). Please try again shortly.'))
+        : t('auth_err_network');
+      return;
+    }
     if (res.ok) {
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
