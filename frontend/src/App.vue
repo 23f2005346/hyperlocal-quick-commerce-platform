@@ -208,12 +208,13 @@
           🌟 {{ t('cat_all') }}
         </button>
         <button
+          v-if="adminAllowClearancePublic"
           class="category-pill clearance-pill"
           :class="{ active: selectedCategorySlug === 'clearance' }"
           @click="selectCategory('clearance')"
           style="border-color: #fca5a5; color: #dc2626; font-weight: 800; background: #fff5f5;"
         >
-          🔥 {{ currentLang === 'en' ? 'Stock Clearance' : (currentLang === 'mr' ? 'क्लिअरन्स सेल' : 'क्लीयरेंस सेल') }}
+          💥 {{ currentLang === 'en' ? 'Special Offers' : (currentLang === 'mr' ? 'विशेष सवलत' : 'विशेष छूट') }}
         </button>
         <button
           v-for="cat in categories"
@@ -239,8 +240,23 @@
     <!-- VIEW 1: CUSTOMER STORE VIEW (PRODUCTS, FILTERS, CART)    -->
     <!-- ======================================================== -->
     <main class="main-layout" v-if="!isAdminLoggedIn">
+      <!-- Sleek Mobile-Only Quick Strip (Replaces bulky marketing cards on phone) -->
+      <div class="mobile-app-quick-strip">
+        <div class="quick-strip-left">
+          <span>⚡</span>
+          <span>{{ currentLang === 'en' ? '30-Min Fast Wadala Delivery • Free on ₹300+' : (currentLang === 'mr' ? '३० मिनिट वडाळा डिलिव्हरी • ₹३००+ वर मोफत' : '30 मिनट वडाला डिलीवरी • ₹300+ पर फ्री') }}</span>
+        </div>
+        <button
+          type="button"
+          class="quick-strip-btn"
+          @click="showMonthlyParchaModal = true"
+        >
+          📝 {{ currentLang === 'en' ? 'Monthly Ration' : (currentLang === 'mr' ? 'महिन्याचा किराणा' : 'महीने का राशन') }}
+        </button>
+      </div>
+
       <!-- Desi Kirana Hero Promotional Banner -->
-      <section class="hero-promo-banner">
+      <section class="hero-promo-banner desktop-only">
         <div class="hero-content-grid">
           <div class="hero-text">
             <h2>🌾 {{ t('hero_title') }}</h2>
@@ -297,7 +313,7 @@
       </section>
 
       <!-- 4 Trust & Value Pillars Section -->
-      <section class="trust-pillars-section">
+      <section class="trust-pillars-section desktop-only">
         <div class="pillar-card">
           <div class="pillar-icon-wrap">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
@@ -538,11 +554,11 @@
             <template v-else>
               <!-- Price Row (Authentic Kirana MRP / Authentic Clearance Markdown) -->
               <div class="price-row" v-if="getActiveVariant(prod)">
-                <template v-if="getActiveVariant(prod).is_clearance && getActiveVariant(prod).clearance_price">
+                <template v-if="adminAllowClearancePublic && getActiveVariant(prod).is_clearance && getActiveVariant(prod).clearance_price">
                   <span class="selling-price" style="color: #dc2626; font-weight: 900;">₹{{ getActiveVariant(prod).clearance_price }}</span>
                   <span style="font-size: 0.82rem; text-decoration: line-through; color: #94a3b8; margin-left: 6px;">₹{{ getActiveVariant(prod).mrp }}</span>
                   <span style="font-size: 0.72rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">
-                    🔥 {{ currentLang === 'en' ? 'Clearance' : (currentLang === 'mr' ? 'क्लिअरन्स सेल' : 'क्लीयरेंस सेल') }}
+                    💥 {{ currentLang === 'en' ? 'Special Offer' : (currentLang === 'mr' ? 'विशेष सवलत' : 'विशेष छूट') }}
                   </span>
                 </template>
                 <template v-else>
@@ -762,7 +778,18 @@
                 🗑️ {{ currentLang === 'en' ? `Delete Selected (${selectedAdminProductIds.length})` : (currentLang === 'mr' ? `निवडलेले सामान हटवा (${selectedAdminProductIds.length})` : `चुने हुए हटाएं (${selectedAdminProductIds.length})`) }}
               </button>
             </div>
-            <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <!-- Admin Master Clearance Toggle Switch -->
+              <label style="display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 800; background: #fff1f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 6px 12px; border-radius: 8px; cursor: pointer; user-select: none;" title="Toggle whether customers see clearance deals on the storefront">
+                <input
+                  type="checkbox"
+                  :checked="adminAllowClearancePublic"
+                  @change="e => togglePublicClearance(e.target.checked)"
+                  style="width: 16px; height: 16px; accent-color: #dc2626;"
+                />
+                <span>👁️ {{ currentLang === 'en' ? 'Show Clearance to Public' : (currentLang === 'mr' ? 'ग्राहकांना सेल दाखवा' : 'ग्राहकों को सेल दिखाएं') }}</span>
+              </label>
+
               <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 700; color: #475569; cursor: pointer; user-select: none;">
                 <input
                   type="checkbox"
@@ -3413,10 +3440,10 @@
                 <h4 style="font-size: 0.92rem; font-weight: 800; color: #1c1917;">{{ item.product.name }}</h4>
                 <div style="font-size: 0.8rem; color: #c2410c; font-weight: 600;">{{ item.variant.unit_size }}</div>
                 <div style="font-size: 0.9rem; font-weight: 800; color: #047857; margin-top: 4px;">
-                  <template v-if="item.variant.is_clearance && item.variant.clearance_price">
+                  <template v-if="adminAllowClearancePublic && item.variant.is_clearance && item.variant.clearance_price">
                     <span style="color: #dc2626;">₹{{ item.variant.clearance_price }}</span> <span style="font-size: 0.78rem; text-decoration: line-through; color: #94a3b8;">₹{{ item.variant.mrp }}</span> × {{ item.quantity }} =
                     <strong style="color: #dc2626;">₹{{ (item.variant.clearance_price * item.quantity).toFixed(2) }}</strong>
-                    <span style="font-size: 0.7rem; background: #fee2e2; color: #b91c1c; padding: 1px 5px; border-radius: 4px; margin-left: 4px;">🔥 सेल</span>
+                    <span style="font-size: 0.7rem; background: #fee2e2; color: #b91c1c; padding: 1px 5px; border-radius: 4px; margin-left: 4px;">💥 ऑफर</span>
                   </template>
                   <template v-else>
                     ₹{{ item.variant.selling_price }} × {{ item.quantity }} =
@@ -5371,6 +5398,15 @@ const selectedAdminProductIds = ref([]);
 const showBatchPrintModal = ref(false);
 const batchPrintLayout = ref('auto'); // 'auto' | 'two' | 'four'
 
+// Admin Clearance Master Visibility Switch (Default false: preserves kirana store trust)
+const adminAllowClearancePublic = ref(localStorage.getItem('komal_allow_clearance_public') === 'true');
+
+function togglePublicClearance(val) {
+  adminAllowClearancePublic.value = Boolean(val);
+  localStorage.setItem('komal_allow_clearance_public', val ? 'true' : 'false');
+  showToast(val ? (currentLang.value === 'en' ? 'Public clearance deals enabled' : 'क्लिअरन्स सेल ग्राहकांसाठी सुरू केले') : (currentLang.value === 'en' ? 'Clearance deals hidden from customers' : 'क्लिअरन्स सेल ग्राहकांपासून लपवले'));
+}
+
 // Admin Khata Book State
 const adminKhataList = ref([]);
 const adminKhataSummary = ref({ total_market_udhaar: 0, total_khata_customers: 0, total_recovered_month: 0 });
@@ -6433,6 +6469,7 @@ function getLocalizedTitle(prod) {
 }
 
 function hasClearanceVariant(prod) {
+  if (!adminAllowClearancePublic.value) return false;
   if (!prod || !prod.variants) return false;
   return prod.variants.some(v => v.is_clearance && v.clearance_price);
 }
@@ -6706,7 +6743,7 @@ const cartTotalAmount = computed(() => {
     if (item.is_custom_weight) {
       return acc + item.subtotal;
     }
-    const unitPrice = (item.variant.is_clearance && item.variant.clearance_price)
+    const unitPrice = (adminAllowClearancePublic.value && item.variant.is_clearance && item.variant.clearance_price)
       ? item.variant.clearance_price
       : item.variant.selling_price;
     return acc + (unitPrice * item.quantity);
@@ -6752,7 +6789,7 @@ const estimatedEarnedCredit = computed(() => {
       subtotal = item.subtotal || 0;
     } else if (item.variant) {
       isLoose = item.product ? Boolean(item.product.is_loose) : false;
-      const unitPrice = (item.variant.is_clearance && item.variant.clearance_price)
+      const unitPrice = (adminAllowClearancePublic.value && item.variant.is_clearance && item.variant.clearance_price)
         ? item.variant.clearance_price
         : (item.variant.selling_price || 0);
       subtotal = unitPrice * (item.quantity || 1);
