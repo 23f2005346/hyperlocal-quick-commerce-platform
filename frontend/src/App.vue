@@ -2730,6 +2730,13 @@
                   >
                     📥 {{ currentLang === 'en' ? 'PDF Bill' : 'PDF बिल' }}
                   </button>
+                  <button
+                    @click="reorderEntireBill(ord)"
+                    style="background: #059669; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                    :title="currentLang === 'en' ? 'Add all items from this order to active cart' : 'या बिलातील सर्व सामान पुन्हा कार्टमध्ये जोडा'"
+                  >
+                    🛒 {{ currentLang === 'en' ? 'Re-order' : (currentLang === 'mr' ? 'पुन्हा मागवा' : 'दोबारा मंगाएं') }}
+                  </button>
                 </div>
               </div>
 
@@ -3067,7 +3074,7 @@
               v-model="authForm.identifier"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'thisisroushan01@gmail.com' : (currentLang === 'mr' ? '9876543299 किंवा email@example.com' : (currentLang === 'hi' ? '9876543299 या email@example.com' : '9876543299 or email@example.com'))"
+              :placeholder="authMode === 'admin' ? (currentLang === 'en' ? 'Enter admin email' : (currentLang === 'mr' ? 'अधिकृत ॲडमिन ईमेल टाका' : 'अधिकृत एडमिन ईमेल दर्ज करें')) : (currentLang === 'mr' ? '9876543299 किंवा email@example.com' : (currentLang === 'hi' ? '9876543299 या email@example.com' : '9876543299 or email@example.com'))"
             />
           </div>
 
@@ -3088,7 +3095,7 @@
               v-model="authForm.password"
               required
               class="form-input"
-              :placeholder="authMode === 'admin' ? 'admin123' : t('auth_register_password_ph')"
+              :placeholder="authMode === 'admin' ? (currentLang === 'en' ? 'Enter password' : (currentLang === 'mr' ? 'पासवर्ड टाका' : 'पासवर्ड दर्ज करें')) : t('auth_register_password_ph')"
             />
           </div>
 
@@ -6453,6 +6460,76 @@ function decreaseQuantity(itemId) {
       showToast('सामान थैले से हटाया गया');
     }
   }
+}
+
+function reorderEntireBill(order) {
+  if (!order || !order.items || order.items.length === 0) return;
+  let addedCount = 0;
+  for (const it of order.items) {
+    if (it.product_name && (it.product_name.includes('डिलिव्हरी') || it.product_name.toLowerCase().includes('delivery'))) continue;
+
+    const prod = products.value.find(p => p.id === it.product_id);
+    if (!prod) continue;
+
+    if (it.is_custom_weight) {
+      const match = (it.variant_label || it.unit_size || '').match(/([\d.]+)\s*kg/i);
+      const wt = match ? parseFloat(match[1]) : 1;
+      const rate = it.unit_price || (prod.variants[0] ? prod.variants[0].selling_price : 0);
+      const mrpRate = it.mrp || (prod.variants[0] ? prod.variants[0].mrp : rate);
+      const subtotal = Math.round(rate * wt * 100) / 100;
+      const mrp = Math.round(mrpRate * wt * 100) / 100;
+      const qty = it.quantity || 1;
+
+      const existing = cart.value.find(item => item.is_custom_weight && item.product.id === prod.id && item.custom_weight === wt);
+      if (existing) {
+        existing.quantity += qty;
+        existing.subtotal = Math.round(existing.quantity * subtotal * 100) / 100;
+        existing.mrp = Math.round(existing.quantity * mrp * 100) / 100;
+      } else {
+        cart.value.push({
+          id: `custom_${prod.id}_${wt}`,
+          is_custom_weight: true,
+          product: prod,
+          custom_weight: wt,
+          custom_unit_size: `${wt} kg`,
+          unit_price: rate,
+          single_subtotal: subtotal,
+          single_mrp: mrp,
+          subtotal: Math.round(qty * subtotal * 100) / 100,
+          mrp: Math.round(qty * mrp * 100) / 100,
+          quantity: qty
+        });
+      }
+      addedCount++;
+    } else {
+      const variant = (prod.variants || []).find(v => v.id === it.variant_id) || (prod.variants || [])[0];
+      if (variant) {
+        const qty = it.quantity || 1;
+        const existing = cart.value.find(item => !item.is_custom_weight && item.variant.id === variant.id);
+        if (existing) {
+          existing.quantity += qty;
+        } else {
+          cart.value.push({
+            is_custom_weight: false,
+            product: prod,
+            variant: variant,
+            quantity: qty
+          });
+        }
+        addedCount++;
+      }
+    }
+  }
+
+  showAccountModal.value = false;
+  showCartDrawer.value = true;
+  showToast(
+    currentLang.value === 'en'
+      ? `🛒 Added ${addedCount} items from Bill #${order.order_number} to your cart!`
+      : (currentLang.value === 'mr'
+        ? `🛒 पावती #${order.order_number} मधील ${addedCount} वस्तू कार्टमध्ये जोडल्या!`
+        : `🛒 पर्चा #${order.order_number} के ${addedCount} सामान थैले में जोड़े गए!`)
+  );
 }
 
 function getCartItemQuantity(productId, variantId) {
