@@ -1566,10 +1566,11 @@
                     v-model="ord.payment_status"
                     @change="updateAdminOrderStatus(ord)"
                     class="admin-order-select"
-                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : 'color: #991b1b; background: #fee2e2;')"
+                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : (ord.payment_status === 'Payment Failed' ? 'color: #c2410c; background: #ffedd5;' : 'color: #991b1b; background: #fee2e2;'))"
                   >
                     <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
                     <option value="Pending Verification">{{ currentLang === 'en' ? '⏳ Pending Verification' : (currentLang === 'mr' ? '⏳ UPI पडताळणी बाकी' : '⏳ UPI सत्यापन बाकी') }}</option>
+                    <option value="Payment Failed">{{ currentLang === 'en' ? '⚠️ Payment Failed / Stuck' : (currentLang === 'mr' ? '⚠️ पेमेंट अयशस्वी / अडकले' : '⚠️ पेमेंट विफल / अटका') }}</option>
                     <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
                   </select>
                 </div>
@@ -1662,6 +1663,9 @@
                     </button>
                     <button type="button" @click="sendAdminWhatsAppStatus(ord, 'verified'); activeWhatsAppOrderMenuId = null" v-if="ord.payment_status === 'Paid'">
                       🟢 {{ currentLang === 'en' ? 'Payment Verified' : 'पेमेंट पडताळणी झाली' }}
+                    </button>
+                    <button type="button" @click="sendAdminWhatsAppStatus(ord, 'payment_failed'); activeWhatsAppOrderMenuId = null" style="color: #b45309; font-weight: 700; border-top: 1px solid #fed7aa; background: #fffbeb;">
+                      ⚠️ {{ currentLang === 'en' ? 'Payment Not Received / Stuck' : (currentLang === 'mr' ? 'पेमेंट मिळाले नाही / अडकले' : 'पेमेंट नहीं मिला / अटका') }}
                     </button>
                     <button type="button" @click="shareOrderOnWhatsApp(ord); activeWhatsAppOrderMenuId = null" style="border-top: 1px solid #e2e8f0; font-weight: 800; color: #064e3b;">
                       📄 {{ t('admin_whatsapp_direct') }} (Full Bill)
@@ -2824,12 +2828,15 @@
                   <span class="status-badge" :class="ord.status.toLowerCase().replace(/\s+/g, '')">
                     📦 {{ ord.status }}
                   </span>
-                  <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : (ord.payment_status === 'Pending Verification' ? 'pending' : 'unpaid')">
+                  <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : (ord.payment_status === 'Pending Verification' ? 'pending' : (ord.payment_status === 'Payment Failed' ? 'warning' : 'unpaid'))">
                     <template v-if="ord.payment_status === 'Paid'">
                       {{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}
                     </template>
                     <template v-else-if="ord.payment_status === 'Pending Verification'">
                       ⏳ {{ t('status_pending_verification') }}
+                    </template>
+                    <template v-else-if="ord.payment_status === 'Payment Failed'">
+                      ⚠️ {{ currentLang === 'en' ? 'Payment Unreceived / Failed' : (currentLang === 'mr' ? 'पेमेंट मिळाले नाही / अडकले' : 'पेमेंट प्राप्त नहीं हुआ / अटका') }}
                     </template>
                     <template v-else>
                       {{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}
@@ -2839,7 +2846,7 @@
 
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button
-                    v-if="ord.payment_status === 'Unpaid'"
+                    v-if="ord.payment_status === 'Unpaid' || ord.payment_status === 'Payment Failed'"
                     @click="openUpiPayForCustomerOrder(ord)"
                     style="background: #047857; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
                   >
@@ -7673,6 +7680,8 @@ function sendAdminWhatsAppStatus(order, statusType) {
     msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
   } else if (statusType === 'verified') {
     msg = `नमस्ते ${custName} जी, आपके ऑर्डर #${orderNum} का UPI पेमेंट (₹${amount}) सफलतापूर्वक वेरिफाई हो गया है! ✅\nऑर्डर डिलीवरी के लिए तैयार किया जा रहा है। धन्यवाद! 🙏\n- कोमल मार्ट`;
+  } else if (statusType === 'payment_failed') {
+    msg = `नमस्ते ${custName} जी, आपने ऑर्डर #${orderNum} (₹${amount}) के लिए UPI पेमेंट मार्क किया था, लेकिन बैंक सर्वर में समस्या के कारण यह राशि हमारे खाते में प्राप्त नहीं हुई है (यदि आपके बैंक खाते से पैसे कटे हैं तो 24 घंटे में बैंक द्वारा स्वतः वापस रिफंड हो जाएंगे)। ⚠️\n\nचिंता न करें! आप सामान प्राप्त करते समय नकद (Cash on Delivery) दे सकते हैं या डिलीवरी बॉय के सामने दोबारा UPI कर सकते हैं।\nसहायता या पूछताछ के लिए कॉल करें: 98765-43210\nधन्यवाद! 🙏\n- कोमल मार्ट`;
   } else {
     msg = `नमस्ते ${custName} जी, आपके कोमल मार्ट ऑर्डर #${orderNum} का स्टेटस अपडेट: ठीक है।`;
   }
