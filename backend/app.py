@@ -11,7 +11,7 @@ import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
@@ -63,9 +63,9 @@ SMTP_PASS = os.environ.get('SMTP_PASS', 'emaiuwgdfqddjskg').replace(' ', '').str
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
 RESEND_FROM = os.environ.get('RESEND_FROM', 'Komal Mart Admin <onboarding@resend.dev>').strip()
 
-def send_admin_otp_resend(to_email, otp, subject, html_body):
+def send_email_resend(to_email, subject, html_body, text_body=None):
     """
-    Dispatches 6-digit OTP code via Resend REST API over Port 443 HTTPS.
+    Dispatches email via Resend REST API over Port 443 HTTPS.
     Render free tier blocks outbound TCP on ports 25, 465, and 587,
     making HTTPS API calls on Port 443 the only reliable email transport in production.
     """
@@ -79,7 +79,7 @@ def send_admin_otp_resend(to_email, otp, subject, html_body):
         "to": [to_email],
         "subject": subject,
         "html": html_body,
-        "text": f"Your Komal Mart Admin 2FA Code is: {otp}. Valid for 5 minutes."
+        "text": text_body or re.sub(r'<[^<]+?>', '', html_body)
     }
 
     try:
@@ -90,13 +90,13 @@ def send_admin_otp_resend(to_email, otp, subject, html_body):
             headers={
                 "Authorization": f"Bearer {resend_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "KomalMart-Admin-2FA/1.0"
+                "User-Agent": "KomalMart-Executive/1.0"
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=8.0) as resp:
+        with urllib.request.urlopen(req, timeout=10.0) as resp:
             resp_body = resp.read().decode('utf-8', errors='replace')
-            print(f"[RESEND SUCCESS] Sent 2FA OTP to {to_email} via Port 443 HTTPS. Status: {resp.status}, Body: {resp_body}")
+            print(f"[RESEND SUCCESS] Sent email to {to_email} via Port 443 HTTPS. Status: {resp.status}, Body: {resp_body}")
             return True, "Email dispatched successfully via Resend HTTPS API (Port 443)"
     except urllib.error.HTTPError as e:
         err_body = e.read().decode('utf-8', errors='replace')
@@ -108,6 +108,15 @@ def send_admin_otp_resend(to_email, otp, subject, html_body):
     except Exception as e:
         print(f"[RESEND EXCEPTION] {e}")
         return False, str(e)
+
+def send_admin_otp_resend(to_email, otp, subject, html_body):
+    """Dispatches 6-digit OTP code via Resend REST API over Port 443 HTTPS."""
+    return send_email_resend(
+        to_email=to_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=f"Your Komal Mart Admin 2FA Code is: {otp}. Valid for 5 minutes."
+    )
 
 def send_admin_otp_email(to_email, otp):
     """
@@ -532,6 +541,17 @@ def create_app():
                 if 'pincode' not in order_cols:
                     cur.execute("ALTER TABLE orders ADD COLUMN pincode VARCHAR(10) DEFAULT '400031'")
                     conn.commit()
+
+                # Ensure product_variants.is_clearance and clearance_price columns exist
+                cur.execute("PRAGMA table_info(product_variants)")
+                v_cols = [r[1] for r in cur.fetchall()]
+                if v_cols:
+                    if 'is_clearance' not in v_cols:
+                        cur.execute("ALTER TABLE product_variants ADD COLUMN is_clearance BOOLEAN DEFAULT 0")
+                        conn.commit()
+                    if 'clearance_price' not in v_cols:
+                        cur.execute("ALTER TABLE product_variants ADD COLUMN clearance_price FLOAT DEFAULT NULL")
+                        conn.commit()
             except Exception as e:
                 print("Migration warning:", e)
             finally:
@@ -888,7 +908,10 @@ def create_app():
 
         query = Product.query
 
-        if category_slug:
+        clearance_filter = request.args.get('clearance')
+        if category_slug == 'clearance' or clearance_filter in ['true', '1']:
+            query = query.join(ProductVariant).filter(ProductVariant.is_clearance == True)
+        elif category_slug:
             category = Category.query.filter_by(slug=category_slug).first()
             if category:
                 query = query.filter_by(category_id=category.id)
@@ -1065,10 +1088,15 @@ def create_app():
                 else:
                     variant.stock_quantity = 0
 
-                effective_price = variant.selling_price
-                label_suffix = ""
+                if variant.is_clearance and variant.clearance_price is not None and variant.clearance_price > 0:
+                    effective_price = variant.clearance_price
+                    label_suffix = " (क्लिअरन्स सेल)"
+                else:
+                    effective_price = variant.selling_price
+                    label_suffix = ""
+
                 tier_res = get_tiered_unit_price(variant.product_id, qty)
-                if tier_res:
+                if tier_res and (tier_res[0] < effective_price):
                     effective_price = tier_res[0]
                     label_suffix = f" ({tier_res[1]})"
 
@@ -1273,7 +1301,9 @@ def create_app():
                 mrp=float(v.get('mrp', 100)),
                 selling_price=float(v.get('selling_price', 90)),
                 stock_quantity=int(v.get('stock_quantity', 50)),
-                is_available=True
+                is_available=True,
+                is_clearance=bool(v.get('is_clearance', False)),
+                clearance_price=float(v.get('clearance_price')) if v.get('clearance_price') is not None and str(v.get('clearance_price')).strip() != '' else None
             )
             db.session.add(variant)
 
@@ -1332,6 +1362,11 @@ def create_app():
             variant.stock_quantity = int(data['stock_quantity'])
         if 'is_available' in data:
             variant.is_available = bool(data['is_available'])
+        if 'is_clearance' in data:
+            variant.is_clearance = bool(data['is_clearance'])
+        if 'clearance_price' in data:
+            val = data['clearance_price']
+            variant.clearance_price = float(val) if (val is not None and str(val).strip() != '') else None
 
         is_now_in_stock = (variant.stock_quantity is not None and variant.stock_quantity > 0 and variant.is_available)
         notified_count = 0
@@ -2068,6 +2103,305 @@ def create_app():
             'total_market_udhaar': total_market_udhaar,
             'orders': [o.to_dict() for o in orders],
             'repayments': [p.to_dict() for p in repayments]
+        })
+
+    # --- AUTOMATED WEEKLY SUNDAY EXECUTIVE REPORT GENERATOR ---
+
+    def generate_weekly_report_data(target_date=None):
+        """
+        Aggregates financial, order, payment, and inventory metrics for the past 7 days.
+        """
+        if not target_date:
+            target_date = get_ist_time()
+
+        end_dt = datetime.combine(target_date.date() if isinstance(target_date, datetime) else target_date, datetime.max.time())
+        start_dt = end_dt - timedelta(days=7)
+
+        orders = Order.query.filter(Order.created_at >= start_dt, Order.created_at <= end_dt).order_by(Order.created_at.desc()).all()
+        repayments = KhataPayment.query.filter(KhataPayment.created_at >= start_dt, KhataPayment.created_at <= end_dt).order_by(KhataPayment.created_at.desc()).all()
+
+        total_orders_count = len(orders)
+        gross_sales_mrp = sum(o.total_mrp or 0.0 for o in orders)
+        net_sales = sum(o.final_amount or 0.0 for o in orders)
+        total_savings_given = sum(o.total_savings or 0.0 for o in orders)
+
+        def is_cash(m):
+            val = (m or '').lower()
+            return 'cash' in val or 'cod' in val or 'rokh' in val
+
+        def is_upi(m):
+            val = (m or '').lower()
+            return 'upi' in val or 'gpay' in val or 'phonepe' in val or 'paytm' in val or 'online' in val
+
+        def is_khata(m):
+            val = (m or '').lower()
+            return 'khata' in val or 'udhaar' in val or 'credit' in val
+
+        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status == 'Paid']
+        cash_paid_amount = sum(o.final_amount for o in cash_paid_orders)
+
+        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status == 'Paid']
+        upi_paid_amount = sum(o.final_amount for o in upi_paid_orders)
+
+        khata_new_orders = [o for o in orders if is_khata(o.payment_method) or (o.payment_status != 'Paid' and not is_cash(o.payment_method) and not is_upi(o.payment_method))]
+        khata_new_amount = sum(o.final_amount for o in khata_new_orders)
+
+        khata_cash_recovered = sum(p.amount for p in repayments if is_cash(p.payment_method))
+        khata_upi_recovered = sum(p.amount for p in repayments if not is_cash(p.payment_method))
+        total_khata_recovered = sum(p.amount for p in repayments)
+
+        total_cash_in_drawer = round(cash_paid_amount + khata_cash_recovered, 2)
+        total_upi_received = round(upi_paid_amount + khata_upi_recovered, 2)
+        total_liquid_collected = round(total_cash_in_drawer + total_upi_received, 2)
+
+        # Total market udhaar across store
+        all_unpaid_orders = Order.query.filter(Order.payment_status == 'Unpaid').all()
+        total_unpaid_orders_sum = sum(o.final_amount for o in all_unpaid_orders)
+        all_repayments_sum = db.session.query(db.func.sum(KhataPayment.amount)).scalar() or 0.0
+        total_market_udhaar = max(0.0, round(total_unpaid_orders_sum - all_repayments_sum, 2))
+
+        avg_basket_value = round(net_sales / total_orders_count, 2) if total_orders_count > 0 else 0.0
+
+        # Top selling items
+        item_stats = {}
+        for o in orders:
+            for it in o.items:
+                key = f"{it.product_name} ({it.variant_label})"
+                if key not in item_stats:
+                    item_stats[key] = {'name': key, 'qty': 0, 'revenue': 0.0}
+                item_stats[key]['qty'] += it.quantity
+                item_stats[key]['revenue'] += it.subtotal
+
+        top_items = sorted(item_stats.values(), key=lambda x: x['revenue'], reverse=True)[:5]
+
+        # Low stock items for Monday morning restock
+        low_stock_variants = ProductVariant.query.filter(ProductVariant.stock_quantity <= 5, ProductVariant.is_available == True).all()
+        restock_checklist = []
+        for v in low_stock_variants:
+            prod_name = v.product.name if v.product else 'Kirana Item'
+            restock_checklist.append({
+                'product_name': prod_name,
+                'unit_size': v.unit_size,
+                'current_stock': v.stock_quantity,
+                'mrp': v.mrp,
+                'selling_price': v.selling_price
+            })
+
+        return {
+            'start_date': start_dt.strftime('%d %b %Y'),
+            'end_date': end_dt.strftime('%d %b %Y'),
+            'total_orders_count': total_orders_count,
+            'gross_sales_mrp': round(gross_sales_mrp, 2),
+            'net_sales': round(net_sales, 2),
+            'total_savings_given': round(total_savings_given, 2),
+            'avg_basket_value': avg_basket_value,
+            'cash_paid_amount': round(cash_paid_amount, 2),
+            'upi_paid_amount': round(upi_paid_amount, 2),
+            'total_cash_in_drawer': total_cash_in_drawer,
+            'total_upi_received': total_upi_received,
+            'total_liquid_collected': total_liquid_collected,
+            'khata_new_amount': round(khata_new_amount, 2),
+            'khata_new_count': len(khata_new_orders),
+            'total_khata_recovered': round(total_khata_recovered, 2),
+            'total_market_udhaar': total_market_udhaar,
+            'top_items': top_items,
+            'restock_checklist': restock_checklist[:10]
+        }
+
+    def render_weekly_report_html(d):
+        top_rows = ""
+        if d['top_items']:
+            for idx, item in enumerate(d['top_items'], start=1):
+                top_rows += f"""
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 8px 10px; font-weight: 700; color: #334155;">{idx}. {item['name']}</td>
+                    <td style="padding: 8px 10px; text-align: center; color: #64748b;">{item['qty']} नग</td>
+                    <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: #047857;">₹{item['revenue']:,.2f}</td>
+                </tr>
+                """
+        else:
+            top_rows = "<tr><td colspan='3' style='padding: 12px; text-align: center; color: #94a3b8;'>या साप्ताह्यात कोणतीही ऑर्डर नोंदवलेली नाही</td></tr>"
+
+        restock_rows = ""
+        if d['restock_checklist']:
+            for v in d['restock_checklist']:
+                restock_rows += f"""
+                <tr style="border-bottom: 1px solid #fee2e2;">
+                    <td style="padding: 8px 10px; font-weight: 700; color: #991b1b;">⚠️ {v['product_name']} ({v['unit_size']})</td>
+                    <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #dc2626;">फक्त {v['current_stock']} बाकी</td>
+                    <td style="padding: 8px 10px; text-align: right; color: #64748b;">दर: ₹{v['selling_price']}</td>
+                </tr>
+                """
+        else:
+            restock_rows = "<tr><td colspan='3' style='padding: 12px; text-align: center; color: #166534;'>✅ सर्व किराणा माल पुरेसा उपलब्ध आहे</td></tr>"
+
+        html = f"""
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; background: #ffffff; border: 1.5px solid #059669; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); color: white; padding: 24px 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 0.5px;">🌾 कोमल मार्ट (Komal Mart)</h1>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 4px; font-weight: 500;">
+                    मुख्य बाजार, वडाळा (प.), मुंबई - ४०००३१ • साप्ताहिक वित्तीय अहवाल (Weekly Z-Summary)
+                </div>
+                <div style="display: inline-block; background: rgba(255,255,255,0.2); padding: 5px 14px; border-radius: 20px; font-weight: 800; font-size: 13px; margin-top: 12px; border: 1px solid rgba(255,255,255,0.35);">
+                    📅 कालावधी: {d['start_date']} — {d['end_date']}
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div style="padding: 20px;">
+                <!-- 2-Card Metrics Summary -->
+                <table style="width: 100%; border-collapse: separate; border-spacing: 10px 0; margin-bottom: 16px;">
+                    <tr>
+                        <td style="width: 50%; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 14px; vertical-align: top;">
+                            <div style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase;">एकूण विक्री (Net Sales)</div>
+                            <div style="font-size: 22px; font-weight: 900; color: #047857; margin-top: 4px;">₹{d['net_sales']:,.2f}</div>
+                            <div style="font-size: 11px; color: #059669; margin-top: 2px;">{d['total_orders_count']} ऑर्डर्स • सरासरी ₹{d['avg_basket_value']}</div>
+                        </td>
+                        <td style="width: 50%; background: #fdf4ff; border: 1.5px solid #f0abfc; border-radius: 10px; padding: 14px; vertical-align: top;">
+                            <div style="font-size: 11px; font-weight: 800; color: #86198f; text-transform: uppercase;">एकूण जमा (Total Liquid)</div>
+                            <div style="font-size: 22px; font-weight: 900; color: #a21caf; margin-top: 4px;">₹{d['total_liquid_collected']:,.2f}</div>
+                            <div style="font-size: 11px; color: #701a75; margin-top: 2px;">रोख गल्ला + बँक जमा</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Payment Collection Breakdown Table -->
+                <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin: 16px 0 8px;">💵 प्रत्यक्ष जमा विभागणी (Liquidity Split)</div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+                            <td style="padding: 10px; color: #166534; font-weight: 700;">💵 रोख गल्ला (Cash in Drawer)</td>
+                            <td style="padding: 10px; text-align: right; font-weight: 800; color: #166534;">₹{d['total_cash_in_drawer']:,.2f}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 10px; color: #1d4ed8; font-weight: 700;">📲 बँक UPI जमा (Online Soundbox Settlements)</td>
+                            <td style="padding: 10px; text-align: right; font-weight: 800; color: #1d4ed8;">₹{d['total_upi_received']:,.2f}</td>
+                        </tr>
+                        <tr style="background: #f8fafc;">
+                            <td style="padding: 10px; color: #047857;">🎉 किराणा ग्राहकांना दिलेली एकूण बचत (Savings)</td>
+                            <td style="padding: 10px; text-align: right; font-weight: 700; color: #047857;">₹{d['total_savings_given']:,.2f}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Khata Udhaar Snapshot -->
+                <div style="background: #fefce8; border: 1.5px solid #fef08a; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #854d0e; margin-bottom: 8px;">📒 उधारी खतावणी (Khata Ledger Movement)</div>
+                    <table style="width: 100%; font-size: 12px;">
+                        <tr>
+                            <td style="padding: 2px 0;">या आठवड्यात दिलेली नवीन उधारी:</td>
+                            <td style="text-align: right; font-weight: 800; color: #dc2626;">+ ₹{d['khata_new_amount']:,.2f} ({d['khata_new_count']} बिले)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 0;">या आठवड्यात वसूल झालेली उधारी:</td>
+                            <td style="text-align: right; font-weight: 800; color: #16a34a;">- ₹{d['total_khata_recovered']:,.2f}</td>
+                        </tr>
+                        <tr style="border-top: 1px dashed #fde047;">
+                            <td style="padding-top: 6px; font-weight: 800; color: #991b1b;">एकूण बाजार बाकी (Current Market Udhaar):</td>
+                            <td style="padding-top: 6px; text-align: right; font-weight: 900; color: #991b1b; font-size: 14px;">₹{d['total_market_udhaar']:,.2f}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Top 5 Best Selling Items -->
+                <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin: 16px 0 8px;">🏆 सर्वाधिक खपलेले टॉप ५ सामान (Top 5 Items)</div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                    <thead>
+                        <tr style="background: #f1f5f9; text-align: left; color: #475569;">
+                            <th style="padding: 8px 10px;">सामान (Product)</th>
+                            <th style="padding: 8px 10px; text-align: center;">नग (Qty)</th>
+                            <th style="padding: 8px 10px; text-align: right;">रक्कम (Revenue)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {top_rows}
+                    </tbody>
+                </table>
+
+                <!-- Monday Morning Mandi Restock Checklist -->
+                <div style="font-size: 13px; font-weight: 800; color: #991b1b; margin: 16px 0 8px;">🛒 सोमवार सकाळ मंडई खरेदी यादी (Restock Checklist)</div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; border: 1px solid #fecaca; background: #fff5f5; border-radius: 8px; overflow: hidden;">
+                    <thead>
+                        <tr style="background: #fee2e2; text-align: left; color: #991b1b;">
+                            <th style="padding: 8px 10px;">कमी साठा असलेले सामान</th>
+                            <th style="padding: 8px 10px; text-align: center;">शिल्लक साठा</th>
+                            <th style="padding: 8px 10px; text-align: right;">किंमत</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {restock_rows}
+                    </tbody>
+                </table>
+
+                <!-- Admin Action Button -->
+                <div style="text-align: center; margin-top: 14px;">
+                    <a href="https://komalmart.onrender.com/admin" style="background: #047857; color: white; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 13px; display: inline-block;">
+                        🏪 कोमल मार्ट ॲडमिन पोर्टल उघडा (Open Portal)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px; text-align: center; font-size: 11px; color: #94a3b8;">
+                कोमल मार्ट (Komal Mart) • स्वयंचलित साप्ताहिक वित्तीय अहवाल • पोर्ट ४४३ Resend API
+            </div>
+        </div>
+        """
+        return html
+
+    @app.route('/api/reports/weekly-summary', methods=['GET', 'POST'])
+    def get_weekly_summary_report():
+        """
+        Generates and optionally emails the Sunday Weekly Executive Summary Report.
+        Accessible by:
+        1. Authenticated Admin (via JWT bearer token)
+        2. Scheduled Cron Job passing ?cron_key=komalmart-sunday-cron-2026 or Header X-Cron-Key
+        """
+        cron_secret = 'komalmart-sunday-cron-2026'
+        req_cron = request.args.get('cron_key') or request.headers.get('X-Cron-Key')
+        user = get_current_user()
+
+        is_authorized = (user and user.role == 'admin') or (req_cron == cron_secret)
+        if not is_authorized:
+            return jsonify({'error': 'Unauthorized. Admin token or valid cron_key required.'}), 401
+
+        data = generate_weekly_report_data()
+        should_send = request.args.get('send_email', 'true').lower() in ('true', '1') or request.method == 'POST'
+
+        email_result = {'dispatched': False, 'message': 'Email dispatch skipped (send_email=false)'}
+        if should_send:
+            recipient = 'thisisroushan01@gmail.com'
+            subject = f"📊 कोमल मार्ट साप्ताहिक वित्तीय अहवाल ({data['start_date']} — {data['end_date']})"
+            html_content = render_weekly_report_html(data)
+            ok, msg = send_email_resend(recipient, subject, html_content)
+            email_result = {
+                'dispatched': ok,
+                'recipient': recipient,
+                'message': msg
+            }
+
+        return jsonify({
+            'report': data,
+            'email': email_result
+        })
+
+    @app.route('/api/admin/reports/send-weekly', methods=['POST'])
+    @admin_required
+    def trigger_admin_weekly_email():
+        """
+        Explicit 1-tap trigger from Store Admin Dashboard to dispatch the Weekly Report.
+        """
+        data = generate_weekly_report_data()
+        recipient = 'thisisroushan01@gmail.com'
+        subject = f"📊 कोमल मार्ट साप्ताहिक वित्तीय अहवाल ({data['start_date']} — {data['end_date']})"
+        html_content = render_weekly_report_html(data)
+        ok, msg = send_email_resend(recipient, subject, html_content)
+        return jsonify({
+            'message': 'साप्ताहिक अहवाल ईमेल पाठवला!' if ok else f'ईमेल पाठवण्यात त्रुटी: {msg}',
+            'dispatched': ok,
+            'recipient': recipient,
+            'details': msg
         })
 
 

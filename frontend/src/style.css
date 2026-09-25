@@ -3156,6 +3156,27 @@ a {
     background: transparent !important;
   }
 
+  /* When Z-Report is printed */
+  #printable-z-report {
+    display: block !important;
+    visibility: visible !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  #printable-z-report table {
+    width: 100% !important;
+    page-break-inside: auto;
+  }
+
+  #printable-z-report tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
   /* When single receipt is being printed */
   .parcha-receipt {
     max-width: 380px;

@@ -208,6 +208,14 @@
           🌟 {{ t('cat_all') }}
         </button>
         <button
+          class="category-pill clearance-pill"
+          :class="{ active: selectedCategorySlug === 'clearance' }"
+          @click="selectCategory('clearance')"
+          style="border-color: #fca5a5; color: #dc2626; font-weight: 800; background: #fff5f5;"
+        >
+          🔥 {{ currentLang === 'en' ? 'Stock Clearance' : (currentLang === 'mr' ? 'क्लिअरन्स सेल' : 'क्लीयरेंस सेल') }}
+        </button>
+        <button
           v-for="cat in categories"
           :key="cat.id"
           class="category-pill"
@@ -411,6 +419,9 @@
             <span v-if="prod.is_loose" class="loose-badge">🌾 {{ t('badge_loose') }}</span>
             <span v-else class="packed-badge">📦 {{ t('badge_packed') }}</span>
             <span class="brand-badge" v-if="prod.brand && prod.brand !== 'Loose / Desi Mandi' && prod.brand !== 'Local / Mandi' && prod.brand !== 'Loose / Local'">{{ prod.brand }}</span>
+            <span v-if="hasClearanceVariant(prod)" class="clearance-badge" style="position: absolute; top: 8px; right: 8px; background: #dc2626; color: white; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 900; z-index: 2; box-shadow: 0 2px 6px rgba(220,38,38,0.4);">
+              🔥 {{ currentLang === 'en' ? 'Clearance' : 'सेल' }}
+            </span>
             <span v-if="getActiveVariant(prod) && !getActiveVariant(prod).is_available" class="stock-out-badge">
               🚫 {{ t('out_of_stock') }}
             </span>
@@ -525,9 +536,18 @@
 
             <!-- MODE B: STANDARD PACKET / FIXED VARIANT DISPLAY -->
             <template v-else>
-              <!-- Price Row (Clean Authentic Kirana MRP) -->
+              <!-- Price Row (Authentic Kirana MRP / Authentic Clearance Markdown) -->
               <div class="price-row" v-if="getActiveVariant(prod)">
-                <span class="selling-price">₹{{ getActiveVariant(prod).selling_price }}</span>
+                <template v-if="getActiveVariant(prod).is_clearance && getActiveVariant(prod).clearance_price">
+                  <span class="selling-price" style="color: #dc2626; font-weight: 900;">₹{{ getActiveVariant(prod).clearance_price }}</span>
+                  <span style="font-size: 0.82rem; text-decoration: line-through; color: #94a3b8; margin-left: 6px;">₹{{ getActiveVariant(prod).mrp }}</span>
+                  <span style="font-size: 0.72rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">
+                    🔥 {{ currentLang === 'en' ? 'Clearance' : (currentLang === 'mr' ? 'क्लिअरन्स सेल' : 'क्लीयरेंस सेल') }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="selling-price">₹{{ getActiveVariant(prod).selling_price }}</span>
+                </template>
               </div>
 
               <!-- Add to Cart or Quantity Controls -->
@@ -778,6 +798,7 @@
                   <th>{{ currentLang === 'mr' ? 'वजन/युनिट' : (currentLang === 'hi' ? 'वजन/यूनिट' : 'Size') }}</th>
                   <th>MRP (₹)</th>
                   <th>{{ currentLang === 'mr' ? 'दुकान दर (₹)' : (currentLang === 'hi' ? 'दुकान दर (₹)' : 'Rate (₹)') }}</th>
+                  <th>{{ currentLang === 'mr' ? '🔥 क्लिअरन्स सेल' : (currentLang === 'hi' ? '🔥 क्लीयरेंस सेल' : '🔥 Clearance') }}</th>
                   <th>{{ currentLang === 'mr' ? 'स्टॉक संख्या' : (currentLang === 'hi' ? 'स्टॉक संख्या' : 'Stock Qty') }}</th>
                   <th>{{ t('stock_status_header') }}</th>
                   <th>{{ currentLang === 'mr' ? 'कृती (Action)' : (currentLang === 'hi' ? 'कार्रवाई' : 'Action') }}</th>
@@ -824,6 +845,23 @@
                         class="admin-inline-input"
                         style="color: #047857; font-weight: 800;"
                       />
+                    </td>
+                    <td>
+                      <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; font-weight: 800; color: #dc2626; cursor: pointer;">
+                          <input type="checkbox" v-model="v.is_clearance" style="accent-color: #dc2626;" />
+                          <span>{{ currentLang === 'en' ? 'Active' : 'सेल चालू' }}</span>
+                        </label>
+                        <input
+                          v-if="v.is_clearance"
+                          type="number"
+                          v-model.number="v.clearance_price"
+                          placeholder="सेल दर"
+                          class="admin-inline-input"
+                          style="width: 70px; color: #dc2626; font-weight: 800; border-color: #fca5a5; background: #fff5f5;"
+                          title="क्लिअरन्स सेल दर (Clearance Sale Price)"
+                        />
+                      </div>
                     </td>
                     <td>
                       <div class="admin-stock-cell">
@@ -953,6 +991,16 @@
                       <div class="admin-mob-input-wrap rate-wrap">
                         <span class="currency">₹</span>
                         <input type="number" v-model.number="v.selling_price" class="admin-mob-inline-input rate" />
+                      </div>
+                    </div>
+                    <div class="admin-mob-field" style="border: 1px dashed #fca5a5; background: #fff5f5; border-radius: 6px; padding: 2px 4px;">
+                      <label style="display: flex; align-items: center; gap: 3px; font-size: 0.68rem; font-weight: 800; color: #dc2626; cursor: pointer;">
+                        <input type="checkbox" v-model="v.is_clearance" style="accent-color: #dc2626;" />
+                        <span>सेल</span>
+                      </label>
+                      <div v-if="v.is_clearance" class="admin-mob-input-wrap" style="margin-top: 2px;">
+                        <span class="currency" style="color: #dc2626;">₹</span>
+                        <input type="number" v-model.number="v.clearance_price" placeholder="दर" class="admin-mob-inline-input" style="width: 44px; color: #dc2626; font-weight: 800;" />
                       </div>
                     </div>
                     <div class="admin-mob-field">
@@ -1364,6 +1412,32 @@
 
         <!-- TAB 3: ORDERS & KHATA LEDGER -->
         <div v-if="adminActiveTab === 'orders'" style="margin-top: 14px;">
+          <!-- Instant Search & Soundbox Paise Reconciler Bar -->
+          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 260px; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.1rem;">🔍</span>
+              <input
+                type="text"
+                v-model="adminOrderSearch"
+                :placeholder="currentLang === 'en' ? 'Search Order #, phone, customer, or Soundbox paise (e.g. .37 or 37)...' : (currentLang === 'mr' ? 'ऑर्डर नं, फोन, ग्राहक किंवा साऊंडबॉक्स पैसे शोधा (उदा. .३७ किंवा ३७)...' : 'ऑर्डर नं, फोन, ग्राहक या साउंडबॉक्स पैसे खोजें (उदा. .37 या 37)...')"
+                style="flex: 1; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem;"
+              />
+              <button
+                v-if="adminOrderSearch"
+                type="button"
+                @click="adminOrderSearch = ''"
+                style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;"
+              >
+                ✕
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569;">
+              <span style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 700;">
+                🔊 साऊंडबॉक्स व्हॉईस मॅचिंग चालू
+              </span>
+            </div>
+          </div>
+
           <!-- Filter Row for Admin Orders -->
           <div class="admin-orders-filter-row">
             <button
@@ -1457,6 +1531,14 @@
                     </span>
                     <span style="margin-left: 8px; font-size: 0.8rem; color: var(--text-subtle);">
                       {{ ord.created_at }}
+                    </span>
+                    <!-- Soundbox Micro-Paise Match Badge -->
+                    <span
+                      v-if="isUpiMethod(ord.payment_method)"
+                      style="margin-left: 8px; background: #ecfdf5; border: 1.5px solid #6ee7b7; color: #065f46; font-size: 0.78rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"
+                      :title="'Soundbox Paise Identifier: .' + getSoundboxPaise(ord.final_amount)"
+                    >
+                      🔊 साऊंडबॉक्स: .{{ getSoundboxPaise(ord.final_amount) }}
                     </span>
                   </div>
                 </div>
@@ -1985,6 +2067,15 @@
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button
                 type="button"
+                @click="sendSundayWeeklyReportEmail"
+                :disabled="sendingWeeklyEmail"
+                style="background: #0284c7; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(2,132,199,0.3);"
+              >
+                <span v-if="sendingWeeklyEmail">⏳ {{ currentLang === 'en' ? 'Sending...' : 'पाठवत आहे...' }}</span>
+                <span v-else>📧 {{ currentLang === 'en' ? 'Email Weekly Digest' : (currentLang === 'mr' ? 'साप्ताहिक अहवाल ईमेल पाठवा' : 'साप्ताहिक रिपोर्ट ईमेल भेजें') }}</span>
+              </button>
+              <button
+                type="button"
                 @click="shareDailyZReportWhatsApp"
                 style="background: #25d366; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
               >
@@ -2007,189 +2098,232 @@
             </div>
           </div>
 
-          <!-- Printable Z-Report Body -->
-          <div id="printable-z-report" style="margin-top: 16px; background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
-            <!-- Report Header -->
-            <div style="border-bottom: 2px solid #064e3b; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+          <!-- Printable Z-Report Body (ERP-Grade Accounting Statement) -->
+          <div id="printable-z-report" style="margin-top: 16px; background: white; border: 2px solid #064e3b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <!-- Formal Wadala Shop Letterhead -->
+            <div style="border-bottom: 2.5px solid #064e3b; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
               <div>
-                <h2 style="margin: 0; color: #064e3b; font-size: 1.4rem; font-weight: 900;">
-                  {{ currentLang === 'en' ? '🏪 Komal Mart — Daily Financial Closing (Z-Report)' : (currentLang === 'mr' ? '🏪 कोमल मार्ट (Komal Mart) — दैनिक हिशोब (Daily Z-Report)' : '🏪 कोमल मार्ट (Komal Mart) — दैनिक हिसाब (Daily Z-Report)') }}
-                </h2>
-                <div style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">
-                  {{ currentLang === 'en' ? 'Storekeeper daily cash drawer, bank settlements, and udhaar reconciliation' : (currentLang === 'mr' ? 'दुकानदार दैनिक गल्ला, ऑनलाइन बँक जमा व उधारी ताळेबंद अहवाल' : 'दुकानदार दैनिक गल्ला, ऑनलाइन बैंक जमा व उधारी समाधान रिपोर्ट') }}
+                <h1 style="margin: 0; color: #064e3b; font-size: 1.55rem; font-weight: 900; letter-spacing: 0.5px;">
+                  🌾 कोमल मार्ट (KOMAL MART)
+                </h1>
+                <div style="font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 3px;">
+                  मुख्य बाजार, स्टेशन रोड, वडाळा (प.), मुंबई - ४०००३१ • फोन: ९८२००११२२३
+                </div>
+                <div style="font-size: 0.8rem; color: #475569; margin-top: 3px;">
+                  हायपरलोकल किराणा व सुपरमार्केट • दैनिक वित्तीय ताळेबंद व लेखापरीक्षण अहवाल
                 </div>
               </div>
               <div style="text-align: right;">
-                <div style="background: #ecfdf5; border: 1px solid #6ee7b7; color: #064e3b; font-weight: 900; padding: 6px 14px; border-radius: 20px; font-size: 0.95rem; display: inline-block;">
-                  📅 {{ zReport.formatted_date || zReportDate }}
+                <div style="background: #ecfdf5; border: 1.5px solid #059669; color: #064e3b; font-weight: 900; padding: 6px 14px; border-radius: 8px; font-size: 0.88rem; display: inline-block;">
+                  KM-ZREP-{{ (zReportDate || '').replace(/-/g, '') }}
+                </div>
+                <div style="font-size: 0.84rem; font-weight: 800; color: #0f172a; margin-top: 5px;">
+                  📅 तारीख: {{ zReport.formatted_date || zReportDate }}
+                </div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                  मुद्रण: {{ zReportCurrentPrintTime }}
                 </div>
               </div>
             </div>
 
-            <!-- 3 Main Financial Column Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px;">
-              <!-- 1. Physical Cash in Drawer -->
-              <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 16px;">
-                <div style="font-size: 0.82rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 6px;">
-                  💵 {{ currentLang === 'en' ? 'Cash in Drawer (Hand)' : (currentLang === 'mr' ? 'रोख गल्ला (Cash in Drawer)' : 'नकद गल्ला (Cash in Drawer)') }}
-                </div>
-                <div style="font-size: 1.7rem; font-weight: 900; color: #15803d; margin-top: 6px;">
-                  ₹{{ zReport.total_cash_in_drawer }}
-                </div>
-                <div style="font-size: 0.78rem; color: #166534; margin-top: 8px; border-top: 1px dashed #86efac; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Cash Orders:' : (currentLang === 'mr' ? 'रोख विक्री (Cash Orders):' : 'नकद बिक्री (Cash Orders):') }}</span>
-                    <strong>₹{{ zReport.cash_paid_amount }}</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Khata Cash Recovered:' : (currentLang === 'mr' ? 'उधारी वसुली रोख (Khata Cash):' : 'उधारी वसूली नकद (Khata Cash):') }}</span>
-                    <strong>₹{{ zReport.khata_cash_recovered }}</strong>
-                  </div>
-                </div>
+            <!-- SECTION 1: FINANCIAL LIQUIDITY POSITION (Cash & Bank Position) -->
+            <div style="margin-bottom: 20px;">
+              <div style="font-size: 0.95rem; font-weight: 900; color: #064e3b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; border-left: 4px solid #059669; padding-left: 8px;">
+                १. दैनिक रोख व डिजिटल जमा ताळेबंद (Liquidity Position)
               </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                <!-- 1. Physical Cash in Drawer -->
+                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+                  <div style="font-size: 0.78rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 5px;">
+                    💵 प्रत्यक्ष रोख गल्ला (Cash in Drawer)
+                  </div>
+                  <div style="font-size: 1.6rem; font-weight: 900; color: #15803d; margin: 4px 0;">
+                    ₹{{ zReport.total_cash_in_drawer }}
+                  </div>
+                  <div style="font-size: 0.75rem; color: #334155; border-top: 1px dashed #cbd5e1; padding-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>रोख विक्री (Cash Orders):</span>
+                      <strong>₹{{ zReport.cash_paid_amount }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>उधारी वसुली रोख (Cash Khata):</span>
+                      <strong>₹{{ zReport.khata_cash_recovered }}</strong>
+                    </div>
+                  </div>
+                </div>
 
-              <!-- 2. Bank UPI Settlements -->
-              <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 16px;">
-                <div style="font-size: 0.82rem; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
-                  📲 {{ currentLang === 'en' ? 'Bank / UPI Settlements' : (currentLang === 'mr' ? 'बँक व UPI जमा (Digital Settlements)' : 'बैंक व UPI जमा (Digital Settlements)') }}
-                </div>
-                <div style="font-size: 1.7rem; font-weight: 900; color: #1d4ed8; margin-top: 6px;">
-                  ₹{{ zReport.total_upi_received }}
-                </div>
-                <div style="font-size: 0.78rem; color: #1e40af; margin-top: 8px; border-top: 1px dashed #93c5fd; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Online UPI Orders:' : (currentLang === 'mr' ? 'ऑनलाइन UPI विक्री:' : 'ऑनलाइन UPI बिक्री:') }}</span>
-                    <strong>₹{{ zReport.upi_paid_amount }}</strong>
+                <!-- 2. Bank UPI Settlements -->
+                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+                  <div style="font-size: 0.78rem; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 5px;">
+                    📲 बँक जमा (UPI Soundbox Settlements)
                   </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Khata UPI Recovered:' : (currentLang === 'mr' ? 'उधारी वसुली UPI (Khata UPI):' : 'उधारी वसूली UPI (Khata UPI):') }}</span>
-                    <strong>₹{{ zReport.khata_upi_recovered }}</strong>
+                  <div style="font-size: 1.6rem; font-weight: 900; color: #1d4ed8; margin: 4px 0;">
+                    ₹{{ zReport.total_upi_received }}
+                  </div>
+                  <div style="font-size: 0.75rem; color: #334155; border-top: 1px dashed #cbd5e1; padding-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>ऑनलाइन UPI विक्री:</span>
+                      <strong>₹{{ zReport.upi_paid_amount }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>उधारी वसुली UPI:</span>
+                      <strong>₹{{ zReport.khata_upi_recovered }}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- 3. Total Liquid Money Realized -->
-              <div style="background: #fdf4ff; border: 1.5px solid #f0abfc; border-radius: 10px; padding: 16px;">
-                <div style="font-size: 0.82rem; font-weight: 800; color: #86198f; display: flex; align-items: center; gap: 6px;">
-                  ✨ {{ currentLang === 'en' ? 'Total Liquid Collected' : (currentLang === 'mr' ? 'एकूण प्रत्यक्ष जमा रक्कम (Liquid Total)' : 'कुल प्रत्यक्ष जमा राशि (Liquid Total)') }}
-                </div>
-                <div style="font-size: 1.7rem; font-weight: 900; color: #a21caf; margin-top: 6px;">
-                  ₹{{ zReport.total_liquid_collected }}
-                </div>
-                <div style="font-size: 0.78rem; color: #86198f; margin-top: 8px; border-top: 1px dashed #f0abfc; padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Cash in Hand + Bank UPI:' : (currentLang === 'mr' ? 'रोख गल्ला + बँक UPI:' : 'नकद गल्ला + बैंक UPI:') }}</span>
-                    <strong>₹{{ zReport.total_cash_in_drawer }} + ₹{{ zReport.total_upi_received }}</strong>
+                <!-- 3. Total Liquid Collected -->
+                <div style="background: #ecfdf5; border: 1.5px solid #059669; border-radius: 8px; padding: 12px;">
+                  <div style="font-size: 0.78rem; font-weight: 800; color: #064e3b; display: flex; align-items: center; gap: 5px;">
+                    ✨ एकूण प्रत्यक्ष रोख + बँक जमा (Total Liquid)
                   </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Store Credit Redeemed:' : (currentLang === 'mr' ? 'वापरलेले स्टोअर क्रेडिट:' : 'इस्तेमाल स्टोर क्रेडिट:') }}</span>
-                    <strong>₹{{ zReport.store_credit_redeemed }}</strong>
+                  <div style="font-size: 1.6rem; font-weight: 900; color: #047857; margin: 4px 0;">
+                    ₹{{ zReport.total_liquid_collected }}
+                  </div>
+                  <div style="font-size: 0.75rem; color: #065f46; border-top: 1px dashed #a7f3d0; padding-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>रोख गल्ला + बँक जमा:</span>
+                      <strong>₹{{ zReport.total_cash_in_drawer }} + ₹{{ zReport.total_upi_received }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span>वापरलेले स्टोअर क्रेडिट:</span>
+                      <strong>₹{{ zReport.store_credit_redeemed }}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Sales & Khata Movement Grid -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 18px;">
-              <!-- Sales Summary -->
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
-                <div style="font-weight: 800; color: #1e293b; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">
-                  🛒 {{ currentLang === 'en' ? 'Sales & Orders Performance' : (currentLang === 'mr' ? 'विक्री व ऑर्डर कामगिरी (Sales Breakdown)' : 'बिक्री व ऑर्डर प्रदर्शन (Sales Breakdown)') }}
+            <!-- SECTION 2 & 3: SALES PERFORMANCE & KHATA LEDGER TABLES -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px;">
+              <!-- Sales Performance -->
+              <div style="border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background: #f1f5f9; padding: 8px 12px; font-weight: 800; font-size: 0.85rem; color: #1e293b; border-bottom: 1.5px solid #e2e8f0;">
+                  🛒 २. विक्री व ऑर्डर कामगिरी (Sales Ledger)
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
+                <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Total Orders:' : (currentLang === 'mr' ? 'एकूण ऑर्डर्स:' : 'कुल ऑर्डर:') }}</span>
-                    <strong>{{ zReport.total_orders_count }} {{ currentLang === 'en' ? 'orders' : 'ऑर्डर्स' }}</strong>
+                    <span>एकूण ऑर्डर्स संख्या:</span>
+                    <strong>{{ zReport.total_orders_count }} बिले</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Net Sales Revenue:' : (currentLang === 'mr' ? 'एकूण विक्री रक्कम (Net Sales):' : 'कुल बिक्री रकम (Net Sales):') }}</span>
-                    <strong>₹{{ zReport.net_sales }}</strong>
+                    <span>निव्वळ विक्री रक्कम (Net Billed):</span>
+                    <strong style="color: #047857; font-size: 0.95rem;">₹{{ zReport.net_sales }}</strong>
                   </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Gross MRP Total:' : (currentLang === 'mr' ? 'एमआरपी बेरीज (Gross MRP):' : 'एमआरपी जोड़ (Gross MRP):') }}</span>
+                  <div style="display: flex; justify-content: space-between; color: #64748b;">
+                    <span>मूळ छापील एमआरपी बेरीज:</span>
                     <span>₹{{ zReport.gross_sales_mrp }}</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; color: #059669;">
-                    <span>{{ currentLang === 'en' ? 'Store Discounts Given:' : (currentLang === 'mr' ? 'ग्राहकांना दिलेली थेट सूट:' : 'ग्राहकों को दी गई छूट:') }}</span>
+                    <span>ग्राहकांना दिलेली एकूण बचत (Discounts):</span>
                     <strong>- ₹{{ zReport.total_savings_given }}</strong>
                   </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>{{ currentLang === 'en' ? 'Average Order Value (AOV):' : (currentLang === 'mr' ? 'सरासरी बिल किंमत (AOV):' : 'औसत बिल राशि (AOV):') }}</span>
+                  <div style="display: flex; justify-content: space-between; border-top: 1px dashed #e2e8f0; padding-top: 4px;">
+                    <span>सरासरी बिल मूल्य (AOV):</span>
                     <strong>₹{{ zReport.avg_basket_value }}</strong>
                   </div>
                 </div>
               </div>
 
-              <!-- Khata Movement Summary -->
-              <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 14px;">
-                <div style="font-weight: 800; color: #854d0e; font-size: 0.92rem; border-bottom: 1px solid #fde047; padding-bottom: 6px; margin-bottom: 8px;">
-                  📒 {{ currentLang === 'en' ? 'Khata Udhaar Ledger Movement' : (currentLang === 'mr' ? 'उधारी बही हालचाल (Khata Udhaar Ledger)' : 'उधारी बही हलचल (Khata Udhaar Ledger)') }}
+              <!-- Khata Movement -->
+              <div style="border: 1.5px solid #fef08a; background: #fffdf5; border-radius: 8px; overflow: hidden;">
+                <div style="background: #fef9c3; padding: 8px 12px; font-weight: 800; font-size: 0.85rem; color: #854d0e; border-bottom: 1.5px solid #fef08a;">
+                  📒 ३. उधारी खतावणी हिशोब (Khata Udhaar Ledger)
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem;">
+                <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem;">
                   <div style="display: flex; justify-content: space-between; color: #dc2626;">
-                    <span>{{ currentLang === 'en' ? 'New Udhaar Issued Today:' : (currentLang === 'mr' ? 'आज दिलेली नवीन उधारी:' : 'आज दी गई नई उधारी:') }}</span>
-                    <strong>+ ₹{{ zReport.khata_new_amount }} ({{ zReport.khata_new_count }} {{ currentLang === 'en' ? 'bills' : 'बिले' }})</strong>
+                    <span>आज दिलेली नवीन उधारी:</span>
+                    <strong>+ ₹{{ zReport.khata_new_amount }} ({{ zReport.khata_new_count }} बिले)</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between; color: #16a34a;">
-                    <span>{{ currentLang === 'en' ? 'Udhaar Recovered Today:' : (currentLang === 'mr' ? 'आज वसूल झालेली उधारी:' : 'आज वसूल हुई उधारी:') }}</span>
+                    <span>आज वसूल झालेली उधारी:</span>
                     <strong>- ₹{{ zReport.total_khata_recovered }}</strong>
                   </div>
-                  <div style="display: flex; justify-content: space-between; border-top: 1px dashed #fde047; padding-top: 4px; font-weight: 800; color: #991b1b;">
-                    <span>{{ currentLang === 'en' ? 'Total Market Outstanding Credit:' : (currentLang === 'mr' ? 'एकूण बाजार थकबाकी (Market Udhaar):' : 'कुल बाजार उधारी (Market Udhaar):') }}</span>
-                    <strong>₹{{ zReport.total_market_udhaar }}</strong>
+                  <div style="display: flex; justify-content: space-between; border-top: 1px dashed #fef08a; padding-top: 6px; font-weight: 900; color: #991b1b; font-size: 0.92rem;">
+                    <span>एकूण बाजार बाकी (Market Outstanding):</span>
+                    <span>₹{{ zReport.total_market_udhaar }}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Detailed Transactions of Selected Day -->
-            <div style="margin-top: 20px;">
-              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin-bottom: 10px;">
-                📝 {{ currentLang === 'en' ? `Transactions & Orders for this Date (${zReport.orders?.length || 0})` : (currentLang === 'mr' ? `या दिवसाच्या सर्व ऑर्डर्स व व्यवहार (${zReport.orders?.length || 0})` : `इस दिन के सभी ऑर्डर व लेनदेन (${zReport.orders?.length || 0})`) }}
-              </h4>
-              <div v-if="!zReport.orders || zReport.orders.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 0.88rem; background: #f8fafc; border-radius: 8px;">
-                {{ currentLang === 'en' ? 'No orders recorded on this date.' : (currentLang === 'mr' ? 'या तारखेला कोणतीही ऑर्डर नोंदवलेली नाही.' : 'इस तारीख को कोई ऑर्डर दर्ज नहीं है।') }}
+            <!-- SECTION 4: ITEMIZED TRANSACTIONS AUDIT TABLE -->
+            <div style="margin-bottom: 22px;">
+              <div style="font-size: 0.95rem; font-weight: 900; color: #064e3b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; border-left: 4px solid #059669; padding-left: 8px;">
+                ४. या दिवसाचे सर्व व्यवहार व ऑर्डर्स (Itemized Audit Register - {{ zReport.orders?.length || 0 }})
               </div>
-              <div v-else style="overflow-x: auto;">
-                <table class="admin-products-table" style="width: 100%; font-size: 0.82rem;">
+              <div v-if="!zReport.orders || zReport.orders.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 0.85rem; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                या तारखेला कोणतीही ऑर्डर नोंदवलेली नाही.
+              </div>
+              <div v-else style="overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left;">
                   <thead>
-                    <tr>
-                      <th>{{ currentLang === 'en' ? 'Order #' : 'ऑर्डर नं' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Customer' : 'ग्राहक' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Date & Time' : 'वेळ' }}</th>
-                      <th>{{ currentLang === 'en' ? 'Payment Mode' : (currentLang === 'mr' ? 'पेमेंट पद्धत' : 'भुगतान विधि') }}</th>
-                      <th>{{ currentLang === 'en' ? 'Status' : (currentLang === 'mr' ? 'स्थिती' : 'स्थिति') }}</th>
-                      <th style="text-align: right;">{{ currentLang === 'en' ? 'Amount' : (currentLang === 'mr' ? 'रक्कम' : 'रकम') }}</th>
-                      <th style="text-align: center;">{{ currentLang === 'en' ? 'Action' : (currentLang === 'mr' ? 'कृती' : 'कार्रवाई') }}</th>
+                    <tr style="background: #f1f5f9; border-bottom: 1.5px solid #cbd5e1; color: #334155;">
+                      <th style="padding: 8px 10px;">पर्चा क्र.</th>
+                      <th style="padding: 8px 10px;">वेळ</th>
+                      <th style="padding: 8px 10px;">ग्राहक व फोन</th>
+                      <th style="padding: 8px 10px;">प्रकार</th>
+                      <th style="padding: 8px 10px;">सामान तपशील</th>
+                      <th style="padding: 8px 10px;">पेमेंट पद्धत</th>
+                      <th style="padding: 8px 10px; text-align: right;">रक्कम</th>
+                      <th style="padding: 8px 10px; text-align: center;">स्थिती</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="ord in zReport.orders" :key="ord.id">
-                      <td><strong>{{ ord.order_number }}</strong></td>
-                      <td>
+                    <tr v-for="ord in zReport.orders" :key="ord.id" style="border-bottom: 1px solid #e2e8f0;">
+                      <td style="padding: 7px 10px; font-weight: 800; color: #064e3b;">{{ ord.order_number }}</td>
+                      <td style="padding: 7px 10px; color: #64748b; white-space: nowrap;">{{ ord.created_at }}</td>
+                      <td style="padding: 7px 10px;">
                         <strong>{{ ord.customer_name }}</strong><br />
-                        <span style="font-size: 0.72rem; color: #64748b;">{{ ord.customer_phone }}</span>
+                        <span style="font-size: 0.7rem; color: #64748b;">{{ ord.customer_phone }}</span>
                       </td>
-                      <td>{{ ord.created_at }}</td>
-                      <td>{{ ord.payment_method }}</td>
-                      <td>
-                        <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : 'unpaid'">
-                          {{ ord.payment_status === 'Paid' ? (currentLang === 'en' ? '🟢 Paid' : '🟢 चुकता') : (currentLang === 'en' ? '🔴 Unpaid' : '🔴 बाकी') }}
+                      <td style="padding: 7px 10px;">
+                        <span :style="ord.delivery_type === 'store_pickup' || ord.delivery_type === 'counter_pickup' ? 'background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: 700;' : 'background: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-weight: 700;'">
+                          {{ ord.delivery_type === 'store_pickup' || ord.delivery_type === 'counter_pickup' ? 'काऊंटर' : 'डिलिव्हरी' }}
                         </span>
                       </td>
-                      <td style="text-align: right; font-weight: 800;">₹{{ ord.final_amount }}</td>
-                      <td style="text-align: center;">
-                        <button
-                          type="button"
-                          @click="downloadOrderPdf(ord)"
-                          style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 0.74rem; cursor: pointer;"
-                        >
-                          📥 PDF
-                        </button>
+                      <td style="padding: 7px 10px; color: #475569; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" :title="ord.items.map(it => `${it.product_name} (${it.variant_label}) x${it.quantity}`).join(', ')">
+                        {{ ord.items.map(it => `${it.product_name} (${it.variant_label}) x${it.quantity}`).join(', ') }}
+                      </td>
+                      <td style="padding: 7px 10px; font-weight: 600;">
+                        {{ ord.payment_method }}
+                        <span v-if="isUpiMethod(ord.payment_method)" style="color: #059669; font-weight: 800;">
+                          (.{{ getSoundboxPaise(ord.final_amount) }})
+                        </span>
+                      </td>
+                      <td style="padding: 7px 10px; text-align: right; font-weight: 900; color: #0f172a;">₹{{ ord.final_amount }}</td>
+                      <td style="padding: 7px 10px; text-align: center;">
+                        <span :style="ord.payment_status === 'Paid' ? 'background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 800;' : 'background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: 800;'">
+                          {{ ord.payment_status === 'Paid' ? 'चुकता' : 'बाकी' }}
+                        </span>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <!-- SECTION 5: FORMAL DUKANDAR AUDIT SIGNOFF BLOCK -->
+            <div style="border-top: 2px dashed #94a3b8; padding-top: 18px; margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px;">
+              <div style="text-align: center; width: 180px;">
+                <div style="border-bottom: 1.5px solid #475569; height: 35px; margin-bottom: 6px;"></div>
+                <div style="font-weight: 800; font-size: 0.8rem; color: #1e293b;">✍️ काऊंटर तपासनीस</div>
+                <div style="font-size: 0.72rem; color: #64748b;">Cashier / Counter Clerk</div>
+              </div>
+
+              <div style="text-align: center; border: 2px solid #059669; border-radius: 8px; padding: 8px 16px; background: #f0fdf4;">
+                <div style="font-size: 0.82rem; font-weight: 900; color: #064e3b; text-transform: uppercase;">
+                  कोमल मार्ट अधिकृत तपासणी
+                </div>
+                <div style="font-size: 0.72rem; color: #047857; font-weight: 700;">
+                  Verified Store Financial Audit • Wadala
+                </div>
+              </div>
+
+              <div style="text-align: center; width: 180px;">
+                <div style="border-bottom: 1.5px solid #475569; height: 35px; margin-bottom: 6px;"></div>
+                <div style="font-weight: 800; font-size: 0.8rem; color: #1e293b;">✍️ मुख्य दुकान मालक</div>
+                <div style="font-size: 0.72rem; color: #64748b;">Store Proprietor Signature</div>
               </div>
             </div>
           </div>
@@ -3272,8 +3406,15 @@
                 <h4 style="font-size: 0.92rem; font-weight: 800; color: #1c1917;">{{ item.product.name }}</h4>
                 <div style="font-size: 0.8rem; color: #c2410c; font-weight: 600;">{{ item.variant.unit_size }}</div>
                 <div style="font-size: 0.9rem; font-weight: 800; color: #047857; margin-top: 4px;">
-                  ₹{{ item.variant.selling_price }} × {{ item.quantity }} =
-                  <strong>₹{{ (item.variant.selling_price * item.quantity).toFixed(2) }}</strong>
+                  <template v-if="item.variant.is_clearance && item.variant.clearance_price">
+                    <span style="color: #dc2626;">₹{{ item.variant.clearance_price }}</span> <span style="font-size: 0.78rem; text-decoration: line-through; color: #94a3b8;">₹{{ item.variant.mrp }}</span> × {{ item.quantity }} =
+                    <strong style="color: #dc2626;">₹{{ (item.variant.clearance_price * item.quantity).toFixed(2) }}</strong>
+                    <span style="font-size: 0.7rem; background: #fee2e2; color: #b91c1c; padding: 1px 5px; border-radius: 4px; margin-left: 4px;">🔥 सेल</span>
+                  </template>
+                  <template v-else>
+                    ₹{{ item.variant.selling_price }} × {{ item.quantity }} =
+                    <strong>₹{{ (item.variant.selling_price * item.quantity).toFixed(2) }}</strong>
+                  </template>
                 </div>
               </div>
               <div class="qty-control-row">
@@ -4324,7 +4465,14 @@
                 <span style="font-size: 0.9rem; color: #475569;">बकाया राशि:</span>
                 <strong style="color: #b91c1c; font-size: 1.35rem; margin-left: 6px;">₹{{ pendingUpiOrder.final_amount }}</strong>
               </div>
-              <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 4px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
+              <!-- Soundbox micro-paise matching instruction -->
+              <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: 0.8rem; color: #854d0e; text-align: left; line-height: 1.4;">
+                🔊 <strong>{{ currentLang === 'en' ? 'Pay EXACT amount (do not round off):' : (currentLang === 'mr' ? 'अचूक पैशांसहित रक्कम भरा (राऊंड ऑफ करू नका):' : 'सटीक पैसे सहित भुगतान करें (राउंड ऑफ न करें):') }}</strong>
+                <span style="display: block; margin-top: 3px; font-size: 0.78rem;">
+                  {{ currentLang === 'en' ? `Pay precisely ₹${pendingUpiOrder.final_amount}. Shop Soundbox announces paise (.${getSoundboxPaise(pendingUpiOrder.final_amount)}) to verify your order instantly!` : (currentLang === 'mr' ? `कृपया अचूक ₹${pendingUpiOrder.final_amount} भरा. दुकानातील साऊंडबॉक्स .${getSoundboxPaise(pendingUpiOrder.final_amount)} पैसे घोषित करतो, ज्यामुळे तुमचे बिल त्वरित कन्फर्म होते!` : `कृपया सटीक ₹${pendingUpiOrder.final_amount} भरें। दुकान का साउंडबॉक्स .${getSoundboxPaise(pendingUpiOrder.final_amount)} पैसे बोलकर आपका ऑर्डर तुरंत कन्फर्म करता है!`) }}
+                </span>
+              </div>
+              <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>
             </div>
           </div>
 
@@ -6277,6 +6425,11 @@ function getLocalizedTitle(prod) {
   return getLocalizedProductName(prod, currentLang.value);
 }
 
+function hasClearanceVariant(prod) {
+  if (!prod || !prod.variants) return false;
+  return prod.variants.some(v => v.is_clearance && v.clearance_price);
+}
+
 // Loose items custom weight helpers
 function isLooseProduct(prod) {
   return prod.is_loose === true || 
@@ -6546,7 +6699,10 @@ const cartTotalAmount = computed(() => {
     if (item.is_custom_weight) {
       return acc + item.subtotal;
     }
-    return acc + (item.variant.selling_price * item.quantity);
+    const unitPrice = (item.variant.is_clearance && item.variant.clearance_price)
+      ? item.variant.clearance_price
+      : item.variant.selling_price;
+    return acc + (unitPrice * item.quantity);
   }, 0).toFixed(2);
 });
 
@@ -6589,7 +6745,10 @@ const estimatedEarnedCredit = computed(() => {
       subtotal = item.subtotal || 0;
     } else if (item.variant) {
       isLoose = item.product ? Boolean(item.product.is_loose) : false;
-      subtotal = (item.variant.selling_price || 0) * (item.quantity || 1);
+      const unitPrice = (item.variant.is_clearance && item.variant.clearance_price)
+        ? item.variant.clearance_price
+        : (item.variant.selling_price || 0);
+      subtotal = unitPrice * (item.quantity || 1);
     }
     const rate = isLoose ? 0.025 : 0.005; // 2.5% on loose mandi staples, 0.5% on packaged FMCG
     earned += subtotal * rate;
@@ -6909,12 +7068,15 @@ async function saveVariantPrice(variant) {
       body: JSON.stringify({
         selling_price: variant.selling_price,
         mrp: variant.mrp,
-        stock_quantity: variant.stock_quantity
+        stock_quantity: variant.stock_quantity,
+        is_clearance: Boolean(variant.is_clearance),
+        clearance_price: variant.clearance_price ? Number(variant.clearance_price) : null
       })
     });
 
     if (res.ok) {
-      showToast(`✅ ${variant.unit_size} की नई दर ₹${variant.selling_price} SQLite में सुरक्षित रूप से सेव हुई!`);
+      const clearanceMsg = variant.is_clearance ? ` (🔥 सेल दर: ₹${variant.clearance_price})` : '';
+      showToast(`✅ ${variant.unit_size} दर ₹${variant.selling_price}${clearanceMsg} SQLite मध्ये सेव्ह झाली!`);
     } else {
       const err = await res.json();
       alert(err.error || 'त्रुटि हुई');
@@ -7607,13 +7769,44 @@ const upiAdminOrders = computed(() => {
   return adminOrders.value.filter(o => o.payment_method && o.payment_method.toLowerCase().includes('upi'));
 });
 
+const adminOrderSearch = ref('');
+
+function getSoundboxPaise(amount) {
+  if (amount == null) return '00';
+  const parts = String(amount).split('.');
+  if (parts.length > 1) {
+    return parts[1].padEnd(2, '0').slice(0, 2);
+  }
+  return '00';
+}
+
+function isUpiMethod(method) {
+  const m = (method || '').toLowerCase();
+  return m.includes('upi') || m.includes('qr') || m.includes('paytm') || m.includes('gpay') || m.includes('phonepe') || m.includes('online');
+}
+
 const displayedAdminOrders = computed(() => {
-  if (adminOrderFilter.value === 'pending') return pendingVerificationAdminOrders.value;
-  if (adminOrderFilter.value === 'unpaid') return unpaidAdminOrders.value;
-  if (adminOrderFilter.value === 'paid') return paidAdminOrders.value;
-  if (adminOrderFilter.value === 'cod') return codAdminOrders.value;
-  if (adminOrderFilter.value === 'upi') return upiAdminOrders.value;
-  return adminOrders.value;
+  let list = adminOrders.value;
+  if (adminOrderFilter.value === 'pending') list = pendingVerificationAdminOrders.value;
+  else if (adminOrderFilter.value === 'unpaid') list = unpaidAdminOrders.value;
+  else if (adminOrderFilter.value === 'paid') list = paidAdminOrders.value;
+  else if (adminOrderFilter.value === 'cod') list = codAdminOrders.value;
+  else if (adminOrderFilter.value === 'upi') list = upiAdminOrders.value;
+
+  const q = adminOrderSearch.value.trim().toLowerCase();
+  if (!q) return list;
+
+  const cleanPaise = q.startsWith('.') ? q.slice(1) : q;
+  return list.filter(o => {
+    const paise = getSoundboxPaise(o.final_amount);
+    return (
+      (o.order_number && o.order_number.toLowerCase().includes(q)) ||
+      (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
+      (o.customer_phone && o.customer_phone.includes(q)) ||
+      (cleanPaise.length >= 2 && paise === cleanPaise) ||
+      String(o.final_amount).includes(q)
+    );
+  });
 });
 
 // Admin Batch Selection & Multi-Slip Print Helpers
@@ -8147,6 +8340,36 @@ async function downloadZReportPdf() {
   } catch (err) {
     console.error('Z-Report PDF error:', err);
     showToast(currentLang.value === 'en' ? 'Error downloading PDF' : (currentLang.value === 'mr' ? 'PDF डाउनलोड करताना अडचण आली' : 'PDF डाउनलोड करने में त्रुटि आई'), 'error');
+  }
+}
+
+const zReportCurrentPrintTime = computed(() => {
+  const now = new Date();
+  return now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+});
+
+const sendingWeeklyEmail = ref(false);
+async function sendSundayWeeklyReportEmail() {
+  sendingWeeklyEmail.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/reports/send-weekly`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      }
+    });
+    const d = await res.json();
+    if (res.ok && d.dispatched) {
+      showToast(currentLang.value === 'en' ? `📧 Weekly Summary dispatched to ${d.recipient}!` : `📧 साप्ताहिक वित्तीय अहवाल ${d.recipient} वर यशस्वीरीत्या पाठवला!`);
+    } else {
+      showToast(d.message || d.details || 'ईमेल पाठवण्यात त्रुटी आली', 'error');
+    }
+  } catch (err) {
+    console.error('Weekly email error:', err);
+    showToast('Weekly email error: ' + err.message, 'error');
+  } finally {
+    sendingWeeklyEmail.value = false;
   }
 }
 

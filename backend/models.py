@@ -119,6 +119,8 @@ class ProductVariant(db.Model):
     selling_price = db.Column(db.Float, nullable=False)
     stock_quantity = db.Column(db.Integer, default=50)
     is_available = db.Column(db.Boolean, default=True)
+    is_clearance = db.Column(db.Boolean, default=False)
+    clearance_price = db.Column(db.Float, nullable=True)
 
     restock_alerts = db.relationship('RestockAlert', backref='variant', lazy=True, cascade="all, delete-orphan")
 
@@ -135,7 +137,9 @@ class ProductVariant(db.Model):
             'discount_pct': discount_pct,
             'stock_quantity': self.stock_quantity,
             'is_available': bool(self.is_available and (self.stock_quantity is None or self.stock_quantity > 0)),
-            'is_in_stock': bool(self.is_available)
+            'is_in_stock': bool(self.is_available),
+            'is_clearance': bool(self.is_clearance) if self.is_clearance is not None else False,
+            'clearance_price': round(self.clearance_price, 2) if self.clearance_price is not None else None
         }
 
 

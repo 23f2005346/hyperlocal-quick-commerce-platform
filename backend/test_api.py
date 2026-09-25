@@ -316,6 +316,52 @@ verified_order = admin_verify_res.get_json()['order']
 print("Admin Verified Payment Status:", verified_order['payment_status'], "(Should be 'Paid')")
 assert verified_order['payment_status'] == 'Paid'
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP & ANTI-FRAUD UPI TESTS PASSED 100%!")
+# 16. Stock Clearance Sale Tests (Authentic Kirana Discounting)
+clearance_patch = client.patch(
+    '/api/variants/1',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={
+        'is_clearance': True,
+        'clearance_price': 55.0
+    }
+)
+assert clearance_patch.status_code == 200
+v1_data = clearance_patch.get_json()['variant']
+print("Variant Clearance Mode Active:", v1_data['is_clearance'], "Price:", v1_data['clearance_price'])
+assert v1_data['is_clearance'] is True
+assert v1_data['clearance_price'] == 55.0
+
+# Place order with clearance variant
+clearance_order_res = client.post('/api/orders', json={
+    'customer_name': 'Clearance Tester',
+    'customer_phone': '9820011988',
+    'delivery_type': 'counter_pickup',
+    'payment_method': 'Cash on Delivery',
+    'items': [{'variant_id': 1, 'quantity': 2}]
+})
+assert clearance_order_res.status_code == 201
+clearance_order = clearance_order_res.get_json()['order']
+print("Clearance Order Final Amount:", clearance_order['final_amount'], "(Expected: 110.0)")
+assert clearance_order['final_amount'] == 110.0
+
+# 17. Weekly Summary Report Tests
+# 17a. Unauthorized rejection without cron key or token
+unauth_weekly = client.get('/api/reports/weekly-summary')
+assert unauth_weekly.status_code == 401
+print("Weekly Report Unauthorized Rejection:", unauth_weekly.status_code)
+
+# 17b. Authorized with cron key (without sending email for fast test)
+cron_weekly = client.get('/api/reports/weekly-summary?cron_key=komalmart-sunday-cron-2026&send_email=false')
+assert cron_weekly.status_code == 200
+weekly_data = cron_weekly.get_json()['report']
+print("Weekly Report via Cron Key: Total Orders:", weekly_data['total_orders_count'], "Net Sales: Rs.", weekly_data['net_sales'])
+assert weekly_data['total_orders_count'] >= 1
+
+# 17c. Authorized with Admin token
+admin_weekly = client.get('/api/reports/weekly-summary?send_email=false', headers={'Authorization': f'Bearer {admin_token}'})
+assert admin_weekly.status_code == 200
+print("Weekly Report via Admin Token: Liquid Collected: Rs.", admin_weekly.get_json()['report']['total_liquid_collected'])
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE & WEEKLY REPORT TESTS PASSED 100%!")
 
 
