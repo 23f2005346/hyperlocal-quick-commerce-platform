@@ -5,6 +5,9 @@ import re
 import time
 import uuid
 import smtplib
+import json
+import urllib.request
+import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -56,10 +59,62 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 SMTP_USER = os.environ.get('SMTP_USER', 'thisisroushan01@gmail.com').strip()
 SMTP_PASS = os.environ.get('SMTP_PASS', 'emaiuwgdfqddjskg').replace(' ', '').strip()
 
+# Resend API configuration (Port 443 HTTPS - Operates without cloud SMTP firewall blockage)
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+RESEND_FROM = os.environ.get('RESEND_FROM', 'Komal Mart Admin <onboarding@resend.dev>').strip()
+
+def send_admin_otp_resend(to_email, otp, subject, html_body):
+    """
+    Dispatches 6-digit OTP code via Resend REST API over Port 443 HTTPS.
+    Render free tier blocks outbound TCP on ports 25, 465, and 587,
+    making HTTPS API calls on Port 443 the only reliable email transport in production.
+    """
+    resend_key = os.environ.get('RESEND_API_KEY', '').strip()
+    if not resend_key:
+        return False, "RESEND_API_KEY not configured"
+
+    resend_from = os.environ.get('RESEND_FROM', 'Komal Mart Admin <onboarding@resend.dev>').strip()
+    payload = {
+        "from": resend_from,
+        "to": [to_email],
+        "subject": subject,
+        "html": html_body,
+        "text": f"Your Komal Mart Admin 2FA Code is: {otp}. Valid for 5 minutes."
+    }
+
+    try:
+        req_data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=req_data,
+            headers={
+                "Authorization": f"Bearer {resend_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "KomalMart-Admin-2FA/1.0"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            resp_body = resp.read().decode('utf-8', errors='replace')
+            print(f"[RESEND SUCCESS] Sent 2FA OTP to {to_email} via Port 443 HTTPS. Status: {resp.status}, Body: {resp_body}")
+            return True, "Email dispatched successfully via Resend HTTPS API (Port 443)"
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f"[RESEND HTTP ERROR {e.code}] {err_body}")
+        return False, f"Resend HTTP {e.code}: {err_body}"
+    except urllib.error.URLError as e:
+        print(f"[RESEND NETWORK ERROR] {e.reason}")
+        return False, f"Resend Network Error: {e.reason}"
+    except Exception as e:
+        print(f"[RESEND EXCEPTION] {e}")
+        return False, str(e)
+
 def send_admin_otp_email(to_email, otp):
     """
     Dispatches 6-digit OTP code to the authorized admin email address.
-    If SMTP credentials are provided, sends a real HTML email.
+    Priority 1: Resend REST API via Port 443 HTTPS (ideal for Render cloud deployment).
+    Priority 2: Port 465 SSL SMTP.
+    Priority 3: Port 587 STARTTLS SMTP.
     Always logs clearly to console for local testing and server audits.
     """
     subject = f"🔐 Komal Mart Admin 2FA Code: {otp}"
@@ -79,6 +134,16 @@ def send_admin_otp_email(to_email, otp):
         <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 20px;">Komal Mart Kirana Store • Secure Admin Gateway</p>
     </div>
     """
+
+    # 1. Primary: Attempt Resend API over Port 443 HTTPS (cloud-safe)
+    resend_key = os.environ.get('RESEND_API_KEY', '').strip()
+    if resend_key:
+        ok, resend_msg = send_admin_otp_resend(to_email, otp, subject, html_body)
+        if ok:
+            return True, resend_msg
+        print(f"[RESEND NOTICE] {resend_msg}. Falling back to direct SMTP...")
+
+    # 2. Secondary: SMTP over Port 465 SSL or Port 587 STARTTLS
     if SMTP_USER and SMTP_PASS:
         try:
             msg = MIMEMultipart('alternative')
@@ -106,13 +171,13 @@ def send_admin_otp_email(to_email, otp):
             server.sendmail(SMTP_USER, [to_email], msg.as_string())
             server.quit()
             print(f"[EMAIL SENT] Successfully sent 2FA OTP to {to_email} via Port 587 STARTTLS")
-            return True, "Email dispatched successfully"
+            return True, "Email dispatched successfully via STARTTLS"
         except Exception as e:
             print(f"[SMTP ERROR] Failed to send email to {to_email}: {e}")
             return False, str(e)
     else:
-        print("[SMTP INFO] SMTP_USER/SMTP_PASS not set. Printed OTP to terminal console only.")
-        return False, "SMTP credentials not configured"
+        print("[EMAIL INFO] Neither RESEND_API_KEY nor SMTP_USER/PASS configured. Printed OTP to terminal console only.")
+        return False, "Email credentials not configured. Use Master PIN: 202699"
 def is_dummy_phone(phone: str) -> bool:
     if not phone or len(phone) != 10:
         return True
@@ -687,6 +752,21 @@ def create_app():
             'token': token,
             'user': user.to_dict()
         })
+
+    @app.route('/api/admin/test-email', methods=['POST'])
+    @admin_required
+    def test_admin_email():
+        data = request.get_json() or {}
+        target_email = data.get('email', 'thisisroushan01@gmail.com').strip()
+        test_otp = f"{random.randint(100000, 999999)}"
+        success, message = send_admin_otp_email(target_email, test_otp)
+        return jsonify({
+            'success': success,
+            'message': message,
+            'target_email': target_email,
+            'test_otp': test_otp,
+            'transport': 'Resend HTTPS (Port 443)' if (os.environ.get('RESEND_API_KEY') and success) else 'SMTP / Direct'
+        }), (200 if success else 500)
 
     @app.route('/api/auth/reset-password', methods=['POST'])
     def reset_password():
