@@ -1,4 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+import os
+import subprocess
+from PIL import Image
+
+def generate_icons():
+    # 1. Base 512x512 Master SVG with rich aesthetics, depth, and vibrant colors
+    svg_master = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <!-- Background Gradient (Deep Forest Emerald to Radiant Jade) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -112,4 +118,88 @@
     <rect x="-96" y="-15" width="192" height="30" rx="15" fill="rgba(0,0,0,0.28)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
     <text x="0" y="5" font-family="'Segoe UI', -apple-system, Roboto, sans-serif" font-size="13" font-weight="900" fill="#fef08a" text-anchor="middle" letter-spacing="2">KOMAL MART</text>
   </g>
-</svg>
+</svg>'''
+
+    # Save to frontend/public/favicon.svg
+    public_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'public')
+    svg_path = os.path.join(public_dir, 'favicon.svg')
+    with open(svg_path, 'w', encoding='utf-8') as f:
+        f.write(svg_master)
+    print(f"Updated {svg_path}")
+
+    # Render HTML wrapper for headless Edge to capture
+    html_content = f'''<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body, html {{ margin: 0; padding: 0; background: transparent; overflow: hidden; }}
+    svg {{ display: block; width: 512px; height: 512px; }}
+  </style>
+</head>
+<body>
+  {svg_master}
+</body>
+</html>'''
+
+    temp_html = os.path.join(public_dir, 'temp_icon.html')
+    temp_png = os.path.join(public_dir, 'temp_512.png')
+    with open(temp_html, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+
+    edge_bin = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    if not os.path.exists(edge_bin):
+        edge_bin = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+    cmd = [
+        edge_bin,
+        "--headless",
+        "--disable-gpu",
+        "--default-background-color=00000000",
+        f"--window-size=512,512",
+        f"--screenshot={temp_png}",
+        temp_html
+    ]
+    print(f"Executing: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+    if os.path.exists(temp_png):
+        img = Image.open(temp_png).convert("RGBA")
+        # Ensure 512x512 crop
+        img_512 = img.crop((0, 0, 512, 512))
+
+        # 1. pwa-512x512.png
+        pwa_512 = os.path.join(public_dir, 'pwa-512x512.png')
+        img_512.save(pwa_512, "PNG", optimize=True)
+        print(f"Saved {pwa_512}")
+
+        # 2. pwa-192x192.png
+        pwa_192 = os.path.join(public_dir, 'pwa-192x192.png')
+        img_192 = img_512.resize((192, 192), Image.Resampling.LANCZOS)
+        img_192.save(pwa_192, "PNG", optimize=True)
+        print(f"Saved {pwa_192}")
+
+        # 3. apple-touch-icon.png (180x180)
+        apple_icon = os.path.join(public_dir, 'apple-touch-icon.png')
+        img_apple = img_512.resize((180, 180), Image.Resampling.LANCZOS)
+        img_apple.save(apple_icon, "PNG", optimize=True)
+        print(f"Saved {apple_icon}")
+
+        # 4. pwa-maskable-512x512.png (Needs 20% safe-zone margin)
+        # Background color #064e3b fills the whole 512x512, central logo fits in 80% circle
+        maskable_bg = Image.new("RGBA", (512, 512), (6, 78, 59, 255))
+        # Resize squircle to 410x410 and paste in center (offset 51, 51)
+        scaled_icon = img_512.resize((410, 410), Image.Resampling.LANCZOS)
+        maskable_bg.paste(scaled_icon, (51, 51), scaled_icon)
+        maskable_path = os.path.join(public_dir, 'pwa-maskable-512x512.png')
+        maskable_bg.save(maskable_path, "PNG", optimize=True)
+        print(f"Saved {maskable_path}")
+
+        # Clean up temporary files
+        if os.path.exists(temp_html):
+            os.remove(temp_html)
+        if os.path.exists(temp_png):
+            os.remove(temp_png)
+        print("All high-resolution crisp app icons successfully generated!")
+
+if __name__ == '__main__':
+    generate_icons()

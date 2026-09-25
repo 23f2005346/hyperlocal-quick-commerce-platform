@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.onrender.komalmart.twa",
+        "sha256_cert_fingerprints": ["5F:9F:B1:85:4A:88:17:19:F9:A1:E7:8E:5B:F8:8C:D8:4B:8A:3F:C3:3B:B3:69:FD:16:CF:88:D8:56:4D:8C:3D"]
+      }
+    }]

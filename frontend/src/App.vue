@@ -88,12 +88,8 @@
     <div v-if="showInstallBanner && !isAppInstalled" class="pwa-install-banner">
       <div class="pwa-banner-inner">
         <div class="pwa-banner-left">
-          <div class="pwa-app-icon">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <path d="M16 10a4 4 0 0 1-8 0"></path>
-            </svg>
+          <div class="pwa-app-icon" style="overflow: hidden; padding: 0;">
+            <img src="/favicon.svg" alt="Komal Mart" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
           </div>
           <div class="pwa-banner-info">
             <strong class="pwa-banner-title">{{ t('pwa_install_title') }}</strong>
@@ -119,12 +115,8 @@
       <div class="header-container">
         <!-- Logo & Store Branding -->
         <div class="store-brand" @click="resetFilters">
-          <div class="store-logo">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <path d="M16 10a4 4 0 0 1-8 0"></path>
-            </svg>
+          <div class="store-logo" style="overflow: hidden; padding: 0;">
+            <img src="/favicon.svg" alt="Komal Mart" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" />
           </div>
           <div class="brand-text">
             <h1>{{ t('store_title') }}</h1>
@@ -5210,26 +5202,37 @@
     <!-- PWA Install Guide Modal (For Desktop Browser) -->
     <div class="modal-overlay" v-if="showInstallGuideModal" @click.self="showInstallGuideModal = false">
       <div class="modal-card" style="max-width: 440px; text-align: center; padding: 24px;">
-        <div style="font-size: 2.2rem; margin-bottom: 6px;">💻</div>
+        <div style="margin-bottom: 10px;">
+          <img src="/favicon.svg" alt="Komal Mart" style="width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 4px 14px rgba(6,78,59,0.25);" />
+        </div>
         <h3 style="font-size: 1.25rem; font-weight: 800; color: #064e3b; margin-bottom: 8px;">
           Install Komal Mart
         </h3>
         <p style="font-size: 0.86rem; color: #475569; margin-bottom: 16px; line-height: 1.45;">
-          Install Komal Mart on your laptop or phone for faster checkout and 1-click home screen access!
+          Install Komal Mart on your phone or laptop for fastest checkout and 1-click home screen access!
         </p>
 
         <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; text-align: left; font-size: 0.84rem; color: #1e293b; margin-bottom: 16px;">
+          <div style="margin-bottom: 14px;">
+            <strong style="color: #065f46;">📱 Standalone Android App (APK):</strong>
+            <div style="color: #64748b; margin-top: 4px; display: flex; flex-direction: column; gap: 6px;">
+              <span>Fastest native app experience without browser URL bar:</span>
+              <a href="/downloads/KomalMart.apk" download="KomalMart.apk" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; background: #064e3b; color: #ffffff; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 0.86rem; box-shadow: 0 3px 8px rgba(6,78,59,0.2);">
+                📥 Download Android App (.APK ~1MB)
+              </a>
+            </div>
+          </div>
           <div style="margin-bottom: 12px;">
             <strong style="color: #065f46;">💻 On Laptop (Chrome / Brave / Edge):</strong>
             <div style="color: #64748b; margin-top: 3px;">
-              • If you see the <strong>[ ↗ ]</strong> icon in your URL bar ↗️, <strong>Komal Mart is already installed</strong>! Click it to open the desktop app window.<br>
-              • If not installed yet, click the <strong>⊕ (Install)</strong> icon in the address bar or browser menu (⋮) ➔ <em>Install Komal Mart</em>.
+              • If installed, click the <strong>[ ↗ ]</strong> icon in your URL bar ↗️ to launch the desktop app.<br>
+              • If not installed, click <strong>⊕ (Install)</strong> in the address bar or browser menu (⋮).
             </div>
           </div>
           <div>
-            <strong style="color: #065f46;">📱 On Mobile Phone:</strong>
+            <strong style="color: #065f46;">🍎 On iPhone (iOS Safari):</strong>
             <div style="color: #64748b; margin-top: 3px;">
-              Open Chrome menu (⋮) ➔ tap <strong>"Add to Home screen"</strong> (किंवा ॲप इन्स्टॉल करा).
+              Tap the <strong>Share</strong> button (⎋) at the bottom ➔ tap <strong>"Add to Home Screen"</strong>.
             </div>
           </div>
         </div>
@@ -5273,6 +5276,17 @@ const canInstallPWA = computed(() => {
 });
 
 const triggerInstall = async () => {
+  // If user is on an Android device, directly trigger standalone APK download
+  if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) {
+    window.location.href = '/downloads/KomalMart.apk';
+    const msg = currentLang.value === 'en'
+      ? '📥 Downloading Komal Mart Android App...'
+      : (currentLang.value === 'mr' ? '📥 कोमल मार्ट ॲप डाऊनलोड होत आहे...' : '📥 कोमल मार्ट ऐप डाउनलोड हो रहा है...');
+    showToast(msg);
+    showInstallBanner.value = false;
+    return;
+  }
+
   if (deferredInstallPrompt.value) {
     deferredInstallPrompt.value.prompt();
     const { outcome } = await deferredInstallPrompt.value.userChoice;

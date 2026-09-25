@@ -2408,6 +2408,24 @@ def create_app():
     # --- STATIC FILE SERVING FOR PRODUCTION / SINGLE-PORT RUN ---
     frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')
 
+    @app.route('/.well-known/assetlinks.json')
+    def serve_assetlinks():
+        assetlinks_path = os.path.join(frontend_dist, '.well-known', 'assetlinks.json')
+        if not os.path.exists(assetlinks_path):
+            assetlinks_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'public', '.well-known', 'assetlinks.json')
+        if os.path.exists(assetlinks_path):
+            return send_file(assetlinks_path, mimetype='application/json')
+        return jsonify([]), 404
+
+    @app.route('/downloads/<path:filename>')
+    def serve_downloads(filename):
+        downloads_dir = os.path.join(frontend_dist, 'downloads')
+        if not os.path.exists(os.path.join(downloads_dir, filename)):
+            downloads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'public', 'downloads')
+        if os.path.exists(os.path.join(downloads_dir, filename)):
+            return send_from_directory(downloads_dir, filename, as_attachment=True)
+        return jsonify({'error': 'File not found'}), 404
+
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
