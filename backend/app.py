@@ -1286,6 +1286,23 @@ def create_app():
         db.session.commit()
         return jsonify({'message': f'Product {product.name} deleted successfully!'})
 
+    @app.route('/api/products/bulk-delete', methods=['POST'])
+    @admin_required
+    def bulk_delete_products():
+        data = request.get_json() or {}
+        product_ids = data.get('product_ids', [])
+        if not product_ids:
+            return jsonify({'error': 'No product IDs provided'}), 400
+
+        deleted_count = 0
+        for pid in product_ids:
+            product = Product.query.get(pid)
+            if product:
+                db.session.delete(product)
+                deleted_count += 1
+        db.session.commit()
+        return jsonify({'message': f'Successfully deleted {deleted_count} products!', 'deleted_count': deleted_count})
+
     @app.route('/api/reset-seed', methods=['POST'])
     @admin_required
     def reset_seed():
@@ -1894,26 +1911,39 @@ def create_app():
         store_credit_redeemed = sum(o.credit_used or 0.0 for o in orders)
         store_credit_earned_paid = sum(o.credit_earned or 0.0 for o in orders if o.payment_status == 'Paid')
 
+        # Robust payment method categorization
+        def is_cash(m):
+            val = (m or '').lower()
+            return 'cash' in val or 'cod' in val or 'rokh' in val
+
+        def is_upi(m):
+            val = (m or '').lower()
+            return 'upi' in val or 'gpay' in val or 'phonepe' in val or 'paytm' in val or 'online' in val
+
+        def is_khata(m):
+            val = (m or '').lower()
+            return 'khata' in val or 'udhaar' in val or 'credit' in val
+
         # Breakdowns by payment method & status
-        cash_paid_orders = [o for o in orders if o.payment_method in ['Cash on Delivery', 'Cash', 'Cash on Delivery (COD)'] and o.payment_status == 'Paid']
+        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status == 'Paid']
         cash_paid_amount = sum(o.final_amount for o in cash_paid_orders)
 
-        cash_unpaid_orders = [o for o in orders if o.payment_method in ['Cash on Delivery', 'Cash', 'Cash on Delivery (COD)'] and o.payment_status != 'Paid']
+        cash_unpaid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status != 'Paid']
         cash_unpaid_amount = sum(o.final_amount for o in cash_unpaid_orders)
 
-        upi_paid_orders = [o for o in orders if 'UPI' in (o.payment_method or '') and o.payment_status == 'Paid']
+        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status == 'Paid']
         upi_paid_amount = sum(o.final_amount for o in upi_paid_orders)
 
-        upi_unpaid_orders = [o for o in orders if 'UPI' in (o.payment_method or '') and o.payment_status != 'Paid']
+        upi_unpaid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status != 'Paid']
         upi_unpaid_amount = sum(o.final_amount for o in upi_unpaid_orders)
 
         # New Udhaar orders issued today
-        khata_new_orders = [o for o in orders if 'Khata' in (o.payment_method or '') or (o.payment_status != 'Paid' and 'Cash' not in (o.payment_method or '') and 'UPI' not in (o.payment_method or ''))]
+        khata_new_orders = [o for o in orders if is_khata(o.payment_method) or (o.payment_status != 'Paid' and not is_cash(o.payment_method) and not is_upi(o.payment_method))]
         khata_new_amount = sum(o.final_amount for o in khata_new_orders)
 
         # Repayments received today
-        khata_cash_recovered = sum(p.amount for p in repayments if p.payment_method == 'Cash')
-        khata_upi_recovered = sum(p.amount for p in repayments if p.payment_method != 'Cash')
+        khata_cash_recovered = sum(p.amount for p in repayments if is_cash(p.payment_method))
+        khata_upi_recovered = sum(p.amount for p in repayments if not is_cash(p.payment_method))
         total_khata_recovered = sum(p.amount for p in repayments)
 
         # Physical Cash in Drawer: Cash orders paid + Cash Khata repayments

@@ -4987,9 +4987,41 @@ a {
     text-align: center !important;
   }
 
-  /* Admin POS on Mobile */
+  /* Admin POS on Mobile - Zero Horizontal Overflow & Fast Usability */
+  .pos-container {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding-bottom: 90px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .pos-card {
+    padding: 12px 10px !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .pos-card-title {
+    font-size: 0.96rem !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 10px !important;
+  }
   .pos-form-grid {
     grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .pos-input, .pos-select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .pos-item-table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   /* Admin Bottom Nav Bar Styling */
@@ -5004,6 +5036,75 @@ a {
     color: #ffffff !important;
     background: rgba(255, 255, 255, 0.14) !important;
     border-radius: 8px;
+  }
+}
+
+/* Floating Mobile POS Action Bar */
+.pos-mobile-floating-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-top: 12px !important;
+  }
+
+  .pos-mobile-floating-bar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    position: fixed !important;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    background: #064e3b !important;
+    color: white !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
+    z-index: 998 !important;
+    border: 1.5px solid #059669 !important;
+    box-sizing: border-box !important;
+  }
+  .pos-mob-float-left {
+    display: flex;
+    flex-direction: column;
+  }
+  .pos-mob-float-count {
+    font-size: 0.74rem;
+    color: #a7f3d0;
+    font-weight: 700;
+  }
+  .pos-mob-float-total {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.1;
+  }
+  .pos-mob-float-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .pos-mob-float-btn {
+    padding: 8px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    font-size: 0.86rem !important;
+    cursor: pointer !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  .pos-mob-float-btn.btn-print {
+    background: #ffffff !important;
+    color: #064e3b !important;
+  }
+  .pos-mob-float-btn.btn-wa {
+    background: #25D366 !important;
+    color: #ffffff !important;
   }
 }
 

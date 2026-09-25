@@ -525,15 +525,9 @@
 
             <!-- MODE B: STANDARD PACKET / FIXED VARIANT DISPLAY -->
             <template v-else>
-              <!-- Price & Discount Row -->
+              <!-- Price Row (Clean Authentic Kirana MRP) -->
               <div class="price-row" v-if="getActiveVariant(prod)">
                 <span class="selling-price">₹{{ getActiveVariant(prod).selling_price }}</span>
-                <span class="mrp-price" v-if="getActiveVariant(prod).mrp > getActiveVariant(prod).selling_price">
-                  ₹{{ getActiveVariant(prod).mrp }}
-                </span>
-                <span class="discount-tag" v-if="getActiveVariant(prod).discount_pct > 0">
-                  {{ t('savings_label') }} {{ getActiveVariant(prod).discount_pct }}%
-                </span>
               </div>
 
               <!-- Add to Cart or Quantity Controls -->
@@ -732,15 +726,36 @@
         <!-- TAB 1: INVENTORY & QUICK PRICE CHANGER -->
         <div v-if="adminActiveTab === 'inventory'">
           <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <input
-              type="text"
-              v-model="adminSearch"
-              :placeholder="currentLang === 'en' ? 'Filter items...' : (currentLang === 'mr' ? 'सामान शोधा...' : 'सामान खोजें...')"
-              style="padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; min-width: 300px;"
-            />
-            <span style="font-size: 0.88rem; color: var(--text-muted);">
-              {{ currentLang === 'en' ? 'Total Items:' : (currentLang === 'mr' ? 'एकूण सामान:' : 'कुल सामान:') }} <strong>{{ filteredAdminProducts.length }}</strong>
-            </span>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1;">
+              <input
+                type="text"
+                v-model="adminSearch"
+                :placeholder="currentLang === 'en' ? 'Filter items...' : (currentLang === 'mr' ? 'सामान शोधा...' : 'सामान खोजें...')"
+                style="padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; min-width: 240px; flex: 1;"
+              />
+              <button
+                v-if="selectedAdminProductIds.length > 0"
+                @click="bulkDeleteSelectedProducts"
+                class="admin-bulk-delete-btn"
+                style="background: #dc2626; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220,38,38,0.3);"
+              >
+                🗑️ {{ currentLang === 'en' ? `Delete Selected (${selectedAdminProductIds.length})` : (currentLang === 'mr' ? `निवडलेले सामान हटवा (${selectedAdminProductIds.length})` : `चुने हुए हटाएं (${selectedAdminProductIds.length})`) }}
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 700; color: #475569; cursor: pointer; user-select: none;">
+                <input
+                  type="checkbox"
+                  :checked="filteredAdminProducts.length > 0 && selectedAdminProductIds.length === filteredAdminProducts.length"
+                  @change="toggleSelectAllProducts"
+                  style="width: 16px; height: 16px; accent-color: #ef4444;"
+                />
+                <span>{{ currentLang === 'en' ? 'Select All' : (currentLang === 'mr' ? 'सर्व निवडा' : 'सभी चुनें') }}</span>
+              </label>
+              <span style="font-size: 0.88rem; color: var(--text-muted);">
+                {{ currentLang === 'en' ? 'Total Items:' : (currentLang === 'mr' ? 'एकूण सामान:' : 'कुल सामान:') }} <strong>{{ filteredAdminProducts.length }}</strong>
+              </span>
+            </div>
           </div>
 
           <!-- DESKTOP DATA TABLE -->
@@ -748,6 +763,15 @@
             <table class="admin-table">
               <thead>
                 <tr>
+                  <th style="width: 36px; text-align: center;">
+                    <input
+                      type="checkbox"
+                      :checked="filteredAdminProducts.length > 0 && selectedAdminProductIds.length === filteredAdminProducts.length"
+                      @change="toggleSelectAllProducts"
+                      style="width: 16px; height: 16px; accent-color: #ef4444; cursor: pointer;"
+                      title="Select all products"
+                    />
+                  </th>
                   <th>{{ currentLang === 'mr' ? 'सामान' : (currentLang === 'hi' ? 'सामान' : 'Product') }}</th>
                   <th>{{ currentLang === 'mr' ? 'प्रकार' : (currentLang === 'hi' ? 'प्रकार' : 'Type') }}</th>
                   <th>{{ currentLang === 'mr' ? 'ब्रँड' : (currentLang === 'hi' ? 'ब्रांड' : 'Brand') }}</th>
@@ -761,7 +785,15 @@
               </thead>
               <tbody>
                 <template v-for="prod in filteredAdminProducts" :key="prod.id">
-                  <tr v-for="v in prod.variants" :key="v.id">
+                  <tr v-for="(v, vIdx) in prod.variants" :key="v.id">
+                    <td v-if="vIdx === 0" :rowspan="prod.variants.length" style="text-align: center; vertical-align: middle;">
+                      <input
+                        type="checkbox"
+                        :checked="selectedAdminProductIds.includes(prod.id)"
+                        @change="toggleProductSelection(prod.id)"
+                        style="width: 17px; height: 17px; accent-color: #ef4444; cursor: pointer;"
+                      />
+                    </td>
                     <td>
                       <strong>{{ prod.name }}</strong>
                       <div style="font-size: 0.8rem; color: #c2410c; font-family: var(--font-hindi);">
@@ -855,11 +887,19 @@
           <div class="admin-mobile-inventory-list">
             <div v-for="prod in filteredAdminProducts" :key="'mob-' + prod.id" class="admin-mob-item-card">
               <div class="admin-mob-card-head">
-                <div>
-                  <div class="admin-mob-name">{{ prod.name }}</div>
-                  <div class="admin-mob-sub">
-                    <span class="admin-mob-hi">{{ prod.name_hi }}</span>
-                    <span v-if="prod.brand" class="admin-mob-brand">• {{ prod.brand }}</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <input
+                    type="checkbox"
+                    :checked="selectedAdminProductIds.includes(prod.id)"
+                    @change="toggleProductSelection(prod.id)"
+                    style="width: 18px; height: 18px; accent-color: #ef4444; cursor: pointer; flex-shrink: 0;"
+                  />
+                  <div>
+                    <div class="admin-mob-name">{{ prod.name }}</div>
+                    <div class="admin-mob-sub">
+                      <span class="admin-mob-hi">{{ prod.name_hi }}</span>
+                      <span v-if="prod.brand" class="admin-mob-brand">• {{ prod.brand }}</span>
+                    </div>
                   </div>
                 </div>
                 <div class="admin-mob-head-actions">
@@ -944,12 +984,30 @@
           <div class="pos-container">
             <!-- Left Column: Customer & Item Builder -->
             <div class="pos-card">
-              <div class="pos-card-title">
-                <span>⚡ {{ currentLang === 'en' ? 'New Counter Bill Details (Walk-in / Phone Order)' : (currentLang === 'mr' ? 'नवीन काउंटर बिल तपशील (Walk-in / Phone Order)' : 'नया काउंटर बिल विवरण (Walk-in / Phone Order)') }}</span>
+              <div class="pos-card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <span>⚡ {{ currentLang === 'en' ? 'New Counter Bill (POS)' : (currentLang === 'mr' ? 'नवीन काउंटर बिल (POS)' : 'नया काउंटर बिल (POS)') }}</span>
+                <button
+                  type="button"
+                  @click="posCustomerDetailsOpen = !posCustomerDetailsOpen"
+                  style="background: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                >
+                  {{ posCustomerDetailsOpen ? '▲ ' + (currentLang === 'en' ? 'Minimize Customer Info' : 'माहिती लपवा') : '▼ 👤 ' + (counterOrder.customer_name ? counterOrder.customer_name : (currentLang === 'en' ? 'Customer Info / Khata' : (currentLang === 'mr' ? 'ग्राहक खाते / माहिती' : 'ग्राहक खाता / जानकारी'))) }}
+                </button>
               </div>
 
-              <!-- Customer Info -->
-              <div class="pos-form-grid">
+              <!-- Quick Walk-in Summary Banner when collapsed -->
+              <div v-if="!posCustomerDetailsOpen" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.84rem;">
+                <div>
+                  <strong>👤 {{ counterOrder.customer_name || (currentLang === 'en' ? 'Walk-in Customer' : 'काउंटर रोख ग्राहक') }}</strong>
+                  <span style="color: var(--text-muted); margin-left: 6px;">(📞 {{ counterOrder.customer_phone || '9876543210' }} • 💵 {{ counterOrder.payment_method }})</span>
+                </div>
+                <button type="button" @click="posCustomerDetailsOpen = true" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.82rem;">
+                  ✏️ {{ currentLang === 'en' ? 'Change' : (currentLang === 'mr' ? 'बदला' : 'बदलें') }}
+                </button>
+              </div>
+
+              <!-- Customer Info (Full Form) -->
+              <div v-show="posCustomerDetailsOpen" class="pos-form-grid" style="margin-bottom: 14px;">
                 <!-- Select Existing Customer -->
                 <div class="pos-input-group" style="grid-column: 1 / -1;">
                   <label class="pos-label">{{ currentLang === 'en' ? 'Select Registered Customer (or type new name below)' : (currentLang === 'mr' ? 'नोंदणीकृत ग्राहक निवडा (किंवा खाली नवीन नाव लिहा)' : 'पंजीकृत ग्राहक चुनें (या नीचे नया नाम लिखें)') }}</label>
@@ -1274,6 +1332,32 @@
                   🗑️
                 </button>
               </div>
+            </div>
+          </div>
+
+          <!-- Floating Mobile POS Action Bar (Always visible over bottom nav when items in bill) -->
+          <div class="pos-mobile-floating-bar" v-if="counterOrder.items.length > 0">
+            <div class="pos-mob-float-left">
+              <span class="pos-mob-float-count">🛒 {{ counterOrder.items.length }} {{ currentLang === 'en' ? 'items' : 'सामान' }}</span>
+              <span class="pos-mob-float-total">₹{{ posFinalPayable }}</span>
+            </div>
+            <div class="pos-mob-float-actions">
+              <button
+                type="button"
+                class="pos-mob-float-btn btn-print"
+                :disabled="isPosSubmitting"
+                @click="submitCounterOrder('print')"
+              >
+                🖨️ {{ currentLang === 'en' ? 'Print' : 'पावती' }}
+              </button>
+              <button
+                type="button"
+                class="pos-mob-float-btn btn-wa"
+                :disabled="isPosSubmitting"
+                @click="submitCounterOrder('whatsapp')"
+              >
+                📲 WA
+              </button>
             </div>
           </div>
         </div>
@@ -4430,7 +4514,6 @@
               <div class="parcha-item-sub">{{ item.variantUnit }} • {{ item.isLoose ? 'खुला मंडी तोल' : 'ब्रांडेड पैक' }}</div>
               <div class="parcha-item-prices">
                 <span class="parcha-item-selling">₹{{ (item.fallbackPrice * (item.quantity || 1)) }}</span>
-                <span class="parcha-item-mrp" v-if="item.mrp > item.fallbackPrice">₹{{ (item.mrp * (item.quantity || 1)) }}</span>
               </div>
             </div>
 
@@ -4664,12 +4747,6 @@
             <template v-else>
               <div class="price-row" style="margin-top: 16px;" v-if="getActiveVariant(selectedProductQuickView)">
                 <span class="selling-price" style="font-size: 1.5rem;">₹{{ getActiveVariant(selectedProductQuickView).selling_price }}</span>
-                <span class="mrp-price" style="font-size: 1.1rem;" v-if="getActiveVariant(selectedProductQuickView).mrp > getActiveVariant(selectedProductQuickView).selling_price">
-                  ₹{{ getActiveVariant(selectedProductQuickView).mrp }}
-                </span>
-                <span class="discount-tag" v-if="getActiveVariant(selectedProductQuickView).discount_pct > 0">
-                  {{ t('savings_label') }} {{ getActiveVariant(selectedProductQuickView).discount_pct }}%
-                </span>
               </div>
 
               <div style="margin-top: 16px;" v-if="getActiveVariant(selectedProductQuickView)">
@@ -5128,6 +5205,7 @@ const adminSearch = ref('');
 const adminOrders = ref([]);
 const showAddProductModal = ref(false);
 const selectedAdminOrderIds = ref([]);
+const selectedAdminProductIds = ref([]);
 const showBatchPrintModal = ref(false);
 const batchPrintLayout = ref('auto'); // 'auto' | 'two' | 'four'
 
@@ -5187,6 +5265,7 @@ const activeAuditedCustomer = ref(null);
 const isPosSubmitting = ref(false);
 const selectedPosCustomer = ref(null);
 const posUseStoreCredit = ref(false);
+const posCustomerDetailsOpen = ref(false);
 
 const counterOrder = ref({
   customer_name: '',
@@ -7328,6 +7407,20 @@ function sendAdminWhatsAppStatus(order, statusType) {
   }
   let rawPhone = String(order.customer_phone).replace(/\D/g, '');
   if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+  // If customer number is a dummy/test number, offer prompt so Roushan can test with real WhatsApp
+  const isDummy = rawPhone.endsWith('9876543210') || rawPhone.endsWith('1234567890') || /^91(\d)\1{7,}/.test(rawPhone);
+  if (isDummy) {
+    const promptNumber = prompt(
+      currentLang.value === 'en'
+        ? `Customer phone (${order.customer_phone}) is a dummy/demo number.\nEnter your real 10-digit WhatsApp number to test live status dispatch:`
+        : `हा ग्राहक क्रमांक (${order.customer_phone}) डमी नंबर आहे.\nWhatsApp मेसेज टेस्ट करण्यासाठी तुमचा खरा 10-अंकी मोबाईल नंबर टाका:`,
+      '91'
+    );
+    if (!promptNumber) return;
+    rawPhone = promptNumber.replace(/\D/g, '');
+    if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+  }
+
   const custName = order.customer_name || 'Customer';
   const orderNum = order.order_number || ('KM-' + order.id);
   const amount = Number(order.final_amount || 0).toFixed(2);
@@ -7336,7 +7429,7 @@ function sendAdminWhatsAppStatus(order, statusType) {
   if (statusType === 'confirmed') {
     msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (98765-43210)`;
   } else if (statusType === 'out_for_delivery') {
-    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता के लिए कॉल करें: 98765-43210. धन्यवाद! 🙏`;
+    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\n\nक्या आप घर पर उपलब्ध हैं? हमारा डिलीवरी बॉय अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता या निर्देश के लिए कॉल करें: 98765-43210. धन्यवाद! 🙏\n- कोमल मार्ट`;
   } else if (statusType === 'delivered') {
     msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
   } else if (statusType === 'verified') {
@@ -7545,6 +7638,57 @@ async function deleteAdminProduct(productId, productName) {
     } catch (err) {
       console.error('Delete product error:', err);
     }
+  }
+}
+
+function toggleSelectAllProducts(e) {
+  if (e.target.checked) {
+    selectedAdminProductIds.value = filteredAdminProducts.value.map(p => p.id);
+  } else {
+    selectedAdminProductIds.value = [];
+  }
+}
+
+function toggleProductSelection(productId) {
+  const idx = selectedAdminProductIds.value.indexOf(productId);
+  if (idx > -1) {
+    selectedAdminProductIds.value.splice(idx, 1);
+  } else {
+    selectedAdminProductIds.value.push(productId);
+  }
+}
+
+async function bulkDeleteSelectedProducts() {
+  const count = selectedAdminProductIds.value.length;
+  if (count === 0) return;
+  const confirmMsg = currentLang.value === 'en'
+    ? `Are you sure you want to permanently delete ${count} selected products?`
+    : (currentLang.value === 'mr'
+      ? `तुम्हाला नक्की ${count} निवडलेले सामान कायमचे हटवायचे आहे का?`
+      : `क्या आप सच में चुने गए ${count} सामान को दुकान से हटाना चाहते हैं?`);
+
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/products/bulk-delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({ product_ids: selectedAdminProductIds.value })
+    });
+    if (res.ok) {
+      showToast(currentLang.value === 'en' ? `🗑️ Successfully deleted ${count} products!` : `🗑️ ${count} सामान दुकानातून यशस्वीरित्या हटवले!`, 'success');
+      selectedAdminProductIds.value = [];
+      fetchProducts();
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Failed to delete products', 'error');
+    }
+  } catch (err) {
+    console.error('Bulk delete error:', err);
+    showToast('Network error during bulk delete', 'error');
   }
 }
 
