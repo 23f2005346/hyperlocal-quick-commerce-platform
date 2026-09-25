@@ -4645,6 +4645,11 @@ a {
    MOBILE HOMEPAGE & SCREEN OPTIMIZATIONS (<= 768px)
    ========================================================================== */
 @media (max-width: 768px) {
+  /* Completely hide bulky 3-line top announcement on phone screens to save 120px */
+  .top-announcement {
+    display: none !important;
+  }
+
   /* Clean Mobile Header Layout (No Squished Search or Crammed Buttons) */
   .kirana-header {
     padding: 6px 12px 10px 12px !important;
@@ -4728,6 +4733,35 @@ a {
     border-radius: 8px !important;
   }
 
+  /* Compact Single-Row Filters on Mobile (No Vertical Clutter) */
+  .filter-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding: 2px 4px 6px 4px !important;
+    margin: 4px 0 8px 0 !important;
+    gap: 6px !important;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar {
+    display: none;
+  }
+  .sub-filter-group {
+    display: flex !important;
+    gap: 4px !important;
+  }
+  .filter-btn {
+    padding: 5px 10px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+    border-radius: 6px !important;
+  }
+  .sort-select {
+    padding: 4px 8px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+  }
+
   /* Sleek 1-Line Mobile Quick Action Strip */
   .mobile-app-quick-strip {
     display: flex !important;
@@ -4737,7 +4771,7 @@ a {
     border: 1px solid #a7f3d0 !important;
     border-radius: 8px !important;
     padding: 7px 12px !important;
-    margin: 4px 0 12px 0 !important;
+    margin: 4px 0 10px 0 !important;
     font-size: 0.78rem !important;
     color: #065f46 !important;
     font-weight: 700 !important;

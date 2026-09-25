@@ -119,8 +119,11 @@
             <img src="/favicon.svg" alt="Komal Mart" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" />
           </div>
           <div class="brand-text">
-            <h1>{{ t('store_title') }}</h1>
-            <p>{{ t('store_subtitle') }}</p>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h1>{{ t('store_title') }}</h1>
+              <span class="mobile-delivery-tag" style="display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 800; color: #047857; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">⚡ 30m</span>
+            </div>
+            <p class="desktop-only">{{ t('store_subtitle') }}</p>
           </div>
         </div>
 
@@ -150,6 +153,29 @@
 
           <!-- CUSTOMER OR GUEST CONTROLS -->
           <template v-else>
+            <!-- Mobile Language Dropdown Pill (Replaces bulky top banner on phone) -->
+            <div class="lang-dropdown-pill mobile-only-inline" style="position: relative;">
+              <button class="lang-pill-btn" @click="toggleLangDropdown" style="padding: 5px 8px; font-size: 0.78rem;">
+                🌐 {{ currentLang === 'mr' ? 'मराठी' : (currentLang === 'hi' ? 'हिंदी' : 'EN') }} ▾
+              </button>
+              <div class="lang-dropdown-menu" v-if="showLangDropdown" style="position: absolute; top: 100%; right: 0; z-index: 100;">
+                <button :class="{ active: currentLang === 'mr' }" @click="selectLanguage('mr'); showLangDropdown = false">
+                  🇮🇳 मराठी
+                </button>
+                <button :class="{ active: currentLang === 'hi' }" @click="selectLanguage('hi'); showLangDropdown = false">
+                  🇮🇳 हिंदी
+                </button>
+                <button :class="{ active: currentLang === 'en' }" @click="selectLanguage('en'); showLangDropdown = false">
+                  🇬🇧 English
+                </button>
+              </div>
+            </div>
+
+            <!-- Install App Button on Mobile & Desktop Header -->
+            <button v-if="!isAppInstalled" class="pwa-header-btn" @click="triggerInstall" :title="t('pwa_install_btn')" style="padding: 6px 10px; font-size: 0.78rem; font-weight: 800; background: #ecfdf5; color: #064e3b; border: 1.5px solid #a7f3d0; border-radius: 8px;">
+              📲 <span>{{ currentLang === 'mr' ? 'ॲप' : (currentLang === 'hi' ? 'ऐप' : 'App') }}</span>
+            </button>
+
             <!-- Logged in Customer -->
             <div v-if="currentUser" style="display: flex; align-items: center; gap: 6px;">
               <button class="store-credit-header-badge" @click="openAccountModal" :title="t('store_credit_balance')">
@@ -166,11 +192,6 @@
             <!-- Guest / Not Logged In -->
             <button v-else class="user-btn" @click="openAuthModal('login')">
               👤 {{ t('login_btn') }}
-            </button>
-
-            <!-- PWA Install Button in Header (Desktop Only) -->
-            <button v-if="!isAppInstalled" class="pwa-header-btn desktop-only" @click="triggerInstall" :title="t('pwa_install_btn')">
-              📲 <span>{{ t('pwa_install_btn') }}</span>
             </button>
 
             <!-- QR Code Button to Open on Phone (Desktop Only) -->
@@ -5276,31 +5297,27 @@ const canInstallPWA = computed(() => {
 });
 
 const triggerInstall = async () => {
-  // If user is on an Android device, directly trigger standalone APK download
-  if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) {
-    window.location.href = '/downloads/KomalMart.apk';
-    const msg = currentLang.value === 'en'
-      ? '📥 Downloading Komal Mart Android App...'
-      : (currentLang.value === 'mr' ? '📥 कोमल मार्ट ॲप डाऊनलोड होत आहे...' : '📥 कोमल मार्ट ऐप डाउनलोड हो रहा है...');
-    showToast(msg);
-    showInstallBanner.value = false;
-    return;
-  }
-
+  // 1. If browser has native trusted PWA prompt ready, use it! (100% clean, ZERO Play Protect warnings)
   if (deferredInstallPrompt.value) {
     deferredInstallPrompt.value.prompt();
     const { outcome } = await deferredInstallPrompt.value.userChoice;
     if (outcome === 'accepted') {
       showInstallBanner.value = false;
       isAppInstalled.value = true;
-      showToast('🎉 कोमल मार्ट ॲप यशस्वीरित्या इन्स्टॉल झाले!');
+      showToast(currentLang.value === 'en' ? '🎉 Komal Mart added to your Home Screen!' : '🎉 कोमल मार्ट ॲप होम स्क्रीनवर सेव्ह झाले!');
     }
     deferredInstallPrompt.value = null;
-  } else if (isIOS()) {
-    showIOSModal.value = true;
-  } else {
-    showInstallGuideModal.value = true;
+    return;
   }
+
+  // 2. If iOS Safari, show the iOS Add to Home Screen instructions
+  if (isIOS()) {
+    showIOSModal.value = true;
+    return;
+  }
+
+  // 3. Otherwise, open the clear Install Guide modal (offers 1-tap browser guide & optional APK download)
+  showInstallGuideModal.value = true;
 };
 
 const dismissInstallBanner = () => {
