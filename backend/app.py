@@ -496,15 +496,22 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "   - 'sawa kilo' -> 1.25 kg\n"
         "   - 'dhai kilo' -> 2.5 kg\n"
         "   - 'ek packet' / 'don packet' -> 1 or 2 packet/units\n"
-        "2. Customer Preferences (Sasta vs Mehnga / Quality):\n"
+        "2. Accurate Variant Multiplier Matching (CRITICAL):\n"
+        "   - When customer asks for a specific total weight (e.g. '2 kilo chakki atta', '3 kilo chawal'): choose the standard base unit variant (e.g., 1kg variant) and set quantity equal to that amount (e.g. 1kg variant with quantity=2). NEVER match a 5kg or 10kg variant with quantity=2 unless the customer explicitly asked for 'two 5kg packets' or '10 kilo'.\n"
+        "   - If the exact pack size is available in variants (e.g., 500g, 1kg, 5kg), match that variant with quantity=1.\n"
+        "3. Continuous Speech Segmentation & Filler Suppression (CRITICAL):\n"
+        "   - Spoken speech often arrives as a continuous stream without commas (e.g. '2 kilo chini 1 kilo atta 1 packet tata tea that is it'). Parse each distinct grocery item separately with its own stated quantity.\n"
+        "   - Strictly ignore conversational fillers, greetings, hesitations, and closing phrases: 'komal', 'namaste', 'bhai', 'that is it', 'that\\'s it', 'bas itna hi', 'aur kuch nahi', 'bhej do', 'kardo', 'chahiye', 'ek packet dena', 'pack karo', 'aur haan', 'achha'. NEVER generate items or extra ghost entries for these filler words.\n"
+        "   - Deduplicate stuttered speech: If a customer repeats a word or item during speech pauses (e.g., 'sugar... 2 kilo chini'), emit only ONE item for sugar with the final intended quantity (2).\n"
+        "4. Customer Preferences (Sasta vs Mehnga / Quality):\n"
         "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
         "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
         "   - If the product has multiple variants and the customer did NOT specify size or price preference, set match_status to 'ambiguous' and populate 'options' with all active variants of that product so the customer can tap one.\n"
-        "3. Out-of-Stock / Unavailable Items:\n"
-        "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
-        "4. Exact Match:\n"
+        "5. Out-of-Stock / Unavailable Items:\n"
+        "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
+        "6. Exact Match:\n"
         "   - If product and variant are identified, set match_status to 'matched'.\n"
-        "5. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
+        "7. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
     )
 
     prompt = f"""Catalog Snapshot:
@@ -1422,8 +1429,8 @@ def create_app():
 
             # Get image and real product names
             image_url = '/products/chakki-atta.jpg'
-            prod_name = item.get('product_name') or 'किराणा सामान'
-            prod_name_hi = prod_name
+            prod_name = item.get('product_name') or item.get('query_term') or 'किराणा सामान'
+            prod_name_hi = item.get('product_name_hi') or item.get('product_name') or item.get('query_term') or prod_name
             is_loose = False
 
             if db_prod:

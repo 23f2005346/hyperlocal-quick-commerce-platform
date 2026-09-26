@@ -6178,6 +6178,8 @@ const aiLanguage = ref('mr');
 const aiResult = ref(null);
 const speechSupported = ref(false);
 let activeSpeechRecognition = null;
+const baseSpeechInput = ref('');
+let speechSilenceTimer = null;
 
 // Cart State
 const cart = ref([]);
@@ -7234,6 +7236,10 @@ function openKomalAiModal() {
 }
 
 function closeKomalAiModal() {
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
   if (isRecording.value && activeSpeechRecognition) {
     try { activeSpeechRecognition.stop(); } catch (e) {}
   }
@@ -7243,6 +7249,10 @@ function closeKomalAiModal() {
 
 function setAiLanguage(lang) {
   aiLanguage.value = lang;
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
   if (isRecording.value && activeSpeechRecognition) {
     try { activeSpeechRecognition.stop(); } catch (e) {}
     isRecording.value = false;
@@ -7276,6 +7286,11 @@ function toggleSpeechRecognition() {
     return;
   }
 
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
+
   if (isRecording.value) {
     if (activeSpeechRecognition) {
       try { activeSpeechRecognition.stop(); } catch (e) {}
@@ -7286,33 +7301,60 @@ function toggleSpeechRecognition() {
 
   try {
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
     const lang = aiLanguage.value || currentLang.value || 'mr';
     recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+
+    // Capture initial text so continuous streaming appends cleanly without repeating
+    baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
 
     recognition.onstart = () => {
       isRecording.value = true;
     };
 
     recognition.onresult = (event) => {
-      if (event.results && event.results[0] && event.results[0][0]) {
-        const spoken = (event.results[0][0].transcript || '').trim();
-        if (spoken) {
-          if (aiInputText.value && aiInputText.value.trim()) {
-            aiInputText.value = `${aiInputText.value.trim()}, ${spoken}`;
-          } else {
-            aiInputText.value = spoken;
-          }
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = 0; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript + ' ';
+        } else {
+          interimTranscript += item[0].transcript;
         }
       }
+
+      const sessionSpoken = (finalTranscript + interimTranscript).trim();
+      if (sessionSpoken) {
+        if (baseSpeechInput.value) {
+          aiInputText.value = `${baseSpeechInput.value}, ${sessionSpoken}`;
+        } else {
+          aiInputText.value = sessionSpoken;
+        }
+      }
+
+      // Generous 4.5-second silence auto-cutoff timer (resets whenever words are detected)
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = setTimeout(() => {
+        if (isRecording.value && activeSpeechRecognition) {
+          try { activeSpeechRecognition.stop(); } catch (e) {}
+          isRecording.value = false;
+        }
+      }, 4500);
     };
 
     recognition.onerror = (event) => {
-      console.warn('Speech recognition warning:', event.error);
-      isRecording.value = false;
-      if (event.error === 'not-allowed') {
+      console.warn('Speech recognition status:', event.error);
+      if (event.error === 'no-speech') {
+        // Essential for laptop/desktop browsers: do NOT abort on brief silence!
+        return;
+      }
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        isRecording.value = false;
+        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
         showToast(
           currentLang.value === 'mr'
             ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
@@ -7324,6 +7366,7 @@ function toggleSpeechRecognition() {
     };
 
     recognition.onend = () => {
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
       isRecording.value = false;
     };
 
@@ -7331,6 +7374,7 @@ function toggleSpeechRecognition() {
     recognition.start();
   } catch (err) {
     console.warn('Speech start error:', err);
+    if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
     isRecording.value = false;
   }
 }
@@ -7363,6 +7407,10 @@ async function handleProcessAiOrder() {
     return;
   }
 
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
   if (isRecording.value && activeSpeechRecognition) {
     try { activeSpeechRecognition.stop(); } catch (e) {}
     isRecording.value = false;
