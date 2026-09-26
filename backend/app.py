@@ -312,12 +312,13 @@ SEARCH_ALIASES = {
     'basmati': ['basmati', 'rice', 'chawal', 'बासमती', 'दावत', 'daawat'],
 
     # Whole Wheat Grains (अखंड गहू / गेहूं दाना)
-    'wheat': ['wheat', 'gehu', 'gehun', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
-    'gehu': ['gehu', 'gehun', 'wheat', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
-    'gehun': ['gehu', 'gehun', 'wheat', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
-    'gahu': ['gahu', 'gehu', 'gehun', 'wheat', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
-    'lokwan': ['lokwan', 'wheat', 'gehu', 'gahu', 'लोकवन', 'गहू'],
-    'sharbati': ['sharbati', 'wheat', 'gehu', 'gahu', 'शरबती', 'गहू'],
+    'wheat': ['wheat', 'gehu', 'gehun', 'gahu', 'अखंड गहू', 'गहू', 'गेहूं', 'wheat grain'],
+    'gehu': ['gehu', 'gehun', 'wheat', 'gahu', 'अखंड गहू', 'गहू', 'गेहूं', 'wheat grain'],
+    'gehun': ['gehu', 'gehun', 'wheat', 'gahu', 'अखंड गहू', 'गहू', 'गेहूं', 'wheat grain'],
+    'gahu': ['gahu', 'gehu', 'gehun', 'wheat', 'अखंड गहू', 'गहू', 'गेहूं', 'wheat grain'],
+    'lokwan': ['lokwan', 'लोकवन'],
+    'sharbati': ['sharbati', 'शरबती', 'सीहोर'],
+    'tukdi': ['tukdi', 'तुकडी', 'bhalia', 'भालिया'],
 
     # Atta / Flours (पीठ / आटा)
     'atta': ['atta', 'aata', 'pith', 'peeth', 'flour', 'chakki', 'aashirvaad', 'fortune', 'आटा', 'पीठ'],
@@ -426,7 +427,49 @@ SEARCH_ALIASES = {
     'toothpaste': ['toothpaste', 'paste', 'colgate', 'sensodyne', 'dabur', 'patanjali', 'टूथपेस्ट'],
     'colgate': ['colgate', 'toothpaste', 'कोलगेट'],
     'dant': ['dant', 'dantmanjan', 'dant kanti', 'दंत', 'पतंजली', 'डाबर', 'toothpaste'],
-    'dettol': ['dettol', 'soap', 'डेटॉल']
+    'dettol': ['dettol', 'soap', 'डेटॉल'],
+
+    # Dry Fruits
+    'badam': ['badam', 'almond', 'almonds', 'बदाम', 'california badam'],
+    'almond': ['badam', 'almond', 'almonds', 'बदाम'],
+    'kaju': ['kaju', 'cashew', 'cashews', 'काजू', 'goa kaju'],
+    'cashew': ['kaju', 'cashew', 'cashews', 'काजू'],
+    'kishmish': ['kishmish', 'raisin', 'raisins', 'bedana', 'मनुका', 'बेदाणा', 'किशमिश'],
+    'makhana': ['makhana', 'foxnut', 'foxnuts', 'मखाना', 'phool makhana'],
+    'akhrot': ['akhrot', 'walnut', 'walnuts', 'अक्रोड'],
+    'pista': ['pista', 'pistachio', 'पिस्ता'],
+
+    # Biscuits & Bakery
+    'parle': ['parle-g', 'parle g', 'parleg', 'parle', 'पारले', 'पारले-जी'],
+    'parle g': ['parle-g', 'parle g', 'parleg', 'पारले-जी'],
+    'good day': ['good day', 'goodday', 'गुड डे'],
+    'marie': ['marie gold', 'marie', 'मेरी गोल्ड'],
+    'krackjack': ['krackjack', 'krack jack', 'क्रॅकजॅक'],
+    'monaco': ['monaco', 'मोनाको'],
+    'bourbon': ['bourbon', 'बॉर्बन'],
+    'toast': ['toast', 'rusk', 'टोस्ट', 'रस्क'],
+    'rusk': ['toast', 'rusk', 'टोस्ट', 'रस्क'],
+
+    # Beverages & Cold Drinks
+    'thums up': ['thums up', 'thumsup', 'thumbs up', 'थम्स अप'],
+    'thumsup': ['thums up', 'thumsup', 'thumbs up', 'थम्स अप'],
+    'sprite': ['sprite', 'स्प्राइट'],
+    'coke': ['coca-cola', 'coca cola', 'coke', 'कोका-कोला'],
+    'coca cola': ['coca-cola', 'coca cola', 'coke', 'कोका-कोला'],
+    'maaza': ['maaza', 'माझा', 'mango juice'],
+    'bisleri': ['bisleri', 'water', 'पाणी', 'बिसलेरी'],
+
+    # Specific Oils & Grains
+    'gemini': ['gemini', 'जेमिनी', 'sunflower oil', 'सूर्यफूल तेल'],
+    'priya': ['priya', 'प्रिया', 'groundnut oil', 'शेंगदाणा तेल'],
+    'palmolein': ['palmolein', 'palm oil', 'पामोलिन'],
+    'lokwan': ['lokwan', 'लोकवन', 'लोकवन अखंड गहू'],
+    'sharbati': ['sharbati', 'शरबती', 'सीहोर शरबती'],
+    'tukdi': ['tukdi', 'bhalia', 'तुकडी', 'भालिया'],
+    'kolam': ['wada kolam', 'surti kolam', 'kolam', 'कोलम'],
+    'sabudana': ['sabudana', 'साबुदाणा'],
+    'kurmura': ['kurmura', 'murmura', 'चुरमुरे', 'कुरमुरे'],
+    'gud': ['gud', 'jaggery', 'gul', 'गूळ', 'गुड']
 }
 
 def calculate_order_credit(items_data):
@@ -710,27 +753,33 @@ def fallback_heuristic_order_parser(raw_text, all_products):
             'kg', 'kilo', 'किलो', 'gm', 'g', 'gram', 'ग्रॅम', 'ग्राम', 'लिटर', 'liter', 'l',
             'packet', 'pkt', 'पॅकेट', 'वाला', 'वाली', 'swast', 'swasta', 'sasta', 'mehnga',
             'regular', 'स्वस्त', 'सस्ता', 'पाहिजे', 'द्या', 'आहे', 'हवा', 'हवे', 'चाहिए', 'देना',
-            'ani', 'aani', 'aur', 'and', 'आणि', 'और', 'तसेच', 'व', 'कोमल'
+            'ani', 'aani', 'aur', 'and', 'आणि', 'और', 'तसेच', 'व', 'कोमल',
+            'ka', 'ki', 'ke', 'ko', 'se', 'me', 'mein', 'का', 'की', 'के', 'को', 'से', 'में', 'मध्ये',
+            'rupaye', 'rupayee', 'rupee', 'rs', 'रुपये', 'रूपये', 'रु',
+            'karna', 'karke', 'kar', 'de', 'dya', 'bottle', 'can', 'dibba', 'डबा', 'डब्बा', 'packet', 'pack'
         ])
         clean_words = [w for w in re.findall(r'[\w\u0900-\u097F]+', p_lower) if w not in stopwords and len(w) >= 2]
 
+        prod_matches = []
         for prod in all_products:
             prod_text = f"{prod.name.lower()} {(prod.name_hi or '').lower()} {prod.brand.lower() if prod.brand else ''}"
-            matched = False
+            prod_tokens = set(re.findall(r'[\w\u0900-\u097F]+', prod_text))
+            score = 0
             for w in clean_words:
-                if w in prod_text:
-                    matched = True
-                    break
-                for k, syns in SEARCH_ALIASES.items():
-                    if w == k or w in syns:
-                        if any(s in prod_text for s in syns) or k in prod_text:
-                            matched = True
-                            break
-                if matched:
-                    break
-            if matched:
-                matched_prod = prod
-                break
+                if w in prod_tokens:
+                    score += 2
+                else:
+                    for k, syns in SEARCH_ALIASES.items():
+                        if w == k or w in syns:
+                            if any(s in prod_tokens for s in syns) or any(s in prod_text for s in syns):
+                                score += 2
+                                break
+            if score > 0:
+                prod_matches.append((score, prod))
+
+        if prod_matches:
+            prod_matches.sort(key=lambda x: x[0], reverse=True)
+            matched_prod = prod_matches[0][1]
 
         if matched_prod and matched_prod.variants:
             active_vars = [v for v in matched_prod.variants if v.is_available]
@@ -856,21 +905,30 @@ def seed_default_tiered_pricing():
     - Chana Dal (5kg+ wholesale, 25kg+ bulk)
     """
     staple_tiers = [
-        ("Wada Kolam", 5.0, 24.99, 56.0, "होलसेल (Wholesale 5kg+)"),
-        ("Wada Kolam", 25.0, None, 54.0, "बोरी दर (Bulk Bori 25kg+)"),
-        ("Chakki Fresh Wheat Atta", 5.0, 9.99, 33.0, "होलसेल (5kg+)"),
-        ("Chakki Fresh Wheat Atta", 10.0, 24.99, 32.0, "कट्टा दर (10kg+)"),
-        ("Chakki Fresh Wheat Atta", 25.0, None, 30.0, "बोरी दर (25kg+)"),
-        ("Toor Dal / Arhar Dal", 5.0, 24.99, 142.0, "होलसेल (5kg+)"),
-        ("Toor Dal / Arhar Dal", 25.0, None, 135.0, "बोरी दर (25kg+)"),
-        ("Chana Dal", 5.0, 24.99, 86.0, "होलसेल (5kg+)"),
-        ("Chana Dal", 25.0, None, 80.0, "बोरी दर (25kg+)"),
-        ("Loose White Sugar", 5.0, 24.99, 42.0, "होलसेल साखर (5kg+)"),
+        ("Wada Kolam", 5.0, 24.99, 54.0, "होलसेल (Wholesale 5kg+)"),
+        ("Wada Kolam", 25.0, None, 53.0, "बोरी दर (Bulk Bori 25kg+)"),
+        ("Chakki Fresh Wheat Atta", 5.0, 9.99, 37.0, "होलसेल (5kg+)"),
+        ("Chakki Fresh Wheat Atta", 10.0, 24.99, 36.0, "कट्टा दर (10kg+)"),
+        ("Chakki Fresh Wheat Atta", 25.0, None, 35.0, "बोरी दर (25kg+)"),
+        ("Toor Dal / Arhar Dal", 5.0, 24.99, 210.0, "होलसेल (5kg+)"),
+        ("Chana Dal", 5.0, 24.99, 85.0, "होलसेल (5kg+)"),
+        ("Loose White Sugar", 5.0, 24.99, 41.0, "होलसेल साखर (5kg+)"),
         ("Loose White Sugar", 25.0, None, 40.0, "बोरी साखर दर (25kg+)"),
-        ("Sharbati Whole Wheat Grain", 5.0, 9.99, 36.0, "होलसेल शरबती (5kg+)"),
-        ("Sharbati Whole Wheat Grain", 10.0, None, 34.0, "कट्टा दर (10kg+)"),
-        ("Lokwan Whole Wheat Grain", 5.0, 9.99, 32.0, "होलसेल लोकवन (5kg+)"),
-        ("Lokwan Whole Wheat Grain", 10.0, None, 30.0, "कट्टा दर (10kg+)"),
+        ("Lokwan Whole Wheat Grain", 5.0, 9.99, 39.0, "होलसेल लोकवन (5kg+)"),
+        ("Lokwan Whole Wheat Grain", 10.0, 29.99, 38.0, "कट्टा दर (10kg+)"),
+        ("Lokwan Whole Wheat Grain", 30.0, None, 37.0, "बोरी दर (30kg+)"),
+        ("Tukdi / Bhalia Whole Wheat Grain", 10.0, 29.99, 40.0, "कट्टा दर (10kg+)"),
+        ("Tukdi / Bhalia Whole Wheat Grain", 30.0, None, 39.0, "बोरी दर (30kg+)"),
+        ("MP Sharbati Whole Wheat Grain", 10.0, 29.99, 42.0, "कट्टा दर (10kg+)"),
+        ("MP Sharbati Whole Wheat Grain", 30.0, None, 41.0, "बोरी दर (30kg+)"),
+        ("Premium Sharbati Gold", 10.0, 29.99, 46.0, "कट्टा दर (10kg+)"),
+        ("Premium Sharbati Gold", 30.0, None, 45.0, "बोरी दर (30kg+)"),
+        ("California Giri Badam", 5.0, None, 810.0, "घाऊक दर (5kg+ Wholesale)"),
+        ("Goa Whole Cashews", 5.0, None, 890.0, "घाऊक दर (5kg+ Wholesale)"),
+        ("Golden Kishmish", 5.0, None, 340.0, "घाऊक दर (5kg+ Wholesale)"),
+        ("Phool Makhana", 5.0, None, 950.0, "घाऊक दर (5kg+ Wholesale)"),
+        ("Kashmiri Akhrot Giri", 5.0, None, 1150.0, "घाऊक दर (5kg+ Wholesale)"),
+        ("Roasted Salted Pista", 5.0, None, 1100.0, "घाऊक दर (5kg+ Wholesale)"),
     ]
     for term, min_q, max_q, price, label in staple_tiers:
         prod = Product.query.filter(Product.name.ilike(f"%{term}%")).first()
@@ -3374,6 +3432,8 @@ def seed_database():
     """Populates database with authentic Indian Kirana categories, products, and default accounts."""
     OrderItem.query.delete()
     Order.query.delete()
+    RestockAlert.query.delete()
+    TieredPricing.query.delete()
     ProductVariant.query.delete()
     Product.query.delete()
     Category.query.delete()
@@ -3469,6 +3529,7 @@ def seed_database():
             db.session.add(variant)
 
     db.session.commit()
+    seed_default_tiered_pricing()
     print("Database successfully seeded with authentic Indian Kirana inventory & default accounts!")
 
 

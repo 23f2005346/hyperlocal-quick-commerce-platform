@@ -1108,7 +1108,12 @@ export function getLocalizedCategoryName(cat, currentLang) {
       'oral-care': 'टूथपेस्ट व पर्सनल केअर',
       'oils-ghee': 'तेल व शुद्ध देशी तूप',
       'spices-masalas': 'मसाले व मीठ',
-      'household-cleaning': 'स्वच्छता व डिटर्जंट'
+      'household-cleaning': 'स्वच्छता व डिटर्जंट',
+      'dry-fruits-nuts': 'सुका मेवा व नट्स',
+      'sugar-jaggery': 'साखर व गूळ',
+      'biscuits-bakery': 'बिस्किटे व टोस्ट',
+      'cold-drinks': 'शीतपेये व मिनरल वॉटर',
+      'pooja-samagri': 'पूजा साहित्य'
     };
     return map[cat.slug] || cat.name_hi || cat.name;
   }

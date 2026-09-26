@@ -9052,7 +9052,12 @@ function getCategoryEmoji(slug) {
     'oral-care': '🪥',
     'oils-ghee': '🫗',
     'spices-masalas': '🌶️',
-    'household-cleaning': '🧼'
+    'household-cleaning': '🧼',
+    'dry-fruits-nuts': '🥜',
+    'sugar-jaggery': '🍯',
+    'biscuits-bakery': '🍪',
+    'cold-drinks': '🥤',
+    'pooja-samagri': '🪔'
   };
   return map[slug] || '📦';
 }
