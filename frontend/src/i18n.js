@@ -1074,7 +1074,17 @@ export const marathiProductNames = {
   "Surf Excel Easy Wash Detergent Powder": "सर्फ एक्सेल पावडर",
   "Rin Detergent Bar (Supreme Clean)": "रिन साबण",
   "Vim Lemon Dishwash Bar": "व्हिम डिशवॉश साबण",
-  "Dettol Original Bathing Soap": "डेटॉल साबण"
+  "Dettol Original Bathing Soap": "डेटॉल साबण",
+  "Whole Jeera / Cumin Seeds (खड़ा जीरा / जिरं)": "खडा जिरं (सुगंधी देशी)",
+  "Whole Kali Mirch / Black Pepper (काळी मिरी / काली मिर्च)": "काळी मिरी (अस्सल केरळ स्पेशल)",
+  "Green Cardamom / Chhoti Elaichi (वेलची / हरी इलायची)": "हिरवी वेलची (सुगंधी मोठी)",
+  "Desi Khada Garam Masala (मिश्र खडा गरम मसाला)": "मिश्र खडा गरम मसाला",
+  "Whole Soyabean Grain for Flour Mixing (सोयाबीन दाना)": "सोयाबीन दाना (पिठात मिसळण्यासाठी)",
+  "Chakki Pisai Grinding Service (चक्की दळण / पिसाई सेवा)": "चक्की दळण / पिसाई सेवा",
+  "Sharbati Whole Wheat Grain (शरबती अखंड गहू)": "शरबती अखंड गहू (खुला दाना)",
+  "Lokwan Whole Wheat Grain (लोकवन गहू)": "लोकवन गहू (अखंड दाना)",
+  "Madhur Pure & Hygienic Sugar (साखर)": "मधुर शुद्ध दाणेदार साखर",
+  "Loose White Sugar (खुली साखर)": "खुली पांढरी साखर"
 };
 
 export function getLocalizedProductName(prod, currentLang) {

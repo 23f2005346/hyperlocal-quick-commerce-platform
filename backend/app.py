@@ -391,7 +391,20 @@ SEARCH_ALIASES = {
     'tikhat': ['mirch', 'mirchi', 'tikhat', 'तिखट', 'मिर्च'],
     'chilli': ['mirch', 'mirchi', 'tikhat', 'chilli', 'मिर्च'],
     'chili': ['mirch', 'mirchi', 'tikhat', 'chili', 'मिर्च'],
-    'masala': ['masala', 'everest', 'garam masala', 'मसाला'],
+    'masala': ['masala', 'everest', 'garam masala', 'मसाला', 'खडा मसाला'],
+    'garam masala': ['garam masala', 'khada masala', 'मिश्र खडा गरम मसाला', 'गरम मसाला', 'masala', 'everest'],
+    'jeera': ['jeera', 'jira', 'zeera', 'cumin', 'जिरं', 'जीरा', 'खड़ा जीरा'],
+    'jira': ['jeera', 'jira', 'zeera', 'cumin', 'जिरं', 'जीरा', 'खड़ा जीरा'],
+    'zeera': ['jeera', 'jira', 'zeera', 'cumin', 'जिरं', 'जीरा'],
+    'kali mirch': ['kali mirch', 'kalimirch', 'black pepper', 'pepper', 'काळी मिरी', 'काली मिर्च', 'मिरी'],
+    'miri': ['kali mirch', 'kalimirch', 'black pepper', 'काळी मिरी', 'काली मिर्च', 'मिरी'],
+    'elaichi': ['elaichi', 'elachi', 'cardamom', 'velchi', 'वेलची', 'इलायची', 'छोटी इलायची'],
+    'velchi': ['elaichi', 'elachi', 'cardamom', 'velchi', 'वेलची', 'इलायची'],
+    'soyabean': ['soyabean', 'soya', 'soya dana', 'सोयाबीन', 'सोयाबीन दाना'],
+    'soya': ['soyabean', 'soya', 'soya dana', 'सोयाबीन', 'सोयाबीन दाना'],
+    'pisai': ['pisai', 'pisva', 'pisun', 'dalne', 'daloon', 'dalwan', 'chakki', 'दळण', 'पिसाई'],
+    'dalne': ['pisai', 'dalne', 'daloon', 'chakki', 'दळण', 'पिसाई'],
+    'chakki': ['chakki', 'pisai', 'dalne', 'दळण', 'पिसाई'],
     'dhania': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
     'dhaniya': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
 
@@ -497,37 +510,58 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "Your task: Parse customer spoken or typed grocery orders (in Marathi, Hindi, English, or Hinglish) "
         "and accurately match each requested grocery commodity to the provided Komal Mart catalog snapshot.\n\n"
         "Rules & Invariants:\n"
-        "1. Quantities & Vernacular Units:\n"
+        "1. Quantities, Vernacular Units & Compound Fractions:\n"
         "   - 'aadha kilo' / 'ardha kilo' / 'half kg' -> 0.5 kg or 500g\n"
-        "   - 'pav kilo' / 'quarter kg' -> 250g / 0.25 kg\n"
+        "   - 'pav kilo' / 'paav' / 'quarter kg' -> 0.25 kg or 250g\n"
+        "   - 'paun kilo' / 'pauna kilo' / 'paavne ek' -> 0.75 kg or 750g\n"
         "   - 'dedh kilo' / 'deedh' -> 1.5 kg\n"
         "   - 'sawa kilo' -> 1.25 kg\n"
         "   - 'dhai kilo' -> 2.5 kg\n"
+        "   - 'sawa X' / 'sawwa X' -> (X + 0.25) kg (e.g. 'sawa 8 kilo' = 8.25 kg, 'sawa 2' = 2.25 kg)\n"
+        "   - 'sadhe X' / 'saade X' -> (X + 0.50) kg (e.g. 'sadhe 3 kilo' = 3.5 kg, 'sadhe 4 kilo' = 4.5 kg, 'sadhe 5' = 5.5 kg)\n"
+        "   - 'paune X' / 'paawne X' -> (X - 0.25) kg (e.g. 'paune 6 kilo' / 'paune 6' = 5.75 kg, 'paune 8 kilo' = 7.75 kg, 'paune 5' = 4.75 kg)\n"
         "   - 'ek packet' / 'don packet' -> 1 or 2 packet/units\n"
-        "2. Accurate Variant Multiplier Matching (CRITICAL - NEVER MARK AMBIGUOUS FOR STATED WEIGHTS):\n"
-        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '10 kilo maida', '12 kilo aata'):\n"
+        "2. Rupee-Budget Purchases (e.g. '10 rupaye ka masala', '10 ki elaichi', '50 ka jira', '60 ki kali mirch'):\n"
+        "   - Customers frequently buy spices by rupee amounts rather than weight: e.g. '10 rupaye ka', '10 ki', '50 ka', '60 ki', '20 ka'.\n"
+        "   - When customer states a rupee amount for a spice or grocery item:\n"
+        "     a) Match the variant with that exact rupee price (e.g., '₹10 Counter Pouch', '₹20 Counter Pouch', '₹50 Pouch', '₹60 Pouch') with quantity = 1 and match_status = 'matched'. NEVER mark ambiguous when an exact rupee pouch exists!\n"
+        "     b) If no exact pouch variant exists, select the loose or smallest pack with proportional quantity matching that rupee budget.\n"
+        "3. Whole Wheat Chakki Pisai & Soyabean Grain Mix Service:\n"
+        "   - When customer orders whole wheat with grinding/milling (e.g. '10 kilo gehu pisai karke dena', 'gehu dalwa ke bhejna', 'gehu pisai ke sath', 'pisai karke'):\n"
+        "     a) Match the Whole Wheat Grain (Lokwan or Sharbati Whole Wheat Grain) for the stated weight (e.g. 10 kg).\n"
+        "     b) Add the 'Chakki Pisai Grinding Service' line item with quantity matching the wheat weight (quantity = 10, unit_price = 7.0, line_total = 70.0).\n"
+        "   - If customer asks to add/mix soyabean into the wheat (e.g. 'usme 100 gram / 200 gram soyabean mix kar dena' or 'soyabean dal dena'):\n"
+        "     Match 'Whole Soyabean Grain for Flour Mixing' with the requested quantity (e.g. 100g or 200g pack).\n"
+        "4. Accurate Variant Multiplier Matching (CRITICAL - NEVER MARK AMBIGUOUS FOR STATED WEIGHTS):\n"
+        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '10 kilo maida', '12 kilo aata', 'paune 6 kilo aata', 'sawa 8 kilo chawal'):\n"
         "     a) If an exact pack size matches that amount (e.g. 5kg pack for '5 kilo'), match that variant with quantity = 1.\n"
-        "     b) If no single variant matches that exact weight (e.g. 2kg, 3kg, 4kg, 6kg, 7kg, 8kg, 12kg): choose the standard base unit variant (1kg variant) and set quantity equal to that weight (e.g., for '2 kilo aata', match Chakki Fresh Wheat Atta 1kg with quantity=2). Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
-        "3. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
+        "     b) If no single variant matches that exact weight: choose the standard base unit variant (1kg variant) and set quantity equal to that weight (e.g. 2 for 2kg, 5.75 for 5.75kg, 8.25 for 8.25kg). Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
+        "5. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
         "   - Customers often correct themselves while reciting a monthly list: e.g. '5 kg toor daal, 2 kilo aata, 3 kilo chini... oh wait can you do aata 12kg, 2 kilo nahi' or 'chini mat lena / chini cancel'.\n"
         "   - Quantity Updates / Corrections: When customer updates an item's quantity (e.g. 'aata 12kg, 2 kilo nahi' or 'pehla 2 kilo bola tha ab 12 kilo kardo'): use ONLY the final corrected quantity (12kg, NOT 2kg)! Emit only ONE entry for that commodity with quantity=12.\n"
         "   - Item Cancellations / Negations: When customer cancels or removes an item (e.g. 'X nahi chahiye', 'X mat lo', 'X cancel', 'X nako', 'hata do', 'remove X'): do NOT include X in the items array! Exclude canceled items completely.\n"
         "   - Deduplicate stuttered speech: If a customer repeats a word or item during speech pauses (e.g., 'sugar... 2 kilo chini'), emit only ONE item for sugar with the final intended quantity (2).\n"
-        "4. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
+        "6. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
         "   - 'wheat' / 'gehun' / 'gahu' / 'whole wheat' refers to WHOLE GRAIN WHEAT ('गहू' / 'Sharbati Whole Wheat Grain' or 'Lokwan Whole Wheat Grain'), NOT wheat flour.\n"
         "   - 'atta' / 'aata' / 'pith' / 'peeth' / 'chakki atta' / 'flour' refers to WHEAT FLOUR ('आटा' / 'पीठ' / 'Chakki Fresh Wheat Atta').\n"
         "   - When a customer orders BOTH wheat grain and flour (e.g., '6 kilo wheat and 3 kilo aata'), they are TWO DISTINCT items: match wheat to Whole Wheat Grain and aata to Wheat Atta. NEVER combine or drop either.\n"
         "   - 'tandur' / 'tandul' / 'taandul' / 'chawal' / 'chaawal' -> Rice ('तांदूळ' / 'चावल'). ('tandur' is vernacular Mumbai/Marathi spoken pronunciation for 'tandul').\n"
         "   - 'chini' / 'cheeni' / 'sakhar' / 'saakhar' / 'sugar' / 'shakkar' -> Sugar ('साखर' / 'चीनी'). Match to Madhur Sugar or Loose White Sugar.\n"
-        "5. Customer Preferences & Ambiguity Rules:\n"
+        "   - 'jeera' / 'jira' / 'cumin' / 'जिरं' / 'जीरा' -> Whole Jeera / Cumin Seeds.\n"
+        "   - 'kali mirch' / 'miri' / 'black pepper' / 'काळी मिरी' / 'काली मिर्च' -> Whole Kali Mirch / Black Pepper.\n"
+        "   - 'elaichi' / 'elachi' / 'velchi' / 'cardamom' / 'वेलची' / 'इलायची' -> Green Cardamom / Chhoti Elaichi.\n"
+        "   - 'masala' / 'garam masala' / 'khada masala' -> Desi Khada Garam Masala or Everest Garam Masala.\n"
+        "   - 'soyabean' / 'soya dana' / 'सोयाबीन' -> Whole Soyabean Grain for Flour Mixing.\n"
+        "   - 'pisai' / 'dalwan' / 'chakki pisai' -> Chakki Pisai Grinding Service.\n"
+        "7. Customer Preferences & Ambiguity Rules:\n"
         "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
         "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
-        "   - STRICT AMBIGUITY RULE: ONLY set match_status to 'ambiguous' if the customer named a commodity WITHOUT stating ANY quantity, weight, or size at all (e.g. customer literally said only 'aata' or 'oil' with zero quantity). If any quantity was stated (e.g. '2 kilo aata'), it is NEVER ambiguous—match the 1kg variant with quantity=2!\n"
-        "6. Out-of-Stock / Unavailable Items:\n"
+        "   - STRICT AMBIGUITY RULE: ONLY set match_status to 'ambiguous' if the customer named a commodity WITHOUT stating ANY quantity, weight, rupee amount, or size at all (e.g. customer literally said only 'aata' or 'oil' with zero quantity). If any quantity or rupee budget was stated, it is NEVER ambiguous!\n"
+        "8. Out-of-Stock / Unavailable Items:\n"
         "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
-        "7. Exact Match:\n"
+        "9. Exact Match:\n"
         "   - If product and variant are identified, set match_status to 'matched'.\n"
-        "8. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
+        "10. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
     )
 
     prompt = f"""Catalog Snapshot:
@@ -608,11 +642,12 @@ def fallback_heuristic_order_parser(raw_text, all_products):
     vernacular_nums = {
         'aadha': 0.5, 'adha': 0.5, 'ardha': 0.5, 'aradha': 0.5, 'half': 0.5, 'अर्धा': 0.5, 'आधा': 0.5,
         'pav': 0.25, 'paav': 0.25, 'quarter': 0.25, 'पाव': 0.25,
+        'paun': 0.75, 'pauna': 0.75, 'पाऊण': 0.75, 'पौना': 0.75,
         'dedh': 1.5, 'deedh': 1.5, 'दीड': 1.5, 'डेढ़': 1.5,
         'dhai': 2.5, 'अडीच': 2.5, 'ढाई': 2.5,
         'sawa': 1.25, 'सव्वा': 1.25, 'सवा': 1.25,
         'ek': 1, 'do': 2, 'teen': 3, 'char': 4, 'paanch': 5, 'panch': 5, 'don': 2,
-        'एक': 1, 'दोन': 2, 'तीन': 3, 'चार': 4, 'पाच': 5
+        'एक': 1, 'दोन': 2, 'तीन': 3, 'चार': 4, 'पाच': 5, 'सहा': 6, 'सात': 7, 'आठ': 8, 'नऊ': 9, 'दहा': 10
     }
 
     for p in phrases:
@@ -621,17 +656,49 @@ def fallback_heuristic_order_parser(raw_text, all_products):
             continue
 
         qty = 1.0
-        num_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kg|kilo|किलो|gm|g|gram|ग्रॅम|ग्राम|liter|l|लिटर|packet|pkt|पॅकेट)?', p_clean, flags=re.IGNORECASE)
-        if num_match:
+
+        # Check compound fractions (paune 6 -> 5.75, sawa 8 -> 8.25, sadhe 3 -> 3.5)
+        paune_m = re.search(r'(?:paune|paawne|पौने|पावणे)\s*(\d+(?:\.\d+)?)', p_clean, flags=re.IGNORECASE)
+        sawa_m = re.search(r'(?:sawa|sawwa|सवा|सव्वा)\s*(\d+(?:\.\d+)?)', p_clean, flags=re.IGNORECASE)
+        sadhe_m = re.search(r'(?:sadhe|saade|साढ़े|साडे)\s*(\d+(?:\.\d+)?)', p_clean, flags=re.IGNORECASE)
+        rupee_m = re.search(r'(?:₹|rs\.?|रु\.?)\s*(\d+)|(\d+)\s*(?:rupaye|rupayee|rs|rupee|रुपये|रूपये|रु|₹|की|का|ki|ka)', p_clean, flags=re.IGNORECASE)
+
+        rupee_budget = None
+        if rupee_m:
             try:
-                qty = float(num_match.group(1))
+                rupee_budget = int(rupee_m.group(1) or rupee_m.group(2))
+            except (ValueError, TypeError):
+                pass
+
+        if paune_m:
+            try:
+                qty = max(0.25, float(paune_m.group(1)) - 0.25)
             except ValueError:
-                qty = 1.0
+                qty = 0.75
+        elif sawa_m:
+            try:
+                qty = float(sawa_m.group(1)) + 0.25
+            except ValueError:
+                qty = 1.25
+        elif sadhe_m:
+            try:
+                qty = float(sadhe_m.group(1)) + 0.50
+            except ValueError:
+                qty = 3.5
+        elif rupee_budget:
+            qty = 1.0
         else:
-            for word, val in vernacular_nums.items():
-                if word in p_clean.lower():
-                    qty = val
-                    break
+            num_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kg|kilo|किलो|gm|g|gram|ग्रॅम|ग्राम|liter|l|लिटर|packet|pkt|पॅकेट)?', p_clean, flags=re.IGNORECASE)
+            if num_match:
+                try:
+                    qty = float(num_match.group(1))
+                except ValueError:
+                    qty = 1.0
+            else:
+                for word, val in vernacular_nums.items():
+                    if word in p_clean.lower():
+                        qty = val
+                        break
 
         is_sasta = bool(re.search(r'(?:sasta|swasta|swast|kam|cheap|regular|साधी|स्वस्त|सस्ता)', p_clean, flags=re.IGNORECASE))
         is_premium = bool(re.search(r'(?:mehnga|accha|premium|gavran|special|बारीक|चांगले|बेस्ट)', p_clean, flags=re.IGNORECASE))
@@ -670,6 +737,16 @@ def fallback_heuristic_order_parser(raw_text, all_products):
             if not active_vars:
                 active_vars = matched_prod.variants
 
+            # Check for rupee pouch variant match (e.g. ₹10, ₹20, ₹50, ₹60)
+            rupee_var = None
+            if rupee_budget:
+                for v in active_vars:
+                    u_low = v.unit_size.lower()
+                    if f"₹{rupee_budget}" in u_low or f"{rupee_budget}rs" in u_low or int(v.selling_price) == rupee_budget:
+                        rupee_var = v
+                        qty = 1.0
+                        break
+
             exact_size_var = None
             base_1kg_var = None
             for v in active_vars:
@@ -680,7 +757,9 @@ def fallback_heuristic_order_parser(raw_text, all_products):
                 if '1kg' in u_lower:
                     base_1kg_var = v
 
-            if is_sasta:
+            if rupee_var:
+                matched_variant = rupee_var
+            elif is_sasta:
                 active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price))
                 matched_variant = active_vars[0]
             elif is_premium:
@@ -729,6 +808,24 @@ def fallback_heuristic_order_parser(raw_text, all_products):
                 "options": [],
                 "suggested_alternative": None
             })
+
+            # Check if this item is Whole Wheat and pisai was requested
+            if 'wheat grain' in matched_prod.name.lower() and any(w in p_clean.lower() for w in ['pisai', 'dalne', 'chakki', 'दळण', 'पिसाई']):
+                pisai_prod = next((p for p in all_products if 'pisai' in p.name.lower() or 'पिसाई' in (p.name_hi or '')), None)
+                if pisai_prod and pisai_prod.variants:
+                    pv = pisai_prod.variants[0]
+                    items.append({
+                        "query_term": "चक्की पिसाई सेवा",
+                        "product_id": pisai_prod.id,
+                        "variant_id": pv.id,
+                        "product_name": pisai_prod.name,
+                        "unit_size": f"{qty}kg पिसाई",
+                        "quantity": qty,
+                        "price": pv.selling_price,
+                        "match_status": "matched",
+                        "options": [],
+                        "suggested_alternative": None
+                    })
         else:
             items.append({
                 "query_term": p_clean,
@@ -1545,22 +1642,41 @@ def create_app():
                         active_vars = candidate_prod.variants
 
                     matched_v = None
-                    # 1. Exact pack match (e.g. qty=5 and variant is 5kg)
-                    for v in active_vars:
-                        u_clean = v.unit_size.lower().replace(" ", "")
-                        if qty >= 1 and (f"{int(qty)}kg" in u_clean or f"{qty}kg" in u_clean):
-                            matched_v = v
-                            qty = 1.0
-                            break
 
-                    # 2. Base 1kg unit match (e.g. 1kg variant with quantity = qty)
+                    # 1. Rupee pouch check (e.g. ₹10, ₹20, ₹50, ₹60) in query or item unit_size
+                    q_full = f"{item.get('product_name') or ''} {item.get('query_term') or ''} {item.get('unit_size') or ''}".lower()
+                    rupee_m = re.search(r'(?:₹|rs\.?|रु\.?)\s*(\d+)|(\d+)\s*(?:rupaye|rupayee|rs|rupee|रुपये|रूपये|रु|₹|की|का|ki|ka)', q_full)
+                    target_rupee = None
+                    if rupee_m:
+                        try:
+                            target_rupee = int(rupee_m.group(1) or rupee_m.group(2))
+                        except (ValueError, TypeError):
+                            pass
+
+                    if target_rupee:
+                        for v in active_vars:
+                            if f"₹{target_rupee}" in v.unit_size or int(v.selling_price) == target_rupee:
+                                matched_v = v
+                                qty = 1.0
+                                break
+
+                    # 2. Exact pack match (e.g. qty=5 and variant is 5kg)
+                    if not matched_v:
+                        for v in active_vars:
+                            u_clean = v.unit_size.lower().replace(" ", "")
+                            if qty >= 1 and (f"{int(qty)}kg" in u_clean or f"{qty}kg" in u_clean):
+                                matched_v = v
+                                qty = 1.0
+                                break
+
+                    # 3. Base 1kg unit match (e.g. 1kg variant with quantity = qty)
                     if not matched_v:
                         for v in active_vars:
                             if '1kg' in v.unit_size.lower():
                                 matched_v = v
                                 break
 
-                    # 3. Fallback to first active variant
+                    # 4. Fallback to first active variant
                     if not matched_v and len(active_vars) > 0:
                         matched_v = active_vars[0]
 
@@ -1645,6 +1761,36 @@ def create_app():
                 'options': options_out,
                 'suggested_alternative': alt_out
             })
+
+        # Whole Wheat + Chakki Pisai Service Auto-Linking
+        wheat_item = next((it for it in verified_items if 'wheat grain' in (it.get('product_name') or '').lower() or 'गहू' in (it.get('product_name') or '')), None)
+        pisai_in_speech = bool(re.search(r'(?:pisai|pisva|dalne|daloon|dalwan|chakki|दळण|पिसाई|दळून)', raw_text, flags=re.IGNORECASE))
+        has_pisai_item = any('pisai' in (it.get('product_name') or '').lower() or 'पिसाई' in (it.get('product_name') or '') for it in verified_items)
+
+        if wheat_item and pisai_in_speech and not has_pisai_item:
+            pisai_prod = Product.query.filter(Product.name.like('%Pisai%')).first()
+            if pisai_prod and pisai_prod.variants:
+                pisai_v = pisai_prod.variants[0]
+                w_qty = float(wheat_item.get('quantity') or 1.0)
+                p_unit_price = pisai_v.selling_price
+                p_line_total = round(p_unit_price * w_qty, 2)
+                verified_items.append({
+                    'query_term': 'चक्की पिसाई सेवा',
+                    'product_id': pisai_prod.id,
+                    'variant_id': pisai_v.id,
+                    'product_name': pisai_prod.name,
+                    'product_name_hi': pisai_prod.name_hi or pisai_prod.name,
+                    'image_url': pisai_prod.image_url or '/products/chakki-atta.jpg',
+                    'is_loose': bool(pisai_prod.is_loose),
+                    'unit_size': f"{w_qty}kg पिसाई",
+                    'quantity': w_qty,
+                    'unit_price': p_unit_price,
+                    'line_total': p_line_total,
+                    'match_status': 'matched',
+                    'options': [],
+                    'suggested_alternative': None
+                })
+                estimated_total += p_line_total
 
         summary_key = f'summary_text_{lang}'
         summary_msg = ai_data.get(summary_key) or ai_data.get('summary_text_mr') or ai_data.get('summary_text_hi') or ai_data.get('summary_text_en') or 'सामान ड्राफ्ट बिलमध्ये जोडले आहे.'
