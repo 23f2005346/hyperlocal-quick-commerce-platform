@@ -463,6 +463,255 @@ def get_tiered_unit_price(product_id, qty):
         print(f"[TIER PRICE ERROR] {e}")
     return None
 
+def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
+    """
+    Parses natural language grocery order text (Hindi, Marathi, English, or mixed)
+    against the active Komal Mart catalog using Google Gemini AI Studio API.
+    Implements a resilient model fallback cascade:
+    1. gemini-flash-lite-latest (fastest, lowest token overhead, 500 RPD)
+    2. gemini-3.8-flash (flagship speed and accuracy)
+    3. gemini-2.5-flash (stable production fallback)
+    """
+    api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        return False, None, "GEMINI_API_KEY not configured"
+
+    models_to_try = [
+        'gemini-flash-lite-latest',
+        'gemini-3.8-flash',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite'
+    ]
+
+    system_instruction = (
+        "You are Komal, the intelligent grocery order parsing assistant for Komal Mart (कोमल मार्ट), "
+        "a hyperlocal neighborhood general store (kirana) in Wadala, Mumbai.\n"
+        "Your task: Parse customer spoken or typed grocery orders (in Marathi, Hindi, English, or Hinglish) "
+        "and accurately match each requested grocery commodity to the provided Komal Mart catalog snapshot.\n\n"
+        "Rules & Invariants:\n"
+        "1. Quantities & Vernacular Units:\n"
+        "   - 'aadha kilo' / 'ardha kilo' / 'half kg' -> 0.5 kg or 500g\n"
+        "   - 'pav kilo' / 'quarter kg' -> 250g / 0.25 kg\n"
+        "   - 'dedh kilo' / 'deedh' -> 1.5 kg\n"
+        "   - 'sawa kilo' -> 1.25 kg\n"
+        "   - 'dhai kilo' -> 2.5 kg\n"
+        "   - 'ek packet' / 'don packet' -> 1 or 2 packet/units\n"
+        "2. Customer Preferences (Sasta vs Mehnga / Quality):\n"
+        "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
+        "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
+        "   - If the product has multiple variants and the customer did NOT specify size or price preference, set match_status to 'ambiguous' and populate 'options' with all active variants of that product so the customer can tap one.\n"
+        "3. Out-of-Stock / Unavailable Items:\n"
+        "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
+        "4. Exact Match:\n"
+        "   - If product and variant are identified, set match_status to 'matched'.\n"
+        "5. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
+    )
+
+    prompt = f"""Catalog Snapshot:
+{json.dumps(catalog_snapshot, ensure_ascii=False)}
+
+Customer Order Speech/Text:
+"{raw_text}"
+
+Return JSON matching this exact structure:
+{{
+  "items": [
+    {{
+      "query_term": "string (what customer called it)",
+      "product_id": 1,
+      "variant_id": 101,
+      "product_name": "string",
+      "unit_size": "string",
+      "quantity": 1,
+      "price": 45.0,
+      "match_status": "matched",
+      "options": [],
+      "suggested_alternative": null
+    }}
+  ],
+  "summary_text_mr": "string (1 brief natural Marathi sentence)",
+  "summary_text_hi": "string (1 brief natural Hindi sentence)",
+  "summary_text_en": "string (1 brief natural English sentence)"
+}}
+"""
+
+    last_error = None
+    for model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": system_instruction},
+                        {"text": prompt}
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "temperature": 0.1
+            }
+        }
+        try:
+            req_data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=12) as response:
+                result_raw = json.loads(response.read().decode('utf-8'))
+                candidates = result_raw.get('candidates', [])
+                if candidates and 'content' in candidates[0]:
+                    text_out = candidates[0]['content']['parts'][0]['text']
+                    data = json.loads(text_out)
+                    return True, data, model
+        except urllib.error.HTTPError as he:
+            last_error = f"HTTP {he.code}: {he.reason}"
+            print(f"[GEMINI CASCADE WARNING] Model {model} failed with {last_error}. Trying next model...")
+            continue
+        except Exception as e:
+            last_error = str(e)
+            print(f"[GEMINI CASCADE WARNING] Model {model} exception: {e}. Trying next model...")
+            continue
+
+    return False, None, last_error or "All cascade models failed"
+
+def fallback_heuristic_order_parser(raw_text, all_products):
+    """
+    Offline heuristic rule-based Kirana order parser.
+    Splits phrases and extracts quantities and products using SEARCH_ALIASES and Devanagari rules.
+    Used when Gemini API hits daily rate limits or is offline.
+    """
+    items = []
+    phrases = re.split(r'[,;|\n]+|\s+(?:आणि|ani|aur|और|तसेच|व|and)\s+', raw_text, flags=re.IGNORECASE)
+
+    vernacular_nums = {
+        'aadha': 0.5, 'adha': 0.5, 'ardha': 0.5, 'aradha': 0.5, 'half': 0.5, 'अर्धा': 0.5, 'आधा': 0.5,
+        'pav': 0.25, 'paav': 0.25, 'quarter': 0.25, 'पाव': 0.25,
+        'dedh': 1.5, 'deedh': 1.5, 'दीड': 1.5, 'डेढ़': 1.5,
+        'dhai': 2.5, 'अडीच': 2.5, 'ढाई': 2.5,
+        'sawa': 1.25, 'सव्वा': 1.25, 'सवा': 1.25,
+        'ek': 1, 'do': 2, 'teen': 3, 'char': 4, 'paanch': 5, 'panch': 5, 'don': 2,
+        'एक': 1, 'दोन': 2, 'तीन': 3, 'चार': 4, 'पाच': 5
+    }
+
+    for p in phrases:
+        p_clean = p.strip()
+        if not p_clean or len(p_clean) < 2:
+            continue
+
+        qty = 1.0
+        num_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kg|kilo|किलो|gm|g|gram|ग्रॅम|ग्राम|liter|l|लिटर|packet|pkt|पॅकेट)?', p_clean, flags=re.IGNORECASE)
+        if num_match:
+            try:
+                qty = float(num_match.group(1))
+            except ValueError:
+                qty = 1.0
+        else:
+            for word, val in vernacular_nums.items():
+                if word in p_clean.lower():
+                    qty = val
+                    break
+
+        is_sasta = bool(re.search(r'(?:sasta|swasta|swast|kam|cheap|regular|साधी|स्वस्त|सस्ता)', p_clean, flags=re.IGNORECASE))
+        is_premium = bool(re.search(r'(?:mehnga|accha|premium|gavran|special|बारीक|चांगले|बेस्ट)', p_clean, flags=re.IGNORECASE))
+
+        matched_prod = None
+        matched_variant = None
+        p_lower = p_clean.lower()
+        stopwords = set(list(vernacular_nums.keys()) + [
+            'kg', 'kilo', 'किलो', 'gm', 'g', 'gram', 'ग्रॅम', 'ग्राम', 'लिटर', 'liter', 'l',
+            'packet', 'pkt', 'पॅकेट', 'वाला', 'वाली', 'swast', 'swasta', 'sasta', 'mehnga',
+            'regular', 'स्वस्त', 'सस्ता', 'पाहिजे', 'द्या', 'आहे', 'हवा', 'हवे', 'चाहिए', 'देना',
+            'ani', 'aani', 'aur', 'and', 'आणि', 'और', 'तसेच', 'व', 'कोमल'
+        ])
+        clean_words = [w for w in re.findall(r'[\w\u0900-\u097F]+', p_lower) if w not in stopwords and len(w) >= 2]
+
+        for prod in all_products:
+            prod_text = f"{prod.name.lower()} {(prod.name_hi or '').lower()} {prod.brand.lower() if prod.brand else ''}"
+            matched = False
+            for w in clean_words:
+                if w in prod_text:
+                    matched = True
+                    break
+                for k, syns in SEARCH_ALIASES.items():
+                    if w == k or w in syns:
+                        if any(s in prod_text for s in syns) or k in prod_text:
+                            matched = True
+                            break
+                if matched:
+                    break
+            if matched:
+                matched_prod = prod
+                break
+
+        if matched_prod and matched_prod.variants:
+            active_vars = [v for v in matched_prod.variants if v.is_available]
+            if not active_vars:
+                active_vars = matched_prod.variants
+
+            if is_sasta:
+                active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price))
+                matched_variant = active_vars[0]
+            elif is_premium:
+                active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price), reverse=True)
+                matched_variant = active_vars[0]
+            elif len(active_vars) == 1:
+                matched_variant = active_vars[0]
+            else:
+                items.append({
+                    "query_term": p_clean,
+                    "product_id": matched_prod.id,
+                    "variant_id": None,
+                    "product_name": matched_prod.name,
+                    "unit_size": "",
+                    "quantity": qty,
+                    "price": 0.0,
+                    "match_status": "ambiguous",
+                    "options": [
+                        {
+                            "variant_id": v.id,
+                            "unit_size": v.unit_size,
+                            "price": v.clearance_price if v.is_clearance and v.clearance_price else v.selling_price,
+                            "label": f"{v.unit_size} - ₹{v.clearance_price if v.is_clearance and v.clearance_price else v.selling_price}"
+                        }
+                        for v in active_vars
+                    ],
+                    "suggested_alternative": None
+                })
+                continue
+
+            eff_price = matched_variant.clearance_price if matched_variant.is_clearance and matched_variant.clearance_price else matched_variant.selling_price
+            items.append({
+                "query_term": p_clean,
+                "product_id": matched_prod.id,
+                "variant_id": matched_variant.id,
+                "product_name": matched_prod.name,
+                "unit_size": matched_variant.unit_size,
+                "quantity": qty,
+                "price": eff_price,
+                "match_status": "matched",
+                "options": [],
+                "suggested_alternative": None
+            })
+        else:
+            items.append({
+                "query_term": p_clean,
+                "product_id": None,
+                "variant_id": None,
+                "product_name": p_clean,
+                "unit_size": "",
+                "quantity": qty,
+                "price": 0.0,
+                "match_status": "unavailable",
+                "options": [],
+                "suggested_alternative": None
+            })
+
+    return {
+        "items": items,
+        "summary_text_mr": f"तुमच्या यादीतून {len([i for i in items if i['match_status'] == 'matched'])} वस्तू ओळखल्या आहेत.",
+        "summary_text_hi": f"आपकी सूची से {len([i for i in items if i['match_status'] == 'matched'])} सामान पहचाने गए हैं।",
+        "summary_text_en": f"Extracted {len([i for i in items if i['match_status'] == 'matched'])} grocery items from your list."
+    }
+
 def seed_default_tiered_pricing():
     """
     Seeds wholesale tiered pricing slabs for essential bulk staples:
@@ -1103,6 +1352,158 @@ def create_app():
             'status': 'online',
             'store': 'Apna Desi Kirana Store API',
             'time': datetime.now().isoformat()
+        })
+
+    @app.route('/api/ai/parse-order', methods=['POST'])
+    def ai_parse_order():
+        """
+        Komal AI Smart Draft Bill API:
+        Receives natural language grocery voice transcript or typed text (Marathi, Hindi, English).
+        Executes model fallback cascade:
+        1. gemini-flash-lite-latest (fastest, lowest token overhead, 500 RPD)
+        2. gemini-3.8-flash (flagship speed and accuracy)
+        3. gemini-2.5-flash (stable production fallback)
+        4. local heuristic Kirana parser (offline, unlimited)
+        Validates product/variant IDs against DB, computes verified pricing and subtotals.
+        """
+        data = request.get_json() or {}
+        raw_text = (data.get('text') or '').strip()
+        lang = (data.get('language') or 'mr').lower()
+
+        if not raw_text:
+            return jsonify({'error': 'कृपया काहीतरी बोला किंवा किराणा सामानाची यादी टाईप करा.', 'code': 'EMPTY_TEXT'}), 400
+
+        # Query all active products with variants
+        all_products = Product.query.all()
+        catalog_snapshot = []
+        for p in all_products:
+            variants_info = []
+            for v in p.variants:
+                if v.is_available:
+                    eff_price = v.clearance_price if v.is_clearance and v.clearance_price else v.selling_price
+                    variants_info.append({
+                        'id': v.id,
+                        'unit_size': v.unit_size,
+                        'price': eff_price,
+                        'stock': v.stock_quantity
+                    })
+            if variants_info:
+                catalog_snapshot.append({
+                    'id': p.id,
+                    'name': p.name,
+                    'name_hi': p.name_hi or p.name,
+                    'is_loose': bool(p.is_loose),
+                    'variants': variants_info
+                })
+
+        # Step 1: Attempt Gemini cascade
+        success, ai_data, engine_used = call_gemini_order_parser(raw_text, catalog_snapshot, language=lang)
+
+        # Step 2: Fallback to local heuristic if Gemini failed
+        if not success or not ai_data or not isinstance(ai_data.get('items'), list):
+            print(f"[AI PARSE] Falling back to local heuristic parser (Reason: {engine_used})")
+            ai_data = fallback_heuristic_order_parser(raw_text, all_products)
+            engine_used = 'local-kirana-heuristic'
+
+        # Step 3: Sanitize, cross-verify against DB and calculate pricing
+        verified_items = []
+        estimated_total = 0.0
+
+        for item in ai_data.get('items', []):
+            p_id = item.get('product_id')
+            v_id = item.get('variant_id')
+            status = item.get('match_status', 'matched')
+            qty = float(item.get('quantity') or 1.0)
+            if qty <= 0:
+                qty = 1.0
+
+            db_prod = db.session.get(Product, p_id) if p_id else None
+            db_var = db.session.get(ProductVariant, v_id) if v_id else None
+
+            # Get image and real product names
+            image_url = '/products/chakki-atta.jpg'
+            prod_name = item.get('product_name') or 'किराणा सामान'
+            prod_name_hi = prod_name
+            is_loose = False
+
+            if db_prod:
+                prod_name = db_prod.name
+                prod_name_hi = db_prod.name_hi or db_prod.name
+                is_loose = bool(db_prod.is_loose)
+                raw_img = db_prod.image_url or ''
+                imgs = [u.strip() for u in raw_img.split('||') if u.strip()]
+                if imgs:
+                    image_url = imgs[0]
+
+            # Price computation
+            unit_price = float(item.get('price') or 0.0)
+            if db_var:
+                unit_price = db_var.clearance_price if db_var.is_clearance and db_var.clearance_price else db_var.selling_price
+                unit_size = db_var.unit_size
+            else:
+                unit_size = item.get('unit_size') or ''
+
+            line_total = round(unit_price * qty, 2)
+            if status == 'matched' and unit_price > 0:
+                estimated_total += line_total
+
+            # Verify options for ambiguous items
+            options_out = []
+            for opt in item.get('options', []):
+                opt_vid = opt.get('variant_id')
+                real_v = db.session.get(ProductVariant, opt_vid) if opt_vid else None
+                if real_v:
+                    real_p = real_v.clearance_price if real_v.is_clearance and real_v.clearance_price else real_v.selling_price
+                    options_out.append({
+                        'variant_id': real_v.id,
+                        'unit_size': real_v.unit_size,
+                        'price': real_p,
+                        'label': f"{real_v.unit_size} (₹{real_p})"
+                    })
+
+            # Check alternative suggestion
+            alt_out = None
+            raw_alt = item.get('suggested_alternative')
+            if isinstance(raw_alt, dict) and raw_alt.get('product_id'):
+                alt_prod = db.session.get(Product, raw_alt['product_id'])
+                if alt_prod and alt_prod.variants:
+                    alt_v = alt_prod.variants[0]
+                    alt_p = alt_v.clearance_price if alt_v.is_clearance and alt_v.clearance_price else alt_v.selling_price
+                    alt_out = {
+                        'product_id': alt_prod.id,
+                        'variant_id': alt_v.id,
+                        'product_name': alt_prod.name,
+                        'unit_size': alt_v.unit_size,
+                        'price': alt_p
+                    }
+
+            verified_items.append({
+                'query_term': item.get('query_term') or prod_name,
+                'product_id': p_id,
+                'variant_id': v_id,
+                'product_name': prod_name,
+                'product_name_hi': prod_name_hi,
+                'image_url': image_url,
+                'is_loose': is_loose,
+                'unit_size': unit_size,
+                'quantity': qty,
+                'unit_price': unit_price,
+                'line_total': line_total,
+                'match_status': status,
+                'options': options_out,
+                'suggested_alternative': alt_out
+            })
+
+        summary_key = f'summary_text_{lang}'
+        summary_msg = ai_data.get(summary_key) or ai_data.get('summary_text_mr') or ai_data.get('summary_text_hi') or ai_data.get('summary_text_en') or 'सामान ड्राफ्ट बिलमध्ये जोडले आहे.'
+
+        return jsonify({
+            'success': True,
+            'engine': engine_used,
+            'raw_text': raw_text,
+            'items': verified_items,
+            'estimated_total': round(estimated_total, 2),
+            'summary_text': summary_msg
         })
 
     @app.route('/api/categories', methods=['GET'])

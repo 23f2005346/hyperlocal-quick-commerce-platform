@@ -5349,6 +5349,285 @@
         </button>
       </div>
     </div>
+
+    <!-- Floating Komal AI Voice & Draft Bill Trigger (Customer View) -->
+    <button
+      v-if="!isAdminLoggedIn"
+      class="floating-komal-ai-btn"
+      :class="{ 'has-floating-cart': cartTotalQuantity > 0 }"
+      @click="openKomalAiModal"
+      aria-label="Komal AI Smart Voice Order"
+      title="Komal AI Voice Assistant"
+    >
+      <span class="ai-sparkle-icon">✨</span>
+      <span class="ai-floating-label">{{ t('ai_btn_floating') }}</span>
+      <span class="ai-live-badge">AI</span>
+    </button>
+
+    <!-- Komal AI Smart Draft Bill Modal -->
+    <div class="modal-overlay" v-if="showKomalAiModal" @click.self="closeKomalAiModal">
+      <div class="modal-card komal-ai-modal-card">
+        <!-- Header -->
+        <div class="komal-ai-header">
+          <div class="komal-ai-title-wrap">
+            <h3 class="komal-ai-title">
+              <span class="ai-sparkle-anim">✨</span> {{ t('ai_modal_title') }}
+            </h3>
+            <p class="komal-ai-subtitle">{{ t('ai_modal_subtitle') }}</p>
+          </div>
+          <button class="close-btn" @click="closeKomalAiModal">✕</button>
+        </div>
+
+        <!-- Language Selector Chips -->
+        <div class="komal-ai-lang-bar">
+          <span class="ai-lang-label">🗣️ {{ currentLang === 'mr' ? 'भाषा निवडा:' : (currentLang === 'hi' ? 'भाषा चुनें:' : 'Language:') }}</span>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: aiLanguage === 'mr' }"
+            @click="setAiLanguage('mr')"
+          >
+            मराठी
+          </button>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: aiLanguage === 'hi' }"
+            @click="setAiLanguage('hi')"
+          >
+            हिंदी
+          </button>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: aiLanguage === 'en' }"
+            @click="setAiLanguage('en')"
+          >
+            English
+          </button>
+        </div>
+
+        <!-- Microphone / Input Section -->
+        <div class="komal-ai-input-section">
+          <!-- Voice Button -->
+          <div class="komal-ai-mic-wrapper">
+            <button
+              type="button"
+              class="komal-ai-mic-btn"
+              :class="{ 'is-recording': isRecording }"
+              @click="toggleSpeechRecognition"
+              :title="isRecording ? t('ai_mic_stop') : t('ai_mic_start')"
+            >
+              <div v-if="isRecording" class="mic-wave-pulse"></div>
+              <span class="mic-icon">{{ isRecording ? '⏹️' : '🎙️' }}</span>
+            </button>
+            <span class="mic-status-hint">
+              {{ isRecording ? t('ai_mic_listening') : t('ai_mic_start') }}
+            </span>
+          </div>
+
+          <!-- Textarea for spoken / typed list -->
+          <div class="ai-input-group">
+            <textarea
+              v-model="aiInputText"
+              rows="3"
+              class="komal-ai-textarea"
+              :placeholder="aiLanguage === 'mr' ? 'उदा. कोमल २ किलो साखर, ५ किलो चक्की आटा, आणि तूर डाळ स्वस्त वाली १ किलो...' : (aiLanguage === 'hi' ? 'उदा. कोमल २ किलो चीनी, ५ किलो आटा, और १ किलो तूर दाल सस्ती वाली...' : 'e.g. 2kg sugar, 5kg chakki atta, and 1kg cheapest toor dal...')"
+            ></textarea>
+            <div class="ai-textarea-footer">
+              <span class="ai-hint-caption">
+                {{ aiLanguage === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू किंवा टाईप करू शकता.' : (aiLanguage === 'hi' ? '💡 आप हिंदी, मराठी या इंग्लिश में बोल या टाइप कर सकते हैं।' : '💡 You can speak or type freely in Marathi, Hindi, or English.') }}
+              </span>
+              <button
+                v-if="aiInputText"
+                type="button"
+                class="ai-clear-btn"
+                @click="aiInputText = ''; aiResult = null"
+              >
+                {{ t('ai_clear') }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Prompts / Examples -->
+          <div class="ai-quick-examples" v-if="!aiResult">
+            <span class="quick-examples-title">⚡ {{ currentLang === 'mr' ? 'उदाहरणे (टॅप करा):' : (currentLang === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
+            <div class="quick-chips">
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
+              >
+                🌾 २kg साखर, ५kg आटा, १kg डाळ
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
+              >
+                ☕ Tata Tea, Colgate, पोहा
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
+              >
+                🍳 तेल, रवा, मीठ
+              </button>
+            </div>
+          </div>
+
+          <!-- Generate Bill Button -->
+          <button
+            type="button"
+            class="komal-ai-generate-btn"
+            :disabled="isAiLoading || !aiInputText.trim()"
+            @click="handleProcessAiOrder"
+          >
+            <span v-if="isAiLoading" class="ai-spinner">⏳</span>
+            <span v-else>⚡</span>
+            {{ isAiLoading ? t('ai_analyzing') : t('ai_submit_btn') }}
+          </button>
+        </div>
+
+        <!-- Smart Draft Bill Output (Compiled Slip) -->
+        <div v-if="aiResult" class="komal-ai-bill-section">
+          <!-- AI Vocal Response Banner -->
+          <div class="ai-summary-banner">
+            <div class="ai-summary-text">
+              <strong>🤖 Komal AI:</strong> {{ aiResult.summary_text }}
+            </div>
+            <button
+              type="button"
+              class="ai-speak-btn"
+              @click="speakAiSummary(aiResult.summary_text)"
+              title="Play AI voice"
+            >
+              🔊
+            </button>
+          </div>
+
+          <!-- Bill Header -->
+          <div class="ai-bill-title-bar">
+            <h4>🧾 {{ t('ai_draft_bill_title') }}</h4>
+            <span class="ai-bill-count">
+              {{ aiResult.items ? aiResult.items.length : 0 }} {{ currentLang === 'mr' ? 'वस्तू' : (currentLang === 'hi' ? 'आइटम' : 'items') }}
+            </span>
+          </div>
+
+          <!-- Bill Items List -->
+          <div class="ai-bill-items-list">
+            <div
+              v-for="(item, idx) in aiResult.items"
+              :key="idx"
+              class="ai-bill-item-row"
+              :class="{
+                'is-matched': item.match_status === 'matched',
+                'is-ambiguous': item.match_status === 'ambiguous',
+                'is-unavailable': item.match_status === 'unavailable'
+              }"
+            >
+              <!-- Thumbnail & Info -->
+              <div class="ai-item-left">
+                <img
+                  :src="item.image_url || '/products/chakki-atta.jpg'"
+                  :alt="item.product_name"
+                  class="ai-item-thumb"
+                  @error="onImgError"
+                />
+                <div class="ai-item-details">
+                  <div class="ai-item-name">
+                    {{ currentLang === 'mr' ? item.product_name_hi || item.product_name : (currentLang === 'hi' ? item.product_name_hi || item.product_name : item.product_name) }}
+                  </div>
+                  <div class="ai-item-sub">
+                    <span v-if="item.match_status === 'matched'" class="ai-matched-badge">
+                      ✓ {{ item.unit_size }} • ₹{{ item.unit_price }}
+                    </span>
+                    <span v-else-if="item.match_status === 'ambiguous'" class="ai-ambiguous-badge">
+                      ⚠️ {{ t('ai_ambiguous_prompt') }}
+                    </span>
+                    <span v-else class="ai-unavailable-badge">
+                      ❌ {{ t('ai_unavailable_tag') }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Matched Item Controls: Qty + Line Total -->
+              <div v-if="item.match_status === 'matched'" class="ai-item-right">
+                <div class="ai-qty-controls">
+                  <button type="button" class="ai-qty-btn" @click="updateAiItemQty(item, -1)">-</button>
+                  <span class="ai-qty-val">{{ item.quantity }}</span>
+                  <button type="button" class="ai-qty-btn" @click="updateAiItemQty(item, 1)">+</button>
+                </div>
+                <div class="ai-line-total">
+                  ₹{{ item.line_total || Math.round(item.unit_price * item.quantity * 100) / 100 }}
+                </div>
+                <button type="button" class="ai-remove-btn" @click="removeAiItem(idx)" title="Remove item">
+                  🗑️
+                </button>
+              </div>
+
+              <!-- Ambiguous Item Controls: Selection Chips -->
+              <div v-if="item.match_status === 'ambiguous'" class="ai-ambiguous-options">
+                <div class="ai-options-label">{{ t('ai_ambiguous_prompt') }}:</div>
+                <div class="ai-chips-group">
+                  <button
+                    v-for="opt in item.options"
+                    :key="opt.variant_id"
+                    type="button"
+                    class="ai-variant-chip"
+                    @click="selectAmbiguousVariant(item, opt)"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Unavailable Item Controls: Alternative Suggestion -->
+              <div v-if="item.match_status === 'unavailable' && item.suggested_alternative" class="ai-alternative-box">
+                <span class="ai-alt-text">
+                  💡 {{ t('ai_add_alternative') }}: <strong>{{ item.suggested_alternative.product_name }}</strong> ({{ item.suggested_alternative.unit_size }} - ₹{{ item.suggested_alternative.price }})
+                </span>
+                <button
+                  type="button"
+                  class="ai-add-alt-btn"
+                  @click="addAlternativeItem(item)"
+                >
+                  ➕ {{ t('ai_add_alternative') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Footer -->
+          <div class="ai-bill-footer">
+            <div class="ai-total-row">
+              <span class="ai-total-label">{{ t('ai_est_total') }}:</span>
+              <span class="ai-total-amount">₹{{ aiEstimatedTotal }}</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="ai-action-buttons">
+              <button
+                type="button"
+                class="ai-cart-btn"
+                @click="addAllAiItemsToCart(false)"
+              >
+                {{ t('ai_add_to_cart') }}
+              </button>
+              <button
+                type="button"
+                class="ai-checkout-btn"
+                @click="addAllAiItemsToCart(true)"
+              >
+                {{ t('ai_fast_checkout') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -5889,6 +6168,16 @@ function getAngleShortLabel(idx) {
     return 'Pack';
   }
 }
+
+// Komal AI Voice & Smart Draft Bill State
+const showKomalAiModal = ref(false);
+const isRecording = ref(false);
+const isAiLoading = ref(false);
+const aiInputText = ref('');
+const aiLanguage = ref('mr');
+const aiResult = ref(null);
+const speechSupported = ref(false);
+let activeSpeechRecognition = null;
 
 // Cart State
 const cart = ref([]);
@@ -6933,6 +7222,272 @@ function reorderEntireBill(order) {
         ? `🛒 पावती #${order.order_number} मधील ${addedCount} वस्तू कार्टमध्ये जोडल्या!`
         : `🛒 पर्चा #${order.order_number} के ${addedCount} सामान थैले में जोड़े गए!`)
   );
+}
+
+// ==========================================
+// Komal AI Voice & Smart Draft Bill Handlers
+// ==========================================
+function openKomalAiModal() {
+  aiLanguage.value = currentLang.value || 'mr';
+  showKomalAiModal.value = true;
+  initSpeechRecognition();
+}
+
+function closeKomalAiModal() {
+  if (isRecording.value && activeSpeechRecognition) {
+    try { activeSpeechRecognition.stop(); } catch (e) {}
+  }
+  isRecording.value = false;
+  showKomalAiModal.value = false;
+}
+
+function setAiLanguage(lang) {
+  aiLanguage.value = lang;
+  if (isRecording.value && activeSpeechRecognition) {
+    try { activeSpeechRecognition.stop(); } catch (e) {}
+    isRecording.value = false;
+  }
+}
+
+function applyAiExample(phrase) {
+  aiInputText.value = phrase;
+  handleProcessAiOrder();
+}
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    speechSupported.value = false;
+    return;
+  }
+  speechSupported.value = true;
+}
+
+function toggleSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast(
+      currentLang.value === 'mr'
+        ? 'तुमच्या ब्राउझरमध्ये व्हॉइस इनपुट सपोर्ट नाही. कृपया खाली टाईप करा.'
+        : (currentLang.value === 'hi'
+          ? 'आपके ब्राउज़र में आवाज़ इनपुट सपोर्ट नहीं है। कृपया नीचे टाइप करें।'
+          : 'Voice input is not supported in this browser. Please type below.')
+    );
+    return;
+  }
+
+  if (isRecording.value) {
+    if (activeSpeechRecognition) {
+      try { activeSpeechRecognition.stop(); } catch (e) {}
+    }
+    isRecording.value = false;
+    return;
+  }
+
+  try {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    const lang = aiLanguage.value || currentLang.value || 'mr';
+    recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+
+    recognition.onstart = () => {
+      isRecording.value = true;
+    };
+
+    recognition.onresult = (event) => {
+      if (event.results && event.results[0] && event.results[0][0]) {
+        const spoken = (event.results[0][0].transcript || '').trim();
+        if (spoken) {
+          if (aiInputText.value && aiInputText.value.trim()) {
+            aiInputText.value = `${aiInputText.value.trim()}, ${spoken}`;
+          } else {
+            aiInputText.value = spoken;
+          }
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('Speech recognition warning:', event.error);
+      isRecording.value = false;
+      if (event.error === 'not-allowed') {
+        showToast(
+          currentLang.value === 'mr'
+            ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
+            : (currentLang.value === 'hi'
+              ? 'माइक की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में अनुमति दें।'
+              : 'Microphone permission denied. Please allow mic access.')
+        );
+      }
+    };
+
+    recognition.onend = () => {
+      isRecording.value = false;
+    };
+
+    activeSpeechRecognition = recognition;
+    recognition.start();
+  } catch (err) {
+    console.warn('Speech start error:', err);
+    isRecording.value = false;
+  }
+}
+
+function speakAiSummary(text) {
+  if (!('speechSynthesis' in window) || !text) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const lang = aiLanguage.value || currentLang.value || 'mr';
+    utterance.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('Speech synthesis warning:', e);
+  }
+}
+
+async function handleProcessAiOrder() {
+  const text = (aiInputText.value || '').trim();
+  if (!text) {
+    showToast(
+      currentLang.value === 'mr'
+        ? 'कृपया काहीतरी बोला किंवा सामानाची नावे टाका.'
+        : (currentLang.value === 'hi'
+          ? 'कृपया कुछ बोलें या राशन का नाम दर्ज करें।'
+          : 'Please speak or enter your grocery list.')
+    );
+    return;
+  }
+
+  if (isRecording.value && activeSpeechRecognition) {
+    try { activeSpeechRecognition.stop(); } catch (e) {}
+    isRecording.value = false;
+  }
+
+  isAiLoading.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/ai/parse-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        language: aiLanguage.value || currentLang.value || 'mr'
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      aiResult.value = data;
+      if (data.summary_text) {
+        speakAiSummary(data.summary_text);
+      }
+    } else {
+      showToast(data.error || 'ऑर्डर तयार करताना अडचण आली. कृपया पुन्हा प्रयत्न करा.');
+    }
+  } catch (err) {
+    console.error('Komal AI parse error:', err);
+    showToast('सर्व्हरशी संपर्क होऊ शकला नाही. कृपया बॅकएंड तपासा.');
+  } finally {
+    isAiLoading.value = false;
+  }
+}
+
+const aiEstimatedTotal = computed(() => {
+  if (!aiResult.value || !aiResult.value.items) return 0;
+  return aiResult.value.items.reduce((sum, it) => {
+    if (it.match_status === 'matched') {
+      return sum + (Number(it.unit_price || 0) * Number(it.quantity || 1));
+    }
+    return sum;
+  }, 0).toFixed(2);
+});
+
+function selectAmbiguousVariant(item, opt) {
+  item.variant_id = opt.variant_id;
+  item.unit_size = opt.unit_size;
+  item.unit_price = opt.price;
+  item.line_total = Math.round(opt.price * item.quantity * 100) / 100;
+  item.match_status = 'matched';
+}
+
+function addAlternativeItem(item) {
+  if (!item.suggested_alternative) return;
+  const alt = item.suggested_alternative;
+  item.product_id = alt.product_id;
+  item.variant_id = alt.variant_id;
+  item.product_name = alt.product_name;
+  item.product_name_hi = alt.product_name;
+  item.unit_size = alt.unit_size;
+  item.unit_price = alt.price;
+  item.line_total = Math.round(alt.price * item.quantity * 100) / 100;
+  item.match_status = 'matched';
+  item.suggested_alternative = null;
+}
+
+function updateAiItemQty(item, delta) {
+  item.quantity = Math.max(1, (item.quantity || 1) + delta);
+  item.line_total = Math.round((item.unit_price || 0) * item.quantity * 100) / 100;
+}
+
+function removeAiItem(index) {
+  if (aiResult.value && aiResult.value.items) {
+    aiResult.value.items.splice(index, 1);
+  }
+}
+
+function addAllAiItemsToCart(autoOpenCheckout = false) {
+  if (!aiResult.value || !aiResult.value.items) return;
+  const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  if (matchedItems.length === 0) {
+    showToast(
+      currentLang.value === 'mr'
+        ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
+        : (currentLang.value === 'hi'
+          ? 'कृपया पहले सामान का चयन पूरा करें।'
+          : 'Please select/resolve items first.')
+    );
+    return;
+  }
+
+  let addedCount = 0;
+  for (const it of matchedItems) {
+    const prod = products.value.find(p => p.id === it.product_id);
+    if (!prod) continue;
+    const variant = (prod.variants || []).find(v => v.id === it.variant_id) || prod.variants[0];
+    if (!variant) continue;
+
+    const existing = cart.value.find(c => !c.is_custom_weight && c.variant && c.variant.id === variant.id);
+    if (existing) {
+      existing.quantity += it.quantity;
+    } else {
+      cart.value.push({
+        is_custom_weight: false,
+        product: prod,
+        variant: variant,
+        quantity: it.quantity
+      });
+    }
+    addedCount++;
+  }
+
+  showToast(
+    currentLang.value === 'mr'
+      ? `🎉 कोमल AI: ${addedCount} सामान थैलीमध्ये जोडले!`
+      : (currentLang.value === 'hi'
+        ? `🎉 कोमल AI: ${addedCount} सामान थैले में जोड़ा गया!`
+        : `🎉 Komal AI: Added ${addedCount} items to your cart!`)
+  );
+
+  showKomalAiModal.value = false;
+
+  if (autoOpenCheckout) {
+    showCheckoutModal.value = true;
+  } else {
+    showCartDrawer.value = true;
+  }
 }
 
 function getCartItemQuantity(productId, variantId) {

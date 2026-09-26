@@ -319,7 +319,30 @@ export const translations = {
     auth_reset_btn: "🔒 नवीन पासवर्ड सेव्ह करा (Set Password)",
     auth_reset_resend_btn: "🔄 नवीन OTP कोड पुन्हा पाठवा",
     auth_reset_no_email_error: "या खात्याशी ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया दुकानदाराशी WhatsApp वर संपर्क साधा.",
-    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान ॲक्सेस केवळ अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) साठी २-स्टेप पडताळणीसह सुरक्षित आहे."
+    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान ॲक्सेस केवळ अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) साठी २-स्टेप पडताळणीसह सुरक्षित आहे.",
+
+    // Komal AI Smart Draft Bill
+    ai_btn_floating: "🤖 कोमल AI (🎙️ बोलून ऑर्डर करा)",
+    ai_modal_title: "कोमल AI — स्मार्ट ड्राफ्ट बिल",
+    ai_modal_subtitle: "बोला किंवा टाईप करा • मराठी, हिंदी, English",
+    ai_mic_start: "🎙️ बोलायला सुरुवात करा",
+    ai_mic_listening: "🎙️ ऐकत आहे... (बोलत रहा)",
+    ai_mic_stop: "🛑 पूर्ण झाले (बिल बनवा)",
+    ai_analyzing: "✨ कोमल AI किराणा यादी तपासत आहे...",
+    ai_input_placeholder: "उदा. २ किलो साखर, ५ किलो चक्की आटा, आणि १ किलो तूर डाळ स्वस्त वाली...",
+    ai_submit_btn: "✨ ड्राफ्ट बिल तयार करा",
+    ai_draft_bill_title: "📋 कच्ची पावती (Smart Draft Bill)",
+    ai_matched_count: "सामान सापडले",
+    ai_est_total: "अंदाजे एकूण बिल",
+    ai_ambiguous_prompt: "कोणता पर्याय हवा?",
+    ai_unavailable_tag: "सध्या उपलब्ध नाही",
+    ai_add_alternative: "पर्याय जोडा",
+    ai_add_to_cart: "🛒 कार्टमध्ये सर्व टाका",
+    ai_fast_checkout: "⚡ थेट ऑर्डर करा",
+    ai_empty_order: "कृपया काहीतरी बोला किंवा सामानाची नावे टाका.",
+    ai_clear: "साफ करा",
+    ai_speech_unsupported: "तुमच्या ब्राउझरमध्ये व्हॉइस सपोर्ट नाही. कृपया खाली टाईप करा.",
+    ai_audio_confirmation: "तुमचे सामान बिलमध्ये जोडले आहे. कृपया तपासा!"
   },
 
   hi: {
@@ -637,7 +660,30 @@ export const translations = {
     auth_reset_btn: "🔒 नया पासवर्ड सेव करें (Set Password)",
     auth_reset_resend_btn: "🔄 नया OTP कोड पुनः भेजें",
     auth_reset_no_email_error: "इस खाते से कोई ईमेल नहीं जुड़ा है। सुरक्षा हेतु कृपया दुकानदार से WhatsApp पर संपर्क करें।",
-    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान एक्सेस केवल अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) के लिए 2-स्टेप सत्यापन के साथ सुरक्षित है।"
+    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान एक्सेस केवल अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) के लिए 2-स्टेप सत्यापन के साथ सुरक्षित है।",
+
+    // Komal AI Smart Draft Bill
+    ai_btn_floating: "🤖 कोमल AI (🎙️ बोलकर ऑर्डर करें)",
+    ai_modal_title: "कोमल AI — स्मार्ट ड्राफ्ट बिल",
+    ai_modal_subtitle: "बोलें या टाइप करें • हिंदी, मराठी, English",
+    ai_mic_start: "🎙️ बोलना शुरू करें",
+    ai_mic_listening: "🎙️ सुन रहा हूँ... (बोलते रहें)",
+    ai_mic_stop: "🛑 पूरा हुआ (बिल बनाएं)",
+    ai_analyzing: "✨ कोमल AI राशन सूची की जाँच कर रहा है...",
+    ai_input_placeholder: "उदा. 2 किलो शक्कर, 5 किलो चक्की आटा, और 1 किलो तूर दाल सस्ती वाली...",
+    ai_submit_btn: "✨ ड्राफ्ट बिल तैयार करें",
+    ai_draft_bill_title: "📋 कच्चा बिल (Smart Draft Bill)",
+    ai_matched_count: "सामान पहचाना गया",
+    ai_est_total: "अनुमानित कुल बिल",
+    ai_ambiguous_prompt: "कौन सा विकल्प चाहिए?",
+    ai_unavailable_tag: "फिलहाल उपलब्ध नहीं",
+    ai_add_alternative: "विकल्प जोड़ें",
+    ai_add_to_cart: "🛒 थैले में सब जोड़ें",
+    ai_fast_checkout: "⚡ तुरंत ऑर्डर करें",
+    ai_empty_order: "कृपया कुछ बोलें या राशन का नाम दर्ज करें।",
+    ai_clear: "साफ करें",
+    ai_speech_unsupported: "आपके ब्राउज़र में आवाज़ इनपुट सपोर्ट नहीं है। कृपया नीचे टाइप करें।",
+    ai_audio_confirmation: "आपका सामान बिल में जोड़ दिया गया है। कृपया जाँचें!"
   },
 
   en: {
@@ -955,7 +1001,30 @@ export const translations = {
     auth_reset_btn: "🔒 Set New Password",
     auth_reset_resend_btn: "🔄 Resend OTP Code",
     auth_reset_no_email_error: "No email address is linked to this account. Please contact store owner on WhatsApp for security verification.",
-    auth_admin_security_info: "🛡️ Security Notice: Admin access is strictly protected with 2-Step Verification for authorized emails (thisisroushan01@gmail.com / novaaether01@gmail.com)."
+    auth_admin_security_info: "🛡️ Security Notice: Admin access is strictly protected with 2-Step Verification for authorized emails (thisisroushan01@gmail.com / novaaether01@gmail.com).",
+
+    // Komal AI Smart Draft Bill
+    ai_btn_floating: "🤖 Komal AI (🎙️ Voice Order)",
+    ai_modal_title: "Komal AI — Smart Draft Bill",
+    ai_modal_subtitle: "Speak or type your groceries • Marathi, Hindi, English",
+    ai_mic_start: "🎙️ Start Speaking",
+    ai_mic_listening: "🎙️ Listening... (Keep speaking)",
+    ai_mic_stop: "🛑 Done (Generate Bill)",
+    ai_analyzing: "✨ Komal AI is matching your groceries...",
+    ai_input_placeholder: "e.g. 2kg sugar, 5kg chakki fresh atta, and 1kg toor dal regular...",
+    ai_submit_btn: "✨ Generate Smart Draft Bill",
+    ai_draft_bill_title: "📋 Smart Draft Bill",
+    ai_matched_count: "Items Matched",
+    ai_est_total: "Estimated Total Bill",
+    ai_ambiguous_prompt: "Which option do you prefer?",
+    ai_unavailable_tag: "Currently Out of Stock",
+    ai_add_alternative: "Add Alternative",
+    ai_add_to_cart: "🛒 Add All to Cart",
+    ai_fast_checkout: "⚡ 1-Tap Fast Checkout",
+    ai_empty_order: "Please speak or type your grocery list.",
+    ai_clear: "Clear",
+    ai_speech_unsupported: "Voice input is not supported in this browser. Please type below.",
+    ai_audio_confirmation: "Your grocery items have been added to the bill. Please review!"
   }
 };
 
