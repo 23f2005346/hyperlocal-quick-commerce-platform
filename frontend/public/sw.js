@@ -1,5 +1,5 @@
 // Komal Mart PWA Service Worker
-const CACHE_NAME = 'komal-mart-v1';
+const CACHE_NAME = 'komal-mart-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -42,8 +42,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. NEVER cache API requests - always fetch live from backend
-  if (url.pathname.startsWith('/api') || url.port === '5000') {
+  // 1. NEVER cache API requests, binary downloads, or well-known metadata - always fetch live from backend
+  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/downloads') || url.pathname.startsWith('/.well-known') || url.port === '5000') {
     return; // Pass through to browser network fetch
   }
 

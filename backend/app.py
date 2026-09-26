@@ -915,6 +915,8 @@ def create_app():
             category = Category.query.filter_by(slug=category_slug).first()
             if category:
                 query = query.filter_by(category_id=category.id)
+            else:
+                return jsonify([])
 
         if loose_filter in ['true', 'false']:
             is_loose = (loose_filter == 'true')
@@ -1002,7 +1004,7 @@ def create_app():
         user = get_current_user()
         customer_name = data.get('customer_name') or (user.name if user else 'Walk-in Customer')
         customer_phone = data.get('customer_phone') or (user.phone if user else '9876543210')
-        customer_address = data.get('customer_address') or (user.address if user else 'Local Delivery')
+        customer_address = data.get('customer_address') or data.get('delivery_address') or (user.address if user else 'Local Delivery')
         delivery_type = data.get('delivery_type', 'home_delivery')
         pincode = str(data.get('pincode', '')).strip()
         payment_method = data.get('payment_method', 'Cash on Delivery (COD)')
@@ -1027,9 +1029,9 @@ def create_app():
 
         # Online customer checkout with UPI QR must NEVER be automatically marked 'Paid'
         # It must be 'Pending Verification' until store owner verifies bank receipt/SMS.
-        # This completely prevents fraud where customers check 'Paid' without paying.
         utr_number = str(data.get('utr_number', '')).strip()
-        if payment_method in ['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR']:
+        is_upi = ('upi' in (payment_method or '').lower()) or ('qr' in (payment_method or '').lower())
+        if is_upi:
             payment_status = 'Pending Verification'
             if utr_number:
                 customer_address = f"{customer_address} [UPI UTR: {utr_number}]"
@@ -1047,10 +1049,19 @@ def create_app():
             if item.get('is_custom_weight'):
                 prod_id = item.get('product_id')
                 product = db.session.get(Product, prod_id) if prod_id else None
-                prod_name = product.name if product else item.get('product_name', 'Kirana Item')
+                if not product:
+                    return jsonify({'error': f'Product ID {prod_id} not found'}), 400
+                prod_name = product.name
                 unit_label = item.get('unit_size', '1kg')
+                try:
+                    custom_weight = float(item.get('custom_weight', 1.0))
+                except (ValueError, TypeError):
+                    return jsonify({'error': 'Invalid custom weight format'}), 400
+
+                if custom_weight <= 0:
+                    return jsonify({'error': 'Custom weight must be greater than zero'}), 400
+
                 unit_price = float(item.get('unit_price', 30.0))
-                custom_weight = float(item.get('custom_weight', 1.0))
 
                 # Check wholesale tiered pricing for bulk weight
                 tier_res = get_tiered_unit_price(prod_id, custom_weight)
@@ -1077,11 +1088,17 @@ def create_app():
                 order_items.append(order_item)
             else:
                 variant_id = item.get('variant_id')
-                qty = int(item.get('quantity', 1))
+                try:
+                    qty = int(item.get('quantity', 1))
+                except (ValueError, TypeError):
+                    return jsonify({'error': 'Invalid item quantity'}), 400
+
+                if qty <= 0:
+                    return jsonify({'error': 'Item quantity must be greater than zero'}), 400
 
                 variant = db.session.get(ProductVariant, variant_id) if variant_id else None
                 if not variant:
-                    continue
+                    return jsonify({'error': f'Product variant ID {variant_id} does not exist'}), 400
 
                 if variant.stock_quantity >= qty:
                     variant.stock_quantity -= qty
@@ -1115,28 +1132,29 @@ def create_app():
                 )
                 order_items.append(order_item)
 
+        if not order_items:
+            return jsonify({'error': 'No valid items in order'}), 400
+
         savings = round(total_mrp - final_amount, 2) if total_mrp > final_amount else 0.0
 
-        # Margin-based Store Credit Earning & Redemption
+        # Margin-based Store Credit Earning & Redemption (Capped at 25% of order)
         credit_earned = calculate_order_credit(data['items'])
         use_credit = bool(data.get('use_credit', False))
         credit_used = 0.0
 
         if use_credit and user and user.wallet_balance and user.wallet_balance > 0:
             credit_available = round(float(user.wallet_balance), 2)
-            credit_used = min(credit_available, final_amount)
+            max_allowed_credit = round(final_amount * 0.25, 2)
+            credit_used = min(credit_available, max_allowed_credit)
             final_amount = round(final_amount - credit_used, 2)
             user.wallet_balance = round(user.wallet_balance - credit_used, 2)
 
         # Store Credit is only awarded once payment is actually Received / Paid!
-        # If Unpaid (COD / Khata), credit remains pending on the order and unlocks upon payment.
         if user and payment_status == 'Paid':
             user.wallet_balance = round((user.wallet_balance or 0.0) + credit_earned, 2)
 
         # Micro-Paisa Fingerprinting for UPI QR Orders
-        # If paying via UPI QR, assign an uncollided 2-digit paise suffix (11 to 99)
-        # guaranteed not in use by any active pending order for the same rupee total.
-        if payment_method in ['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR']:
+        if is_upi:
             final_amount = assign_unique_soundbox_paise(final_amount, order_number)
 
         new_order = Order(
