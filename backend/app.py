@@ -52,6 +52,7 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 # Strict Store Owner Admin Email Whitelist
 ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
 ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
+CUSTOMER_RESET_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0 } }
 
 # SMTP configuration for real email delivery (Gmail App Password)
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
@@ -187,6 +188,81 @@ def send_admin_otp_email(to_email, otp):
     else:
         print("[EMAIL INFO] Neither RESEND_API_KEY nor SMTP_USER/PASS configured. Printed OTP to terminal console only.")
         return False, "Email credentials not configured. Use Master PIN: 202699"
+
+def send_customer_otp_email(to_email, otp, customer_name="Customer"):
+    """
+    Dispatches 6-digit OTP code to a customer's verified email address for password reset.
+    Priority 1: Resend REST API via Port 443 HTTPS (ideal for Render cloud deployment).
+    Priority 2: Port 465 SSL SMTP.
+    Priority 3: Port 587 STARTTLS SMTP.
+    """
+    subject = f"🔐 कोमल मार्ट (Komal Mart) पासवर्ड रीसेट OTP: {otp}"
+    display_name = customer_name or "ग्राहक"
+    html_body = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1.5px solid #059669; border-radius: 12px; background-color: #fdfbf7;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #064e3b; margin: 0; font-size: 24px;">🌾 कोमल मार्ट (Komal Mart)</h1>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">वडाळा, मुंबई • पासवर्ड सुरक्षा पडताळणी</p>
+        </div>
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center;">
+            <p style="font-size: 15px; color: #1f2937; margin-bottom: 8px; font-weight: 700;">नमस्ते {display_name}! 🙏</p>
+            <p style="font-size: 14px; color: #4b5563; margin-bottom: 14px; line-height: 1.5;">तुमचा कोमल मार्ट खाते पासवर्ड बदलण्यासाठीचा ६-अंकी पडताळणी कोड (OTP) खालीलप्रमाणे आहे:</p>
+            <div style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #059669; background: #ecfdf5; padding: 14px; border-radius: 8px; display: inline-block;">
+                {otp}
+            </div>
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 14px;">हा कोड पुढील १० मिनिटांसाठी वैध आहे. हा कोड इतर कोणाशीही शेअर करू नका.</p>
+        </div>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 20px;">कोमल मार्ट किराणा व सुपरमार्केट • वडाळा, मुंबई</p>
+    </div>
+    """
+
+    # 1. Primary: Attempt Resend API over Port 443 HTTPS
+    resend_key = os.environ.get('RESEND_API_KEY', '').strip()
+    if resend_key:
+        ok, resend_msg = send_email_resend(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=f"Namaste {display_name}! Your Komal Mart Password Reset OTP is: {otp}. Valid for 10 minutes."
+        )
+        if ok:
+            return True, resend_msg
+        print(f"[RESEND CUSTOMER OTP NOTICE] {resend_msg}. Falling back to direct SMTP...")
+
+    # 2. Secondary: SMTP over Port 465 SSL or Port 587 STARTTLS
+    if SMTP_USER and SMTP_PASS:
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"Komal Mart Security <{SMTP_USER}>"
+            msg['To'] = to_email
+            msg.attach(MIMEText(f"Your Komal Mart Password Reset OTP is: {otp}. Valid for 10 minutes.", 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+
+            try:
+                server = smtplib.SMTP_SSL(SMTP_HOST, 465, timeout=7.0)
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(SMTP_USER, [to_email], msg.as_string())
+                server.quit()
+                print(f"[EMAIL SENT] Successfully sent Customer Reset OTP to {to_email} via Port 465 SSL")
+                return True, "Email dispatched successfully via SSL"
+            except Exception as e465:
+                print(f"[SMTP 465 SSL warning] {e465}, falling back to Port 587 STARTTLS...")
+
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=7.0)
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [to_email], msg.as_string())
+            server.quit()
+            print(f"[EMAIL SENT] Successfully sent Customer Reset OTP to {to_email} via Port 587 STARTTLS")
+            return True, "Email dispatched successfully via STARTTLS"
+        except Exception as e:
+            print(f"[SMTP ERROR] Failed to send customer reset email to {to_email}: {e}")
+            return False, str(e)
+    else:
+        print("[CUSTOMER OTP CONSOLE ONLY] Neither RESEND_API_KEY nor SMTP configured.")
+        return False, "Email credentials not configured"
+
 def is_dummy_phone(phone: str) -> bool:
     if not phone or len(phone) != 10:
         return True
@@ -611,8 +687,8 @@ def create_app():
         password = (data.get('password') or '').strip()
         address = (data.get('address') or '').strip()
 
-        if not name or not password or not phone:
-            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
+        if not name or not password or not phone or not email:
+            return jsonify({'error': 'नाव, ईमेल पत्ता, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         # Mandatory & Strict Indian Mobile Validation (10 digits starting with 6,7,8,9)
         if not re.match(r'^[6-9]\d{9}$', phone):
@@ -626,6 +702,12 @@ def create_app():
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
+        # Mandatory Email Validation & Uniqueness
+        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com).', 'code': 'INVALID_EMAIL'}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'EMAIL_EXISTS'}), 400
+
         # Unique username validation (if provided)
         if username:
             if not re.match(r'^[a-zA-Z0-9_.-]{3,30}$', username):
@@ -634,15 +716,6 @@ def create_app():
                 return jsonify({'error': f'युझरनेम "{username}" आधीच वापरले गेले आहे. कृपया दुसरे नाव निवडा.', 'code': 'USERNAME_EXISTS'}), 400
         else:
             username = None
-
-        # Optional Email Validation
-        if email:
-            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com)', 'code': 'INVALID_EMAIL'}), 400
-            if User.query.filter_by(email=email).first():
-                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे.', 'code': 'EMAIL_EXISTS'}), 400
-        else:
-            email = None
 
         user = User(
             name=name,
@@ -788,27 +861,165 @@ def create_app():
             'transport': 'Resend HTTPS (Port 443)' if (os.environ.get('RESEND_API_KEY') and success) else 'SMTP / Direct'
         }), (200 if success else 500)
 
+    @app.route('/api/auth/forgot-password', methods=['POST'])
+    def forgot_password():
+        """
+        Step 1: Customer requests a password reset code.
+        Accepts 'identifier' (phone, email, or username).
+        Finds user, generates 6-digit OTP, saves to CUSTOMER_RESET_STORE,
+        and emails OTP via Port 443 HTTPS Resend API.
+        """
+        data = request.get_json() or {}
+        identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
+
+        if not identifier:
+            return jsonify({'error': 'मोबाईल नंबर किंवा ईमेल आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
+
+        user = User.query.filter(
+            (User.email == identifier.lower()) |
+            (User.phone == identifier) |
+            (User.username == identifier)
+        ).first()
+
+        if not user:
+            return jsonify({'error': 'या मोबाईल नंबर किंवा ईमेलवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+        if not user.email:
+            return jsonify({
+                'error': 'या खात्याशी कोणताही ईमेल पत्ता जोडलेला नाही. सुरक्षेसाठी कृपया दुकानदाराशी WhatsApp वर संपर्क साधा.',
+                'code': 'NO_EMAIL_ON_ACCOUNT',
+                'customer_phone': user.phone
+            }), 400
+
+        # Generate cryptographically random 6-digit OTP
+        otp = f"{random.randint(100000, 999999)}"
+        reset_token = serializer.dumps({
+            'user_id': user.id,
+            'email': user.email,
+            'purpose': 'customer_password_reset'
+        }, salt='cust-reset-salt')
+
+        CUSTOMER_RESET_STORE[user.email] = {
+            'otp': otp,
+            'expires_at': time.time() + 600, # 10 minutes
+            'user_id': user.id,
+            'attempts': 0
+        }
+
+        print(f"\n[CUSTOMER PASSWORD RESET] User: {user.name} ({user.phone}), Email: {user.email}, OTP: {otp}")
+
+        # Send OTP email via Port 443 HTTPS Resend API
+        try:
+            email_sent, send_msg = send_customer_otp_email(user.email, otp, user.name)
+        except Exception as e:
+            print(f"[CUSTOMER OTP SEND ERROR] {e}")
+            email_sent = False
+            send_msg = str(e)
+
+        # Mask email for privacy (e.g. ro***n@gmail.com)
+        parts = user.email.split('@')
+        name_part = parts[0]
+        domain_part = parts[1] if len(parts) > 1 else ''
+        masked_email = (name_part[:2] + '***' + name_part[-1:] + '@' + domain_part) if len(name_part) > 3 else user.email
+
+        return jsonify({
+            'message': f'सुरक्षा कोड (OTP) {masked_email} वर पाठवला आहे. कृपया आपला ईमेल तपासा.',
+            'reset_token': reset_token,
+            'masked_email': masked_email,
+            'email_sent': email_sent
+        }), 200
+
+    @app.route('/api/auth/resend-forgot-password', methods=['POST'])
+    def resend_forgot_password():
+        """Allows resending OTP code to the customer email using the active reset_token."""
+        data = request.get_json() or {}
+        reset_token = (data.get('reset_token') or '').strip()
+
+        if not reset_token:
+            return jsonify({'error': 'Reset token is required', 'code': 'MISSING_FIELDS'}), 400
+
+        try:
+            payload = serializer.loads(reset_token, salt='cust-reset-salt', max_age=600)
+            email = payload.get('email')
+            user_id = payload.get('user_id')
+        except (SignatureExpired, BadSignature, Exception):
+            return jsonify({'error': 'सत्र संपले आहे. कृपया पुन्हा पासवर्ड रीसेट सुरू करा.', 'code': 'SESSION_EXPIRED'}), 401
+
+        user = db.session.get(User, user_id)
+        if not user or user.email != email:
+            return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+        otp = f"{random.randint(100000, 999999)}"
+        CUSTOMER_RESET_STORE[email] = {
+            'otp': otp,
+            'expires_at': time.time() + 600,
+            'user_id': user.id,
+            'attempts': 0
+        }
+
+        print(f"\n[CUSTOMER PASSWORD RESET RESEND] User: {user.name}, Email: {email}, New OTP: {otp}")
+        email_sent, _ = send_customer_otp_email(email, otp, user.name)
+
+        parts = email.split('@')
+        masked = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else email
+
+        return jsonify({
+            'message': f'नवीन OTP कोड {masked} वर पुन्हा पाठवला आहे.',
+            'email_sent': email_sent
+        }), 200
+
     @app.route('/api/auth/reset-password', methods=['POST'])
     def reset_password():
+        """
+        Step 2: Customer submits reset_token, 6-digit OTP, and new_password.
+        Validates OTP, attempts count, password length, and updates password.
+        """
         data = request.get_json() or {}
-        phone = data.get('phone', '').strip()
-        new_password = data.get('new_password', '').strip()
+        reset_token = (data.get('reset_token') or '').strip()
+        otp = (data.get('otp') or '').strip()
+        new_password = (data.get('new_password') or '').strip()
 
-        if not phone or not new_password:
-            return jsonify({'error': 'मोबाईल नंबर आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
+        if not reset_token or not otp or not new_password:
+            return jsonify({'error': 'रीसेट टोकन, ६-अंकी OTP आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         if len(new_password) < 4:
             return jsonify({'error': 'नवीन पासवर्ड किमान ४ अक्षरांचा असावा.', 'code': 'PASSWORD_TOO_SHORT'}), 400
 
-        user = User.query.filter_by(phone=phone).first()
+        try:
+            payload = serializer.loads(reset_token, salt='cust-reset-salt', max_age=600)
+            email = payload.get('email')
+            user_id = payload.get('user_id')
+        except (SignatureExpired, BadSignature, Exception):
+            return jsonify({'error': 'OTP कोडची किंवा सत्राची मुदत संपली आहे. कृपया नवीन OTP कोड मागवा.', 'code': 'SESSION_EXPIRED'}), 401
+
+        record = CUSTOMER_RESET_STORE.get(email)
+        if not record:
+            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा पासवर्ड रीसेट सुरू करा.', 'code': 'OTP_NOT_FOUND'}), 400
+
+        if time.time() > record.get('expires_at', 0):
+            CUSTOMER_RESET_STORE.pop(email, None)
+            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
+
+        record['attempts'] = record.get('attempts', 0) + 1
+        if record['attempts'] > 5:
+            CUSTOMER_RESET_STORE.pop(email, None)
+            return jsonify({'error': 'अनेक वेळा चुकीचा OTP टाकला गेला आहे. सुरक्षेसाठी हे सत्र रद्द केले आहे. कृपया नवीन OTP मागवा.', 'code': 'TOO_MANY_ATTEMPTS'}), 400
+
+        if record.get('otp') != otp:
+            return jsonify({'error': f'चुकीचा OTP कोड! कृपया ईमेलवर आलेला योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {5 - record["attempts"]}).', 'code': 'INVALID_OTP'}), 400
+
+        # OTP is 100% verified! Update user password
+        CUSTOMER_RESET_STORE.pop(email, None)
+        user = db.session.get(User, user_id)
         if not user:
-            return jsonify({'error': 'या मोबाईल नंबरवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
+            return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
         user.set_password(new_password)
         db.session.commit()
+
         return jsonify({
             'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! आता नवीन पासवर्डने लॉगिन करा.'
-        })
+        }), 200
 
     @app.route('/api/auth/me', methods=['GET'])
     def get_me():

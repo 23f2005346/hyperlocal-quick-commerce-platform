@@ -1,4 +1,4 @@
-from app import create_app, ADMIN_2FA_STORE
+from app import create_app, ADMIN_2FA_STORE, CUSTOMER_RESET_STORE
 import json
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -118,12 +118,32 @@ created_prod = new_prod_res.get_json()['product']
 print(f"Created Product in Category: {created_prod['category_name']}, Variants: {len(created_prod['variants'])}")
 assert created_prod['category_name'] == 'Dry Fruits & Nuts'
 
-# 8. Password Reset via Phone
-reset_res = client.post('/api/auth/reset-password', json={
-    'phone': '9876543299',
+# 8. Password Reset via 2-Step Email OTP Flow
+# 8a. Step 1: Request OTP via Phone or Email
+step1_res = client.post('/api/auth/forgot-password', json={
+    'identifier': '9876543299'
+})
+print("Customer Forgot Password Step 1:", step1_res.status_code, step1_res.get_json())
+assert step1_res.status_code == 200
+reset_token = step1_res.get_json()['reset_token']
+assert 'pooja@test.com' in CUSTOMER_RESET_STORE
+otp = CUSTOMER_RESET_STORE['pooja@test.com']['otp']
+
+# 8b. Step 2: Attempt reset with wrong OTP (should fail 400)
+bad_reset_res = client.post('/api/auth/reset-password', json={
+    'reset_token': reset_token,
+    'otp': '000000',
     'new_password': 'newpassword456'
 })
-print("Password Reset via Phone:", reset_res.status_code, reset_res.get_json()['message'])
+assert bad_reset_res.status_code == 400
+
+# 8c. Step 2: Complete reset with correct OTP
+reset_res = client.post('/api/auth/reset-password', json={
+    'reset_token': reset_token,
+    'otp': otp,
+    'new_password': 'newpassword456'
+})
+print("Password Reset via Email OTP:", reset_res.status_code, reset_res.get_json()['message'])
 assert reset_res.status_code == 200
 
 # Re-login with new password

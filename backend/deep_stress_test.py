@@ -8,7 +8,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from app import create_app
+from app import create_app, CUSTOMER_RESET_STORE
 MASTER_ADMIN_PIN = os.environ.get('MASTER_ADMIN_PIN', '202699')
 from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment
 
@@ -75,9 +75,49 @@ def run_stress_tests():
         res = client.post('/api/auth/register', json={
             'name': 'Test User',
             'phone': bp,
+            'email': 'valid_test@example.com',
             'password': 'password123'
         })
         assert_test(res.status_code == 400, f"Bad Phone Rejection ({bp or 'empty'})")
+
+    # Missing / Invalid emails in registration (Mandatory Email Security Rule)
+    bad_emails = ["", "notanemail", "@missinguser.com", "user@nodomain", "user@domain..com"]
+    for be in bad_emails:
+        payload = {'name': 'Test User', 'phone': '9876543210', 'password': 'password123'}
+        if be:
+            payload['email'] = be
+        res = client.post('/api/auth/register', json=payload)
+        assert_test(res.status_code == 400, f"Bad/Missing Email Rejection ({be or 'empty'})")
+
+    # Security Check: Old-style unauthenticated password overwrite must be BLOCKED
+    vuln_reset = client.post('/api/auth/reset-password', json={
+        'phone': '9876543299',
+        'new_password': 'hackedpassword'
+    })
+    assert_test(vuln_reset.status_code == 400, "Unauthenticated Direct Password Reset Blocked (Requires Token & OTP)")
+
+    # 2-Step OTP Reset Verification Flow
+    req_otp = client.post('/api/auth/forgot-password', json={'identifier': 'pooja@test.com'})
+    assert_test(req_otp.status_code == 200 and 'reset_token' in req_otp.json, "Forgot Password Step 1 (OTP Issued)")
+    if req_otp.status_code == 200:
+        r_token = req_otp.json['reset_token']
+        # Wrong OTP test
+        wrong_res = client.post('/api/auth/reset-password', json={
+            'reset_token': r_token,
+            'otp': '999999',
+            'new_password': 'securepassword2026'
+        })
+        assert_test(wrong_res.status_code == 400, "Brute-force/Invalid OTP Rejection")
+
+        # Correct OTP test
+        actual_otp = CUSTOMER_RESET_STORE['pooja@test.com']['otp']
+        good_res = client.post('/api/auth/reset-password', json={
+            'reset_token': r_token,
+            'otp': actual_otp,
+            'new_password': 'securepassword2026'
+        })
+        assert_test(good_res.status_code == 200, "Valid OTP 2-Step Password Reset Success")
+
 
     # Unauthorized access to protected admin routes
     admin_routes = [

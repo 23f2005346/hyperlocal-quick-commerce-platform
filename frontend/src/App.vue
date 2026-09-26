@@ -3197,43 +3197,126 @@
         </div>
 
         <!-- VIEW B: FORGOT / RESET PASSWORD FORM -->
+        <!-- VIEW B: FORGOT / RESET PASSWORD FORM (2-STEP EMAIL OTP) -->
         <div v-else-if="authMode === 'reset_password'">
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; color: #166534; margin-bottom: 14px;">
-            {{ t('auth_reset_notice') }}
+          <!-- Step 1: Request OTP -->
+          <div v-if="resetStep === 1">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; color: #166534; margin-bottom: 14px; line-height: 1.45;">
+              {{ t('auth_reset_notice_step1') }}
+            </div>
+
+            <form @submit.prevent="handleRequestResetOtp">
+              <div class="form-group">
+                <label class="form-label">{{ t('auth_reset_identifier_label') }}</label>
+                <input
+                  type="text"
+                  v-model="resetIdentifier"
+                  required
+                  class="form-input"
+                  :placeholder="currentLang === 'en' ? 'e.g. 9820011223 or rahul@gmail.com' : 'उदा. 9820011223 किंवा rahul@gmail.com'"
+                  autofocus
+                />
+                <span style="font-size: 0.72rem; color: var(--text-muted);">
+                  {{ currentLang === 'en' ? 'Enter your 10-digit phone number or registered email address' : (currentLang === 'mr' ? 'आपला १०-अंकी फोन नंबर किंवा नोंदणीकृत ईमेल पत्ता टाका' : 'अपना 10-अंकीय फोन नंबर या पंजीकृत ईमेल दर्ज करें') }}
+                </span>
+              </div>
+
+              <!-- Store WhatsApp Contact Alert if account has no email -->
+              <div v-if="resetNoEmailPhone" style="background: #fffbeb; border: 1.5px solid #fef3c7; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.82rem; color: #92400e;">
+                <p style="margin: 0 0 8px 0; font-weight: 700;">{{ t('auth_reset_no_email_error') }}</p>
+                <a
+                  :href="`https://wa.me/919876543210?text=${encodeURIComponent(`नमस्ते कोमल मार्ट! मी माझ्या खात्याचा पासवर्ड विसरलो आहे. माझा नोंदणीकृत फोन नंबर ${resetNoEmailPhone} आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा.`)}`"
+                  target="_blank"
+                  style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 800; font-size: 0.8rem;"
+                >
+                  📲 WhatsApp वर दुकानदाराशी संपर्क साधा
+                </a>
+              </div>
+
+              <button type="submit" class="checkout-btn" :disabled="authSubmitting">
+                {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_send_otp_btn') }}
+              </button>
+            </form>
           </div>
 
-          <form @submit.prevent="handleResetPassword">
-            <div class="form-group">
-              <label class="form-label">{{ t('auth_reset_phone_label') }}</label>
-              <input
-                type="tel"
-                v-model="resetPasswordForm.phone"
-                required
-                pattern="[6-9][0-9]{9}"
-                class="form-input"
-                :placeholder="t('auth_register_phone_ph')"
-              />
+          <!-- Step 2: Verify OTP & Set New Password -->
+          <div v-else-if="resetStep === 2">
+            <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center;">
+              <div style="font-size: 1.8rem; margin-bottom: 4px;">📩</div>
+              <p style="font-size: 0.85rem; color: #065f46; font-weight: 700; margin: 0 0 4px 0;">
+                {{ t('auth_reset_notice_step2') }}
+              </p>
+              <div style="display: inline-block; background: white; border: 1px dashed #059669; padding: 4px 10px; border-radius: 6px; font-size: 0.88rem; font-weight: 800; color: #047857;">
+                ✉️ {{ resetMaskedEmail }}
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">{{ t('auth_reset_new_pwd_label') }}</label>
-              <input
-                type="password"
-                v-model="resetPasswordForm.new_password"
-                required
-                minlength="4"
-                class="form-input"
-                :placeholder="t('auth_register_password_ph')"
-              />
-            </div>
+            <form @submit.prevent="handleVerifyAndResetPassword">
+              <div class="form-group">
+                <label class="form-label">{{ t('auth_reset_otp_label') }}</label>
+                <input
+                  type="text"
+                  v-model="resetOtp"
+                  required
+                  maxlength="6"
+                  pattern="[0-9]{6}"
+                  class="form-input"
+                  placeholder="123456"
+                  style="font-size: 1.5rem; letter-spacing: 6px; text-align: center; font-weight: 900; color: #064e3b;"
+                  autofocus
+                />
+              </div>
 
-            <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-              {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_btn') }}
-            </button>
-          </form>
+              <div class="form-group">
+                <label class="form-label">{{ t('auth_reset_new_pwd_label') }}</label>
+                <input
+                  type="password"
+                  v-model="resetNewPassword"
+                  required
+                  minlength="4"
+                  class="form-input"
+                  :placeholder="t('auth_register_password_ph')"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">{{ t('auth_reset_confirm_pwd_label') }}</label>
+                <input
+                  type="password"
+                  v-model="resetConfirmPassword"
+                  required
+                  minlength="4"
+                  class="form-input"
+                  :placeholder="t('auth_register_password_ph')"
+                />
+              </div>
+
+              <button type="submit" class="checkout-btn" :disabled="authSubmitting">
+                {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_btn') }}
+              </button>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.8rem;">
+                <button
+                  type="button"
+                  @click="handleResendResetOtp"
+                  :disabled="authSubmitting"
+                  style="background: none; border: none; color: #047857; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;"
+                >
+                  {{ t('auth_reset_resend_btn') }}
+                </button>
+                <button
+                  type="button"
+                  @click="resetStep = 1; authError = '';"
+                  style="background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; padding: 0;"
+                >
+                  ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
+                </button>
+              </div>
+            </form>
+          </div>
 
           <p style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
-            <a href="javascript:void(0)" @click="authMode = 'login'; authError = '';" style="color: #047857; font-weight: 700; text-decoration: none;">
+            <a href="javascript:void(0)" @click="authMode = 'login'; authError = ''; resetStep = 1;" style="color: #047857; font-weight: 700; text-decoration: none;">
               {{ t('auth_back_to_login') }}
             </a>
           </p>
@@ -3316,7 +3399,10 @@
 
           <div class="form-group">
             <label class="form-label">{{ t('auth_register_email') }}</label>
-            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com" />
+            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@example.com" />
+            <span style="font-size: 0.72rem; color: var(--text-muted);">
+              {{ currentLang === 'en' ? 'Password reset OTP & invoices will be sent to this email' : (currentLang === 'mr' ? 'पासवर्ड रीसेट OTP व बिले या ईमेलवर पाठवली जातील' : 'पासवर्ड रीसेट OTP और बिल इस ईमेल पर भेजे जाएंगे') }}
+            </span>
           </div>
 
           <div class="form-group">
@@ -5401,7 +5487,14 @@ const authSubmitting = ref(false);
 
 const authForm = ref({ identifier: '', password: '' });
 const registerForm = ref({ name: '', username: '', email: '', phone: '', password: '', address: '' });
-const resetPasswordForm = ref({ phone: '', new_password: '' });
+const resetStep = ref(1); // 1 = enter phone/email, 2 = enter OTP & new password
+const resetIdentifier = ref('');
+const resetOtp = ref('');
+const resetNewPassword = ref('');
+const resetConfirmPassword = ref('');
+const resetToken = ref('');
+const resetMaskedEmail = ref('');
+const resetNoEmailPhone = ref('');
 const admin2faState = ref({
   active: false,
   temp_token: '',
@@ -6098,6 +6191,14 @@ function openAuthModal(mode = 'login') {
   authMode.value = mode;
   authError.value = '';
   admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp: '' };
+  resetStep.value = 1;
+  resetIdentifier.value = '';
+  resetOtp.value = '';
+  resetNewPassword.value = '';
+  resetConfirmPassword.value = '';
+  resetToken.value = '';
+  resetMaskedEmail.value = '';
+  resetNoEmailPhone.value = '';
   if (mode === 'admin') {
     authForm.value = { identifier: 'thisisroushan01@gmail.com', password: '' };
   } else {
@@ -6212,11 +6313,79 @@ async function handleVerifyAdmin2Fa() {
   }
 }
 
-async function handleResetPassword() {
-  if (!resetPasswordForm.value.phone || !resetPasswordForm.value.new_password) {
-    authError.value = currentLang.value === 'mr' ? 'कृपया मोबाईल नंबर आणि नवीन पासवर्ड टाका.' : (currentLang.value === 'hi' ? 'कृपया मोबाइल नंबर और नया पासवर्ड दर्ज करें।' : 'Please enter mobile number and new password.');
+async function handleRequestResetOtp() {
+  if (!resetIdentifier.value.trim()) {
+    authError.value = currentLang.value === 'mr' ? 'कृपया मोबाईल नंबर किंवा ईमेल पत्ता टाका.' : (currentLang.value === 'hi' ? 'कृपया मोबाइल नंबर या ईमेल पता दर्ज करें।' : 'Please enter mobile number or email address.');
     return;
   }
+  authSubmitting.value = true;
+  authError.value = '';
+  resetNoEmailPhone.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: resetIdentifier.value.trim() })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      resetToken.value = data.reset_token;
+      resetMaskedEmail.value = data.masked_email;
+      resetStep.value = 2;
+      showToast(currentLang.value === 'mr' ? `📩 OTP पडताळणी कोड ${data.masked_email} वर पाठवला आहे.` : (currentLang.value === 'hi' ? `📩 OTP सत्यापन कोड ${data.masked_email} पर भेजा गया है।` : `📩 OTP verification code sent to ${data.masked_email}.`));
+    } else {
+      if (data.code === 'NO_EMAIL_ON_ACCOUNT') {
+        resetNoEmailPhone.value = data.customer_phone || resetIdentifier.value;
+      }
+      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'OTP पाठवणे अयशस्वी.' : 'Failed to send OTP.');
+    }
+  } catch (err) {
+    authError.value = t('auth_err_network');
+  } finally {
+    authSubmitting.value = false;
+  }
+}
+
+async function handleResendResetOtp() {
+  if (!resetToken.value) {
+    resetStep.value = 1;
+    return;
+  }
+  authSubmitting.value = true;
+  authError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/resend-forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reset_token: resetToken.value })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(currentLang.value === 'mr' ? '🔄 नवीन OTP कोड ईमेलवर पुन्हा पाठवला आहे!' : (currentLang.value === 'hi' ? '🔄 नया OTP कोड ईमेल पर पुनः भेजा गया है!' : '🔄 New OTP code resent to email!'));
+    } else {
+      authError.value = formatAuthError(data, 'Resend failed');
+    }
+  } catch (err) {
+    authError.value = t('auth_err_network');
+  } finally {
+    authSubmitting.value = false;
+  }
+}
+
+async function handleVerifyAndResetPassword() {
+  if (!resetOtp.value.trim() || resetOtp.value.trim().length !== 6) {
+    authError.value = t('auth_err_invalid_otp');
+    return;
+  }
+  if (!resetNewPassword.value || resetNewPassword.value.length < 4) {
+    authError.value = t('auth_err_password_too_short');
+    return;
+  }
+  if (resetNewPassword.value !== resetConfirmPassword.value) {
+    authError.value = currentLang.value === 'mr' ? 'दोन्ही पासवर्ड जुळत नाहीत. कृपया पुन्हा तपासा.' : (currentLang.value === 'hi' ? 'दोनों पासवर्ड मेल नहीं खाते। कृपया पुनः जांचें।' : 'Passwords do not match. Please verify.');
+    return;
+  }
+
   authSubmitting.value = true;
   authError.value = '';
   try {
@@ -6224,16 +6393,22 @@ async function handleResetPassword() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        phone: resetPasswordForm.value.phone.trim(),
-        new_password: resetPasswordForm.value.new_password.trim()
+        reset_token: resetToken.value,
+        otp: resetOtp.value.trim(),
+        new_password: resetNewPassword.value.trim()
       })
     });
     const data = await res.json();
     if (res.ok) {
       showToast(currentLang.value === 'mr' ? '✅ पासवर्ड यशस्वीरीत्या बदलला! आता नवीन पासवर्डने लॉगिन करा.' : (currentLang.value === 'hi' ? '✅ पासवर्ड सफलतापूर्वक बदला गया! अब नए पासवर्ड से लॉगिन करें।' : '✅ Password reset successfully! Please login with your new password.'));
       authMode.value = 'login';
-      authForm.value.identifier = resetPasswordForm.value.phone;
-      resetPasswordForm.value = { phone: '', new_password: '' };
+      authForm.value.identifier = resetIdentifier.value;
+      resetStep.value = 1;
+      resetIdentifier.value = '';
+      resetOtp.value = '';
+      resetNewPassword.value = '';
+      resetConfirmPassword.value = '';
+      resetToken.value = '';
     } else {
       authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'पासवर्ड बदल अयशस्वी.' : (currentLang.value === 'hi' ? 'पासवर्ड बदलना असफल।' : 'Password reset failed.'));
     }
