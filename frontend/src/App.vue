@@ -5600,6 +5600,38 @@
             </div>
           </div>
 
+          <!-- Quick Manual Search / Add Item to Draft Bill -->
+          <div class="ai-add-item-bar">
+            <div class="ai-add-input-wrap">
+              <span class="ai-add-search-icon">🔍</span>
+              <input
+                type="text"
+                v-model="draftSearchQuery"
+                :placeholder="currentLang === 'mr' ? 'यादीत आणखी सामान जोडा (उदा. मीठ, चहा, बिस्किट)...' : (currentLang === 'hi' ? 'बिल में और सामान जोड़ें (उदा. नमक, चाय, बिस्कुट)...' : 'Search and add any item to draft bill...')"
+                class="ai-add-input"
+              />
+              <button v-if="draftSearchQuery" type="button" class="ai-add-clear" @click="draftSearchQuery = ''">✕</button>
+            </div>
+            <!-- Live Suggestions Dropdown -->
+            <div v-if="draftSearchResults.length > 0" class="ai-add-dropdown">
+              <div
+                v-for="p in draftSearchResults"
+                :key="p.id"
+                class="ai-add-result-row"
+                @click="addManualProductToDraft(p)"
+              >
+                <img :src="p.image_url" :alt="p.name" class="ai-add-thumb" @error="handleImageFallback($event)" />
+                <div class="ai-add-info">
+                  <div class="ai-add-name">{{ getLocalizedProductName(p, currentLang) }}</div>
+                  <div class="ai-add-sub">
+                    {{ p.variants && p.variants[0] ? p.variants[0].unit_size + ' • ₹' + (p.variants[0].clearance_price || p.variants[0].selling_price) : '' }}
+                  </div>
+                </div>
+                <button type="button" class="ai-add-plus-btn">➕ {{ currentLang === 'mr' ? 'जोडा' : (currentLang === 'hi' ? 'जोड़ें' : 'Add') }}</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Total Footer -->
           <div class="ai-bill-footer">
             <div class="ai-total-row">
@@ -7344,8 +7376,8 @@ function toggleSpeechRecognition() {
         }
       }
 
-      // Generous 6.5-second silence auto-cutoff timer (resets whenever words are detected)
-      // Specially optimized for 40-50 year old customers who pause between items
+      // Generous 15-second silence auto-cutoff timer (resets whenever words are detected)
+      // Specially optimized for 40-50 year old customers reciting long monthly rations
       if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
       speechSilenceTimer = setTimeout(() => {
         if (isRecording.value && activeSpeechRecognition) {
@@ -7353,7 +7385,7 @@ function toggleSpeechRecognition() {
           try { activeSpeechRecognition.stop(); } catch (e) {}
           isRecording.value = false;
         }
-      }, 6500);
+      }, 15000);
     };
 
     recognition.onerror = (event) => {
@@ -7389,14 +7421,17 @@ function toggleSpeechRecognition() {
 
     recognition.onend = () => {
       if (!isUserExplicitStop && isRecording.value) {
-        // Browser speech engine ended prematurely due to a brief pause before user or silence cutoff stopped it.
-        // Seamlessly restart recognition stream!
-        try {
-          recognition.start();
-          return;
-        } catch (e) {
-          console.warn('Speech recognition restart suppressed:', e);
-        }
+        // Android Chrome / Desktop stream timed out. Wait 200ms tick then restart seamlessly!
+        setTimeout(() => {
+          if (!isUserExplicitStop && isRecording.value) {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.warn('Speech recognition restart suppressed:', e);
+            }
+          }
+        }, 200);
+        return;
       }
       if (speechSilenceTimer) {
         clearTimeout(speechSilenceTimer);
@@ -7520,6 +7555,53 @@ function removeAiItem(index) {
   if (aiResult.value && aiResult.value.items) {
     aiResult.value.items.splice(index, 1);
   }
+}
+
+const draftSearchQuery = ref('');
+const draftSearchResults = computed(() => {
+  const q = (draftSearchQuery.value || '').trim().toLowerCase();
+  if (!q || q.length < 2) return [];
+  return (products.value || []).filter(p => {
+    const name = (p.name || '').toLowerCase();
+    const nameHi = (p.name_hi || '').toLowerCase();
+    const brand = (p.brand || '').toLowerCase();
+    return name.includes(q) || nameHi.includes(q) || brand.includes(q);
+  }).slice(0, 6);
+});
+
+function addManualProductToDraft(prod) {
+  if (!prod || !prod.variants || prod.variants.length === 0) return;
+  if (!aiResult.value) {
+    aiResult.value = { items: [], summary_text: '' };
+  }
+  if (!aiResult.value.items) {
+    aiResult.value.items = [];
+  }
+  const existing = aiResult.value.items.find(it => it.product_id === prod.id && it.match_status === 'matched');
+  if (existing) {
+    existing.quantity = (existing.quantity || 1) + 1;
+    existing.line_total = Math.round((existing.unit_price || 0) * existing.quantity * 100) / 100;
+  } else {
+    const v = prod.variants.find(vr => vr.is_available) || prod.variants[0];
+    const price = v.clearance_price && v.is_clearance ? v.clearance_price : v.selling_price;
+    aiResult.value.items.push({
+      query_term: prod.name,
+      product_id: prod.id,
+      variant_id: v.id,
+      product_name: prod.name,
+      product_name_hi: prod.name_hi || prod.name,
+      image_url: prod.image_url,
+      is_loose: Boolean(prod.is_loose),
+      unit_size: v.unit_size,
+      quantity: 1,
+      unit_price: price,
+      line_total: price,
+      match_status: 'matched',
+      options: [],
+      suggested_alternative: null
+    });
+  }
+  draftSearchQuery.value = '';
 }
 
 function addAllAiItemsToCart(autoOpenCheckout = false) {

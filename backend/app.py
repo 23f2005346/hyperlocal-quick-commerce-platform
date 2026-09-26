@@ -504,12 +504,14 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "   - 'sawa kilo' -> 1.25 kg\n"
         "   - 'dhai kilo' -> 2.5 kg\n"
         "   - 'ek packet' / 'don packet' -> 1 or 2 packet/units\n"
-        "2. Accurate Variant Multiplier Matching (CRITICAL):\n"
-        "   - When customer asks for a specific total weight (e.g. '2 kilo chakki atta', '3 kilo chawal'): choose the standard base unit variant (e.g., 1kg variant) and set quantity equal to that amount (e.g. 1kg variant with quantity=2). NEVER match a 5kg or 10kg variant with quantity=2 unless the customer explicitly asked for 'two 5kg packets' or '10 kilo'.\n"
-        "   - If the exact pack size is available in variants (e.g., 500g, 1kg, 5kg), match that variant with quantity=1.\n"
-        "3. Continuous Speech Segmentation & Filler Suppression (CRITICAL):\n"
-        "   - Spoken speech often arrives as a continuous stream without commas (e.g. '2 kilo chini 1 kilo atta 1 packet tata tea that is it'). Parse each distinct grocery item separately with its own stated quantity.\n"
-        "   - Strictly ignore conversational fillers, greetings, hesitations, and closing phrases: 'komal', 'namaste', 'bhai', 'that is it', 'that\\'s it', 'bas itna hi', 'aur kuch nahi', 'bhej do', 'kardo', 'chahiye', 'ek packet dena', 'pack karo', 'aur haan', 'achha'. NEVER generate items or extra ghost entries for these filler words.\n"
+        "2. Accurate Variant Multiplier Matching (CRITICAL - NEVER MARK AMBIGUOUS FOR STATED WEIGHTS):\n"
+        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '10 kilo maida', '12 kilo aata'):\n"
+        "     a) If an exact pack size matches that amount (e.g. 5kg pack for '5 kilo'), match that variant with quantity = 1.\n"
+        "     b) If no single variant matches that exact weight (e.g. 2kg, 3kg, 4kg, 6kg, 7kg, 8kg, 12kg): choose the standard base unit variant (1kg variant) and set quantity equal to that weight (e.g., for '2 kilo aata', match Chakki Fresh Wheat Atta 1kg with quantity=2). Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
+        "3. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
+        "   - Customers often correct themselves while reciting a monthly list: e.g. '5 kg toor daal, 2 kilo aata, 3 kilo chini... oh wait can you do aata 12kg, 2 kilo nahi' or 'chini mat lena / chini cancel'.\n"
+        "   - Quantity Updates / Corrections: When customer updates an item's quantity (e.g. 'aata 12kg, 2 kilo nahi' or 'pehla 2 kilo bola tha ab 12 kilo kardo'): use ONLY the final corrected quantity (12kg, NOT 2kg)! Emit only ONE entry for that commodity with quantity=12.\n"
+        "   - Item Cancellations / Negations: When customer cancels or removes an item (e.g. 'X nahi chahiye', 'X mat lo', 'X cancel', 'X nako', 'hata do', 'remove X'): do NOT include X in the items array! Exclude canceled items completely.\n"
         "   - Deduplicate stuttered speech: If a customer repeats a word or item during speech pauses (e.g., 'sugar... 2 kilo chini'), emit only ONE item for sugar with the final intended quantity (2).\n"
         "4. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
         "   - 'wheat' / 'gehun' / 'gahu' / 'whole wheat' refers to WHOLE GRAIN WHEAT ('गहू' / 'Sharbati Whole Wheat Grain' or 'Lokwan Whole Wheat Grain'), NOT wheat flour.\n"
@@ -517,10 +519,10 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "   - When a customer orders BOTH wheat grain and flour (e.g., '6 kilo wheat and 3 kilo aata'), they are TWO DISTINCT items: match wheat to Whole Wheat Grain and aata to Wheat Atta. NEVER combine or drop either.\n"
         "   - 'tandur' / 'tandul' / 'taandul' / 'chawal' / 'chaawal' -> Rice ('तांदूळ' / 'चावल'). ('tandur' is vernacular Mumbai/Marathi spoken pronunciation for 'tandul').\n"
         "   - 'chini' / 'cheeni' / 'sakhar' / 'saakhar' / 'sugar' / 'shakkar' -> Sugar ('साखर' / 'चीनी'). Match to Madhur Sugar or Loose White Sugar.\n"
-        "5. Customer Preferences (Sasta vs Mehnga / Quality):\n"
+        "5. Customer Preferences & Ambiguity Rules:\n"
         "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
         "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
-        "   - If the product has multiple variants and the customer did NOT specify size or price preference, set match_status to 'ambiguous' and populate 'options' with all active variants of that product so the customer can tap one.\n"
+        "   - STRICT AMBIGUITY RULE: ONLY set match_status to 'ambiguous' if the customer named a commodity WITHOUT stating ANY quantity, weight, or size at all (e.g. customer literally said only 'aata' or 'oil' with zero quantity). If any quantity was stated (e.g. '2 kilo aata'), it is NEVER ambiguous—match the 1kg variant with quantity=2!\n"
         "6. Out-of-Stock / Unavailable Items:\n"
         "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
         "7. Exact Match:\n"
@@ -1501,7 +1503,20 @@ def create_app():
         verified_items = []
         estimated_total = 0.0
 
-        for item in ai_data.get('items', []):
+        # Deduplicate multiple mentions of same commodity (keeps latest customer correction/quantity)
+        raw_items = ai_data.get('items', [])
+        deduped_items = []
+        seen_keys = set()
+        for it in reversed(raw_items):
+            pid = it.get('product_id')
+            qname = (it.get('product_name') or it.get('query_term') or '').lower().strip()
+            k = f"p_{pid}" if pid else f"q_{qname}"
+            if k not in seen_keys:
+                seen_keys.add(k)
+                deduped_items.append(it)
+        deduped_items.reverse()
+
+        for item in deduped_items:
             p_id = item.get('product_id')
             v_id = item.get('variant_id')
             status = item.get('match_status', 'matched')
@@ -1511,6 +1526,51 @@ def create_app():
 
             db_prod = db.session.get(Product, p_id) if p_id else None
             db_var = db.session.get(ProductVariant, v_id) if v_id else None
+
+            # SAFETY NET: If marked 'ambiguous' but customer stated an explicit quantity (qty > 0)
+            # or options exist, auto-resolve to best variant (exact pack or base 1kg unit)!
+            if status == 'ambiguous' and (db_prod or item.get('options')):
+                candidate_prod = db_prod
+                if not candidate_prod and item.get('options'):
+                    first_opt_vid = item['options'][0].get('variant_id')
+                    first_v = db.session.get(ProductVariant, first_opt_vid) if first_opt_vid else None
+                    if first_v:
+                        candidate_prod = first_v.product
+                        p_id = candidate_prod.id
+                        db_prod = candidate_prod
+
+                if candidate_prod and candidate_prod.variants:
+                    active_vars = [v for v in candidate_prod.variants if v.is_available]
+                    if not active_vars:
+                        active_vars = candidate_prod.variants
+
+                    matched_v = None
+                    # 1. Exact pack match (e.g. qty=5 and variant is 5kg)
+                    for v in active_vars:
+                        u_clean = v.unit_size.lower().replace(" ", "")
+                        if qty >= 1 and (f"{int(qty)}kg" in u_clean or f"{qty}kg" in u_clean):
+                            matched_v = v
+                            qty = 1.0
+                            break
+
+                    # 2. Base 1kg unit match (e.g. 1kg variant with quantity = qty)
+                    if not matched_v:
+                        for v in active_vars:
+                            if '1kg' in v.unit_size.lower():
+                                matched_v = v
+                                break
+
+                    # 3. Fallback to first active variant
+                    if not matched_v and len(active_vars) > 0:
+                        matched_v = active_vars[0]
+
+                    if matched_v:
+                        db_var = matched_v
+                        v_id = matched_v.id
+                        item['unit_size'] = matched_v.unit_size
+                        item['price'] = matched_v.clearance_price if matched_v.is_clearance and matched_v.clearance_price else matched_v.selling_price
+                        status = 'matched'
+                        item['options'] = []
 
             # Get image and real product names
             image_url = '/products/chakki-atta.jpg'
