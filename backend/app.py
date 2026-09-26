@@ -301,23 +301,30 @@ def is_dummy_phone(phone: str) -> bool:
 
 SEARCH_ALIASES = {
     # Rice / Grains
-    'rice': ['rice', 'chawal', 'chaawal', 'tandul', 'taandul', 'bhat', 'basmati', 'kolam', 'चावल', 'तांदूळ', 'भात', 'बासमती'],
-    'chawal': ['rice', 'chawal', 'chaawal', 'tandul', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
-    'chaawal': ['rice', 'chawal', 'chaawal', 'tandul', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
-    'tandul': ['rice', 'tandul', 'taandul', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
-    'taandul': ['rice', 'tandul', 'taandul', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
-    'bhat': ['rice', 'chawal', 'tandul', 'भात', 'चावल'],
+    'rice': ['rice', 'chawal', 'chaawal', 'tandul', 'taandul', 'tandur', 'bhat', 'basmati', 'kolam', 'चावल', 'तांदूळ', 'भात', 'बासमती'],
+    'chawal': ['rice', 'chawal', 'chaawal', 'tandul', 'taandul', 'tandur', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
+    'chaawal': ['rice', 'chawal', 'chaawal', 'tandul', 'taandul', 'tandur', 'bhat', 'basmati', 'चावल', 'तांदूळ'],
+    'tandul': ['rice', 'tandul', 'taandul', 'tandur', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
+    'taandul': ['rice', 'tandul', 'taandul', 'tandur', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
+    'tandur': ['rice', 'tandul', 'taandul', 'tandur', 'chawal', 'bhat', 'kolam', 'तांदूळ', 'चावल'],
+    'bhat': ['rice', 'chawal', 'tandul', 'tandur', 'भात', 'चावल'],
     'kolam': ['kolam', 'rice', 'कोलम', 'तांदूळ'],
     'basmati': ['basmati', 'rice', 'chawal', 'बासमती', 'दावत', 'daawat'],
 
-    # Atta / Flours / Wheat
-    'atta': ['atta', 'aata', 'pith', 'peeth', 'gehu', 'gehun', 'flour', 'chakki', 'wheat', 'sharbati', 'आटा', 'पीठ', 'गहू'],
-    'aata': ['atta', 'aata', 'pith', 'flour', 'chakki', 'आटा', 'पीठ'],
+    # Whole Wheat Grains (अखंड गहू / गेहूं दाना)
+    'wheat': ['wheat', 'gehu', 'gehun', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
+    'gehu': ['gehu', 'gehun', 'wheat', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
+    'gehun': ['gehu', 'gehun', 'wheat', 'gahu', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
+    'gahu': ['gahu', 'gehu', 'gehun', 'wheat', 'sharbati', 'lokwan', 'अखंड गहू', 'गहू', 'गेहूं'],
+    'lokwan': ['lokwan', 'wheat', 'gehu', 'gahu', 'लोकवन', 'गहू'],
+    'sharbati': ['sharbati', 'wheat', 'gehu', 'gahu', 'शरबती', 'गहू'],
+
+    # Atta / Flours (पीठ / आटा)
+    'atta': ['atta', 'aata', 'pith', 'peeth', 'flour', 'chakki', 'aashirvaad', 'fortune', 'आटा', 'पीठ'],
+    'aata': ['atta', 'aata', 'pith', 'peeth', 'flour', 'chakki', 'आटा', 'पीठ'],
     'pith': ['atta', 'pith', 'peeth', 'flour', 'पीठ', 'आटा'],
     'peeth': ['atta', 'pith', 'peeth', 'flour', 'पीठ', 'आटा'],
-    'gehu': ['atta', 'gehu', 'gehun', 'wheat', 'chakki', 'sharbati', 'गहू', 'आटा'],
-    'gehun': ['atta', 'gehu', 'gehun', 'wheat', 'chakki', 'sharbati', 'गहू', 'आटा'],
-    'wheat': ['atta', 'gehu', 'wheat', 'chakki', 'aashirvaad', 'fortune', 'गहू', 'आटा'],
+    'chakki': ['chakki', 'atta', 'aata', 'चक्की', 'आटा'],
     'maida': ['maida', 'flour', 'मैदा'],
     'besan': ['besan', 'gram flour', 'chana', 'हरभरा', 'बेसन', 'चना'],
     'rava': ['rava', 'suji', 'sooji', 'semolina', 'रवा', 'सुजी'],
@@ -369,12 +376,13 @@ SEARCH_ALIASES = {
     'namak': ['salt', 'namak', 'meeth', 'मीठ', 'नमक', 'tata'],
     'meeth': ['salt', 'namak', 'meeth', 'मीठ', 'नमक', 'tata salt'],
     'mith': ['salt', 'namak', 'meeth', 'मीठ', 'नमक'],
-    'sugar': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'sakhar', 'साखर', 'चीनी', 'शक्कर'],
-    'cheeni': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'चीनी', 'साखर'],
-    'chini': ['sugar', 'cheeni', 'shakkar', 'saakhar', 'चीनी', 'साखर'],
-    'shakkar': ['sugar', 'shakkar', 'cheeni', 'saakhar', 'शक्कर', 'साखर'],
-    'saakhar': ['sugar', 'saakhar', 'sakhar', 'cheeni', 'साखर', 'चीनी'],
-    'sakhar': ['sugar', 'saakhar', 'sakhar', 'cheeni', 'साखर', 'चीनी'],
+    'sugar': ['sugar', 'chini', 'cheeni', 'shakkar', 'saakhar', 'sakhar', 'madhur', 'साखर', 'चीनी', 'शक्कर'],
+    'cheeni': ['sugar', 'chini', 'cheeni', 'shakkar', 'saakhar', 'sakhar', 'madhur', 'चीनी', 'साखर', 'शक्कर'],
+    'chini': ['sugar', 'chini', 'cheeni', 'shakkar', 'saakhar', 'sakhar', 'madhur', 'चीनी', 'साखर', 'शक्कर'],
+    'shakkar': ['sugar', 'shakkar', 'chini', 'cheeni', 'saakhar', 'sakhar', 'madhur', 'शक्कर', 'साखर', 'चीनी'],
+    'saakhar': ['sugar', 'saakhar', 'sakhar', 'chini', 'cheeni', 'shakkar', 'madhur', 'साखर', 'चीनी'],
+    'sakhar': ['sugar', 'saakhar', 'sakhar', 'chini', 'cheeni', 'shakkar', 'madhur', 'साखर', 'चीनी'],
+    'madhur': ['madhur', 'sugar', 'sakhar', 'chini', 'cheeni', 'साखर', 'चीनी'],
     'haldi': ['haldi', 'halad', 'turmeric', 'हळद', 'हल्दी'],
     'halad': ['haldi', 'halad', 'turmeric', 'हळद', 'हल्दी'],
     'turmeric': ['turmeric', 'haldi', 'halad', 'हळद', 'हल्दी'],
@@ -503,15 +511,21 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "   - Spoken speech often arrives as a continuous stream without commas (e.g. '2 kilo chini 1 kilo atta 1 packet tata tea that is it'). Parse each distinct grocery item separately with its own stated quantity.\n"
         "   - Strictly ignore conversational fillers, greetings, hesitations, and closing phrases: 'komal', 'namaste', 'bhai', 'that is it', 'that\\'s it', 'bas itna hi', 'aur kuch nahi', 'bhej do', 'kardo', 'chahiye', 'ek packet dena', 'pack karo', 'aur haan', 'achha'. NEVER generate items or extra ghost entries for these filler words.\n"
         "   - Deduplicate stuttered speech: If a customer repeats a word or item during speech pauses (e.g., 'sugar... 2 kilo chini'), emit only ONE item for sugar with the final intended quantity (2).\n"
-        "4. Customer Preferences (Sasta vs Mehnga / Quality):\n"
+        "4. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
+        "   - 'wheat' / 'gehun' / 'gahu' / 'whole wheat' refers to WHOLE GRAIN WHEAT ('गहू' / 'Sharbati Whole Wheat Grain' or 'Lokwan Whole Wheat Grain'), NOT wheat flour.\n"
+        "   - 'atta' / 'aata' / 'pith' / 'peeth' / 'chakki atta' / 'flour' refers to WHEAT FLOUR ('आटा' / 'पीठ' / 'Chakki Fresh Wheat Atta').\n"
+        "   - When a customer orders BOTH wheat grain and flour (e.g., '6 kilo wheat and 3 kilo aata'), they are TWO DISTINCT items: match wheat to Whole Wheat Grain and aata to Wheat Atta. NEVER combine or drop either.\n"
+        "   - 'tandur' / 'tandul' / 'taandul' / 'chawal' / 'chaawal' -> Rice ('तांदूळ' / 'चावल'). ('tandur' is vernacular Mumbai/Marathi spoken pronunciation for 'tandul').\n"
+        "   - 'chini' / 'cheeni' / 'sakhar' / 'saakhar' / 'sugar' / 'shakkar' -> Sugar ('साखर' / 'चीनी'). Match to Madhur Sugar or Loose White Sugar.\n"
+        "5. Customer Preferences (Sasta vs Mehnga / Quality):\n"
         "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
         "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
         "   - If the product has multiple variants and the customer did NOT specify size or price preference, set match_status to 'ambiguous' and populate 'options' with all active variants of that product so the customer can tap one.\n"
-        "5. Out-of-Stock / Unavailable Items:\n"
+        "6. Out-of-Stock / Unavailable Items:\n"
         "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
-        "6. Exact Match:\n"
+        "7. Exact Match:\n"
         "   - If product and variant are identified, set match_status to 'matched'.\n"
-        "7. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
+        "8. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
     )
 
     prompt = f"""Catalog Snapshot:
@@ -654,12 +668,27 @@ def fallback_heuristic_order_parser(raw_text, all_products):
             if not active_vars:
                 active_vars = matched_prod.variants
 
+            exact_size_var = None
+            base_1kg_var = None
+            for v in active_vars:
+                u_lower = v.unit_size.lower().replace(" ", "")
+                if qty >= 1 and (f"{int(qty)}kg" in u_lower or f"{qty}kg" in u_lower):
+                    exact_size_var = v
+                    break
+                if '1kg' in u_lower:
+                    base_1kg_var = v
+
             if is_sasta:
                 active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price))
                 matched_variant = active_vars[0]
             elif is_premium:
                 active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price), reverse=True)
                 matched_variant = active_vars[0]
+            elif exact_size_var:
+                matched_variant = exact_size_var
+                qty = 1.0  # matched exact pack
+            elif base_1kg_var:
+                matched_variant = base_1kg_var
             elif len(active_vars) == 1:
                 matched_variant = active_vars[0]
             else:
@@ -737,24 +766,77 @@ def seed_default_tiered_pricing():
         ("Toor Dal / Arhar Dal", 25.0, None, 135.0, "बोरी दर (25kg+)"),
         ("Chana Dal", 5.0, 24.99, 86.0, "होलसेल (5kg+)"),
         ("Chana Dal", 25.0, None, 80.0, "बोरी दर (25kg+)"),
+        ("Loose White Sugar", 5.0, 24.99, 42.0, "होलसेल साखर (5kg+)"),
+        ("Loose White Sugar", 25.0, None, 40.0, "बोरी साखर दर (25kg+)"),
+        ("Sharbati Whole Wheat Grain", 5.0, 9.99, 36.0, "होलसेल शरबती (5kg+)"),
+        ("Sharbati Whole Wheat Grain", 10.0, None, 34.0, "कट्टा दर (10kg+)"),
+        ("Lokwan Whole Wheat Grain", 5.0, 9.99, 32.0, "होलसेल लोकवन (5kg+)"),
+        ("Lokwan Whole Wheat Grain", 10.0, None, 30.0, "कट्टा दर (10kg+)"),
     ]
     for term, min_q, max_q, price, label in staple_tiers:
         prod = Product.query.filter(Product.name.ilike(f"%{term}%")).first()
         if prod:
-            db.session.add(TieredPricing(
-                product_id=prod.id,
-                min_qty=min_q,
-                max_qty=max_q,
-                unit_price=price,
-                tier_label=label,
-                tier_label_hi=label
-            ))
+            existing = TieredPricing.query.filter_by(product_id=prod.id, min_qty=min_q).first()
+            if not existing:
+                db.session.add(TieredPricing(
+                    product_id=prod.id,
+                    min_qty=min_q,
+                    max_qty=max_q,
+                    unit_price=price,
+                    tier_label=label,
+                    tier_label_hi=label
+                ))
     try:
         db.session.commit()
         print("[WHOLESALE SEED] Seeded default tiered pricing slabs successfully.")
     except Exception as e:
         db.session.rollback()
         print(f"[WHOLESALE SEED ERROR] {e}")
+
+def sync_missing_catalog_products():
+    """
+    Idempotently inserts any missing products and variants from PRODUCTS_DATA into the active database,
+    preserving all existing orders, customer records, and admin credentials.
+    """
+    try:
+        cat_map = {c.slug: c.id for c in Category.query.all()}
+        added_count = 0
+        for prod_info in PRODUCTS_DATA:
+            existing = Product.query.filter_by(name=prod_info['name']).first()
+            if not existing:
+                cat_id = cat_map.get(prod_info['category_slug'])
+                if not cat_id:
+                    continue
+                product = Product(
+                    category_id=cat_id,
+                    name=prod_info['name'],
+                    name_hi=prod_info['name_hi'],
+                    brand=prod_info['brand'],
+                    is_loose=prod_info['is_loose'],
+                    description=prod_info['description'],
+                    image_url=prod_info['image_url']
+                )
+                db.session.add(product)
+                db.session.flush()
+                for var_info in prod_info['variants']:
+                    variant = ProductVariant(
+                        product_id=product.id,
+                        unit_size=var_info['unit_size'],
+                        mrp=var_info['mrp'],
+                        selling_price=var_info['selling_price'],
+                        stock_quantity=var_info['stock_quantity'],
+                        is_available=True
+                    )
+                    db.session.add(variant)
+                added_count += 1
+        db.session.commit()
+        if added_count > 0:
+            print(f"[CATALOG SYNC] Added {added_count} new staple products to active catalog.")
+            seed_default_tiered_pricing()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[CATALOG SYNC ERROR] {e}")
+
 
 # Configure SQLite engine event listeners for WAL mode and fast concurrency
 @event.listens_for(Engine, "connect")
@@ -896,6 +978,9 @@ def create_app():
 
         if TieredPricing.query.count() == 0:
             seed_default_tiered_pricing()
+
+        # Idempotently ensure all authentic staples (Sugar, Whole Wheat, etc.) exist
+        sync_missing_catalog_products()
 
     # --- AUTHENTICATION HELPERS ---
 

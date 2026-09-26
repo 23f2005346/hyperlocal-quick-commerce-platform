@@ -313,6 +313,34 @@ PRODUCTS_DATA = [
             {"unit_size": "1kg", "mrp": 65.0, "selling_price": 52.0, "stock_quantity": 70}
         ]
     },
+    {
+        "category_slug": "rice-grains",
+        "name": "Sharbati Whole Wheat Grain (शरबती अखंड गहू)",
+        "name_hi": "शरबती अखंड गहू (गेहूं दाना - खुला)",
+        "brand": "Sehore Mandi / Loose",
+        "is_loose": True,
+        "description": "Golden MP Sehore Sharbati whole wheat grains. Heavy, lustrous grain perfect for home milling or fresh chakki pisai.",
+        "image_url": "/products/sharbati-wheat.jpg",
+        "variants": [
+            {"unit_size": "1kg", "mrp": 42.0, "selling_price": 38.0, "stock_quantity": 80},
+            {"unit_size": "5kg", "mrp": 200.0, "selling_price": 185.0, "stock_quantity": 30},
+            {"unit_size": "10kg Bori", "mrp": 395.0, "selling_price": 365.0, "stock_quantity": 20}
+        ]
+    },
+    {
+        "category_slug": "rice-grains",
+        "name": "Lokwan Whole Wheat Grain (लोकवन गहू)",
+        "name_hi": "लोकवन गहू (अखंड दाना - खुला)",
+        "brand": "Maharashtra Mandi / Loose",
+        "is_loose": True,
+        "description": "Authentic Maharashtra Lokwan whole wheat grain. Crisp texture, ideal for everyday soft chapatis, rotis and bhakri.",
+        "image_url": "/products/lokwan-wheat.jpg",
+        "variants": [
+            {"unit_size": "1kg", "mrp": 38.0, "selling_price": 34.0, "stock_quantity": 100},
+            {"unit_size": "5kg", "mrp": 180.0, "selling_price": 165.0, "stock_quantity": 40},
+            {"unit_size": "10kg Bori", "mrp": 350.0, "selling_price": 325.0, "stock_quantity": 25}
+        ]
+    },
 
     # 4. BEANS & RAJMA / CHANA
     {
@@ -606,6 +634,32 @@ PRODUCTS_DATA = [
         "image_url": "/products/everest-garam-masala.jpg",
         "variants": [
             {"unit_size": "100g Box", "mrp": 102.0, "selling_price": 92.0, "stock_quantity": 40}
+        ]
+    },
+    {
+        "category_slug": "spices-masalas",
+        "name": "Madhur Pure & Hygienic Sugar (साखर)",
+        "name_hi": "मधुर शुद्ध दानेदार साखर (चीनी - पैकेट)",
+        "brand": "Madhur",
+        "is_loose": False,
+        "description": "Refined sulphur-free pure cane sugar crystals. Untouched by hand, 100% hygienic for sweet treats, tea, and desserts.",
+        "image_url": "/products/madhur-sugar.jpg",
+        "variants": [
+            {"unit_size": "1kg Pouch", "mrp": 52.0, "selling_price": 48.0, "stock_quantity": 60},
+            {"unit_size": "5kg Bag", "mrp": 255.0, "selling_price": 235.0, "stock_quantity": 25}
+        ]
+    },
+    {
+        "category_slug": "spices-masalas",
+        "name": "Loose White Sugar (खुली साखर)",
+        "name_hi": "खुली पांढरी साखर (चीनी - खुली)",
+        "brand": "Loose / Mandi",
+        "is_loose": True,
+        "description": "Clean sparkling daily loose sugar direct from Maharashtra sugar mills. Best rate for daily household consumption.",
+        "image_url": "/products/loose-sugar.jpg",
+        "variants": [
+            {"unit_size": "1kg", "mrp": 48.0, "selling_price": 44.0, "stock_quantity": 100},
+            {"unit_size": "5kg", "mrp": 230.0, "selling_price": 215.0, "stock_quantity": 30}
         ]
     },
 

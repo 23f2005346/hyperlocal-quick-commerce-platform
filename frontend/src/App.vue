@@ -6180,6 +6180,7 @@ const speechSupported = ref(false);
 let activeSpeechRecognition = null;
 const baseSpeechInput = ref('');
 let speechSilenceTimer = null;
+let isUserExplicitStop = false;
 
 // Cart State
 const cart = ref([]);
@@ -7236,6 +7237,7 @@ function openKomalAiModal() {
 }
 
 function closeKomalAiModal() {
+  isUserExplicitStop = true;
   if (speechSilenceTimer) {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
@@ -7249,6 +7251,7 @@ function closeKomalAiModal() {
 
 function setAiLanguage(lang) {
   aiLanguage.value = lang;
+  isUserExplicitStop = true;
   if (speechSilenceTimer) {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
@@ -7292,6 +7295,7 @@ function toggleSpeechRecognition() {
   }
 
   if (isRecording.value) {
+    isUserExplicitStop = true;
     if (activeSpeechRecognition) {
       try { activeSpeechRecognition.stop(); } catch (e) {}
     }
@@ -7302,7 +7306,7 @@ function toggleSpeechRecognition() {
   try {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
     const lang = aiLanguage.value || currentLang.value || 'mr';
@@ -7311,23 +7315,27 @@ function toggleSpeechRecognition() {
     // Capture initial text so continuous streaming appends cleanly without repeating
     baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
 
+    let spokenPhrases = [];
+    let lastSegment = '';
+    isUserExplicitStop = false;
+
     recognition.onstart = () => {
       isRecording.value = true;
     };
 
     recognition.onresult = (event) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-      for (let i = 0; i < event.results.length; ++i) {
-        const item = event.results[i];
-        if (item.isFinal) {
-          finalTranscript += item[0].transcript + ' ';
-        } else {
-          interimTranscript += item[0].transcript;
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const res = event.results[i];
+        if (res && res[0]) {
+          const phrase = res[0].transcript.trim();
+          if (phrase && phrase.toLowerCase() !== lastSegment.toLowerCase()) {
+            lastSegment = phrase;
+            spokenPhrases.push(phrase);
+          }
         }
       }
 
-      const sessionSpoken = (finalTranscript + interimTranscript).trim();
+      const sessionSpoken = spokenPhrases.join(', ');
       if (sessionSpoken) {
         if (baseSpeechInput.value) {
           aiInputText.value = `${baseSpeechInput.value}, ${sessionSpoken}`;
@@ -7336,14 +7344,16 @@ function toggleSpeechRecognition() {
         }
       }
 
-      // Generous 4.5-second silence auto-cutoff timer (resets whenever words are detected)
+      // Generous 6.5-second silence auto-cutoff timer (resets whenever words are detected)
+      // Specially optimized for 40-50 year old customers who pause between items
       if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
       speechSilenceTimer = setTimeout(() => {
         if (isRecording.value && activeSpeechRecognition) {
+          isUserExplicitStop = true;
           try { activeSpeechRecognition.stop(); } catch (e) {}
           isRecording.value = false;
         }
-      }, 4500);
+      }, 6500);
     };
 
     recognition.onerror = (event) => {
@@ -7353,6 +7363,7 @@ function toggleSpeechRecognition() {
         return;
       }
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        isUserExplicitStop = true;
         isRecording.value = false;
         if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
         showToast(
@@ -7362,11 +7373,35 @@ function toggleSpeechRecognition() {
               ? 'माइक की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में अनुमति दें।'
               : 'Microphone permission denied. Please allow mic access.')
         );
+      } else if (event.error === 'audio-capture') {
+        isUserExplicitStop = true;
+        isRecording.value = false;
+        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+        showToast(
+          currentLang.value === 'mr'
+            ? 'मायक्रोफोन सापडला नाही किंवा म्यूट आहे.'
+            : (currentLang.value === 'hi'
+              ? 'माइक नहीं मिला या म्यूट है।'
+              : 'No microphone found or mic is muted.')
+        );
       }
     };
 
     recognition.onend = () => {
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      if (!isUserExplicitStop && isRecording.value) {
+        // Browser speech engine ended prematurely due to a brief pause before user or silence cutoff stopped it.
+        // Seamlessly restart recognition stream!
+        try {
+          recognition.start();
+          return;
+        } catch (e) {
+          console.warn('Speech recognition restart suppressed:', e);
+        }
+      }
+      if (speechSilenceTimer) {
+        clearTimeout(speechSilenceTimer);
+        speechSilenceTimer = null;
+      }
       isRecording.value = false;
     };
 
@@ -7407,6 +7442,7 @@ async function handleProcessAiOrder() {
     return;
   }
 
+  isUserExplicitStop = true;
   if (speechSilenceTimer) {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
