@@ -5694,14 +5694,30 @@
               <span class="ai-total-amount">₹{{ aiEstimatedTotal }}</span>
             </div>
 
-            <!-- Action Buttons -->
+            <!-- Action Buttons: Add to Cart, Save to Monthly Ration, Quick COD, Fast Checkout -->
             <div class="ai-action-buttons">
               <button
                 type="button"
                 class="ai-cart-btn"
                 @click="addAllAiItemsToCart(false)"
               >
-                {{ t('ai_add_to_cart') }}
+                🛒 {{ t('ai_add_to_cart') }}
+              </button>
+              <button
+                type="button"
+                class="ai-parcha-btn"
+                @click="saveAllAiItemsToMonthlyParcha"
+                :title="t('ai_save_to_parcha')"
+              >
+                {{ t('ai_save_to_parcha') }}
+              </button>
+              <button
+                type="button"
+                class="ai-cod-btn"
+                @click="quickCodOrderFromDraft"
+                :title="t('ai_cod_checkout')"
+              >
+                {{ t('ai_cod_checkout') }}
               </button>
               <button
                 type="button"
@@ -6269,6 +6285,13 @@ let activeSpeechRecognition = null;
 const baseSpeechInput = ref('');
 let speechSilenceTimer = null;
 let isUserExplicitStop = false;
+let mediaRecorder = null;
+let recordedAudioChunks = [];
+let recordedAudioBase64 = null;
+let recordedAudioMime = 'audio/webm';
+let currentAiAudioPlayer = null;
+const cachedAiAudio = ref(null);
+let speechSessionId = 0;
 
 // Cart State
 const cart = ref([]);
@@ -6449,6 +6472,14 @@ const parchaSearchResults = computed(() => {
   }).slice(0, 8);
 });
 
+function persistParchaToLocalStorage() {
+  try {
+    localStorage.setItem('komal_monthly_parcha', JSON.stringify(monthlyParchaItems.value));
+  } catch (e) {
+    console.warn('Failed to save parcha to localStorage:', e);
+  }
+}
+
 function addProductToParcha(prod) {
   const v = prod.variants && prod.variants.length > 0 ? prod.variants[0] : null;
   const price = v ? v.selling_price : (prod.selling_price || 50);
@@ -6470,6 +6501,7 @@ function addProductToParcha(prod) {
     image: prod.image_url ? prod.image_url.split('||')[0] : '/placeholder.png'
   });
   parchaSearchQuery.value = '';
+  persistParchaToLocalStorage();
   showToast(currentLang.value === 'en' ? `Added ${prod.name} to Monthly Parcha!` : `पर्चा मध्ये जोडले!`);
 }
 
@@ -6478,11 +6510,13 @@ function updateParchaQty(item, delta) {
   const next = current + delta;
   if (next >= 1) {
     item.quantity = next;
+    persistParchaToLocalStorage();
   }
 }
 
 function removeParchaItem(index) {
   monthlyParchaItems.value.splice(index, 1);
+  persistParchaToLocalStorage();
 }
 
 const monthlyParchaTotal = computed(() => {
@@ -7387,9 +7421,210 @@ function initSpeechRecognition() {
   speechSupported.value = true;
 }
 
+function playNaturalAiAudio(audioB64, mime = 'audio/wav') {
+  try {
+    if (currentAiAudioPlayer) {
+      currentAiAudioPlayer.pause();
+      currentAiAudioPlayer = null;
+    }
+    currentAiAudioPlayer = new Audio(`data:${mime};base64,${audioB64}`);
+    currentAiAudioPlayer.play().catch(e => {
+      console.warn('Audio play restricted or waiting user gesture:', e);
+    });
+  } catch (err) {
+    console.warn('playNaturalAiAudio error:', err);
+  }
+}
+
+async function speakAiSummary(text, forceApi = false) {
+  if (cachedAiAudio.value && !forceApi) {
+    playNaturalAiAudio(cachedAiAudio.value.b64, cachedAiAudio.value.mime);
+    return;
+  }
+
+  // Fetch natural studio voice from Gemini 3.8 Flash-Lite TTS endpoint
+  try {
+    const res = await fetch(`${API_BASE}/ai/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        language: aiLanguage.value || currentLang.value || 'mr',
+        voice: 'Kore'
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.audio_base64) {
+      cachedAiAudio.value = { b64: data.audio_base64, mime: data.mime_type || 'audio/wav' };
+      playNaturalAiAudio(data.audio_base64, data.mime_type || 'audio/wav');
+      return;
+    }
+  } catch (e) {
+    console.warn('Gemini TTS network warning, falling back to browser speech:', e);
+  }
+
+  // Fallback to browser speechSynthesis
+  if (!('speechSynthesis' in window) || !text) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const lang = aiLanguage.value || currentLang.value || 'mr';
+    utterance.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('Speech synthesis warning:', e);
+  }
+}
+
+function startAudioMediaRecorder() {
+  recordedAudioChunks = [];
+  recordedAudioBase64 = null;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    try {
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        }
+      }
+      recordedAudioMime = mimeType;
+      mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedAudioChunks.push(e.data);
+        }
+      };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(tr => tr.stop());
+        if (recordedAudioChunks.length > 0) {
+          const blob = new Blob(recordedAudioChunks, { type: recordedAudioMime });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (reader.result) {
+              const resStr = reader.result.toString();
+              const commaIdx = resStr.indexOf(',');
+              recordedAudioBase64 = commaIdx >= 0 ? resStr.substring(commaIdx + 1) : resStr;
+            }
+          };
+          reader.readAsDataURL(blob);
+        }
+      };
+      mediaRecorder.start(1000);
+    } catch (e) {
+      console.warn('MediaRecorder error:', e);
+    }
+  }).catch(e => {
+    console.warn('getUserMedia audio permission or device error:', e);
+  });
+}
+
+function startNewRecognitionInstance(currentSession) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition || isUserExplicitStop || !isRecording.value || currentSession !== speechSessionId) return;
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  const lang = aiLanguage.value || currentLang.value || 'mr';
+  recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+
+  let sessionFinalText = '';
+
+  recognition.onstart = () => {
+    isRecording.value = true;
+  };
+
+  recognition.onresult = (event) => {
+    let interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const res = event.results[i];
+      if (res && res[0]) {
+        if (res.isFinal) {
+          sessionFinalText += (sessionFinalText ? ' ' : '') + res[0].transcript.trim();
+        } else {
+          interimText += (interimText ? ' ' : '') + res[0].transcript.trim();
+        }
+      }
+    }
+
+    const currentCombined = [baseSpeechInput.value, sessionFinalText, interimText].filter(Boolean).join(', ');
+    if (currentCombined) {
+      aiInputText.value = currentCombined;
+    }
+
+    // Generous 30-second silence auto-cutoff timer for elders reciting 20-30 items
+    if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = setTimeout(() => {
+      if (isRecording.value && !isUserExplicitStop) {
+        isUserExplicitStop = true;
+        if (activeSpeechRecognition) {
+          try { activeSpeechRecognition.stop(); } catch (e) {}
+        }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          try { mediaRecorder.stop(); } catch (e) {}
+        }
+        isRecording.value = false;
+      }
+    }, 30000);
+  };
+
+  recognition.onerror = (event) => {
+    console.warn('Speech recognition status:', event.error);
+    if (event.error === 'no-speech') {
+      return; // Do NOT abort on pauses
+    }
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      isUserExplicitStop = true;
+      isRecording.value = false;
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      showToast(
+        currentLang.value === 'mr'
+          ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
+          : (currentLang.value === 'hi'
+            ? 'माइक की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में अनुमति दें।'
+            : 'Microphone permission denied. Please allow mic access.')
+      );
+    }
+  };
+
+  recognition.onend = () => {
+    // If not user-stopped, seamlessly cycle recognition to avoid browser session timeout
+    if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
+      baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
+      setTimeout(() => {
+        if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
+          startNewRecognitionInstance(currentSession);
+        }
+      }, 100);
+      return;
+    }
+    if (speechSilenceTimer) {
+      clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = null;
+    }
+    isRecording.value = false;
+  };
+
+  activeSpeechRecognition = recognition;
+  try {
+    recognition.start();
+  } catch (err) {
+    console.warn('Recognition start error:', err);
+  }
+}
+
 function toggleSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
+  if (!SpeechRecognition && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
     showToast(
       currentLang.value === 'mr'
         ? 'तुमच्या ब्राउझरमध्ये व्हॉइस इनपुट सपोर्ट नाही. कृपया खाली टाईप करा.'
@@ -7410,142 +7645,31 @@ function toggleSpeechRecognition() {
     if (activeSpeechRecognition) {
       try { activeSpeechRecognition.stop(); } catch (e) {}
     }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try { mediaRecorder.stop(); } catch (e) {}
+    }
     isRecording.value = false;
     return;
   }
 
-  try {
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+  isRecording.value = true;
+  isUserExplicitStop = false;
+  speechSessionId++;
+  const thisSession = speechSessionId;
+  baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
 
-    const lang = aiLanguage.value || currentLang.value || 'mr';
-    recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+  // Start background MediaRecorder audio stream
+  startAudioMediaRecorder();
 
-    // Capture initial text so continuous streaming appends cleanly without repeating
-    baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
-
-    let spokenPhrases = [];
-    let lastSegment = '';
-    isUserExplicitStop = false;
-
-    recognition.onstart = () => {
-      isRecording.value = true;
-    };
-
-    recognition.onresult = (event) => {
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const res = event.results[i];
-        if (res && res[0]) {
-          const phrase = res[0].transcript.trim();
-          if (phrase && phrase.toLowerCase() !== lastSegment.toLowerCase()) {
-            lastSegment = phrase;
-            spokenPhrases.push(phrase);
-          }
-        }
-      }
-
-      const sessionSpoken = spokenPhrases.join(', ');
-      if (sessionSpoken) {
-        if (baseSpeechInput.value) {
-          aiInputText.value = `${baseSpeechInput.value}, ${sessionSpoken}`;
-        } else {
-          aiInputText.value = sessionSpoken;
-        }
-      }
-
-      // Generous 15-second silence auto-cutoff timer (resets whenever words are detected)
-      // Specially optimized for 40-50 year old customers reciting long monthly rations
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      speechSilenceTimer = setTimeout(() => {
-        if (isRecording.value && activeSpeechRecognition) {
-          isUserExplicitStop = true;
-          try { activeSpeechRecognition.stop(); } catch (e) {}
-          isRecording.value = false;
-        }
-      }, 15000);
-    };
-
-    recognition.onerror = (event) => {
-      console.warn('Speech recognition status:', event.error);
-      if (event.error === 'no-speech') {
-        // Essential for laptop/desktop browsers: do NOT abort on brief silence!
-        return;
-      }
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        isUserExplicitStop = true;
-        isRecording.value = false;
-        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-        showToast(
-          currentLang.value === 'mr'
-            ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
-            : (currentLang.value === 'hi'
-              ? 'माइक की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में अनुमति दें।'
-              : 'Microphone permission denied. Please allow mic access.')
-        );
-      } else if (event.error === 'audio-capture') {
-        isUserExplicitStop = true;
-        isRecording.value = false;
-        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-        showToast(
-          currentLang.value === 'mr'
-            ? 'मायक्रोफोन सापडला नाही किंवा म्यूट आहे.'
-            : (currentLang.value === 'hi'
-              ? 'माइक नहीं मिला या म्यूट है।'
-              : 'No microphone found or mic is muted.')
-        );
-      }
-    };
-
-    recognition.onend = () => {
-      if (!isUserExplicitStop && isRecording.value) {
-        // Android Chrome / Desktop stream timed out. Wait 200ms tick then restart seamlessly!
-        setTimeout(() => {
-          if (!isUserExplicitStop && isRecording.value) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.warn('Speech recognition restart suppressed:', e);
-            }
-          }
-        }, 200);
-        return;
-      }
-      if (speechSilenceTimer) {
-        clearTimeout(speechSilenceTimer);
-        speechSilenceTimer = null;
-      }
-      isRecording.value = false;
-    };
-
-    activeSpeechRecognition = recognition;
-    recognition.start();
-  } catch (err) {
-    console.warn('Speech start error:', err);
-    if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-    isRecording.value = false;
-  }
-}
-
-function speakAiSummary(text) {
-  if (!('speechSynthesis' in window) || !text) return;
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const lang = aiLanguage.value || currentLang.value || 'mr';
-    utterance.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
-    utterance.rate = 1.0;
-    utterance.pitch = 1.05;
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn('Speech synthesis warning:', e);
+  // Start SpeechRecognition
+  if (SpeechRecognition) {
+    startNewRecognitionInstance(thisSession);
   }
 }
 
 async function handleProcessAiOrder() {
   const text = (aiInputText.value || '').trim();
-  if (!text) {
+  if (!text && !recordedAudioBase64) {
     showToast(
       currentLang.value === 'mr'
         ? 'कृपया काहीतरी बोला किंवा सामानाची नावे टाका.'
@@ -7561,25 +7685,47 @@ async function handleProcessAiOrder() {
     clearTimeout(speechSilenceTimer);
     speechSilenceTimer = null;
   }
-  if (isRecording.value && activeSpeechRecognition) {
-    try { activeSpeechRecognition.stop(); } catch (e) {}
+  if (isRecording.value) {
+    if (activeSpeechRecognition) {
+      try { activeSpeechRecognition.stop(); } catch (e) {}
+    }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try { mediaRecorder.stop(); } catch (e) {}
+    }
     isRecording.value = false;
+  }
+
+  // Short delay if media recorder just completed
+  if (recordedAudioChunks.length > 0 && !recordedAudioBase64) {
+    await new Promise(r => setTimeout(r, 250));
   }
 
   isAiLoading.value = true;
   try {
+    const payload = {
+      text: text,
+      language: aiLanguage.value || currentLang.value || 'mr'
+    };
+    if (recordedAudioBase64) {
+      payload.audio = recordedAudioBase64;
+      payload.mime_type = recordedAudioMime || 'audio/webm';
+    }
+
     const res = await fetch(`${API_BASE}/ai/parse-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text,
-        language: aiLanguage.value || currentLang.value || 'mr'
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (res.ok && data.success) {
       aiResult.value = data;
-      if (data.summary_text) {
+      if (data.raw_text && !aiInputText.value.trim()) {
+        aiInputText.value = data.raw_text;
+      }
+      if (data.audio_base64) {
+        cachedAiAudio.value = { b64: data.audio_base64, mime: data.audio_mime_type || 'audio/wav' };
+        playNaturalAiAudio(data.audio_base64, data.audio_mime_type || 'audio/wav');
+      } else if (data.summary_text) {
         speakAiSummary(data.summary_text);
       }
     } else {
@@ -7733,6 +7879,98 @@ function addAllAiItemsToCart(autoOpenCheckout = false) {
   } else {
     showCartDrawer.value = true;
   }
+}
+
+function saveAllAiItemsToMonthlyParcha() {
+  if (!aiResult.value || !aiResult.value.items) return;
+  const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  if (matchedItems.length === 0) {
+    showToast(
+      currentLang.value === 'mr'
+        ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
+        : (currentLang.value === 'hi'
+          ? 'कृपया पहले सामान का चयन पूरा करें।'
+          : 'Please select/resolve items first.')
+    );
+    return;
+  }
+
+  let addedCount = 0;
+  for (const it of matchedItems) {
+    const prod = products.value.find(p => p.id === it.product_id);
+    const existing = monthlyParchaItems.value.find(p => p.productId === it.product_id && p.variantUnit === it.unit_size);
+    if (existing) {
+      existing.quantity = (existing.quantity || 1) + (it.quantity || 1);
+      existing.selected = true;
+    } else {
+      monthlyParchaItems.value.unshift({
+        id: `ai_${it.product_id || Date.now()}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        productId: it.product_id,
+        name: currentLang.value === 'mr' ? (it.product_name_hi || it.product_name) : (currentLang.value === 'hi' ? (it.product_name_hi || it.product_name) : it.product_name),
+        productQuery: it.product_name,
+        variantUnit: it.unit_size || '1 Unit',
+        fallbackPrice: it.unit_price || 50,
+        mrp: it.unit_price ? Math.round(it.unit_price * 1.1) : 60,
+        isLoose: !!it.is_loose,
+        customWeight: null,
+        selected: true,
+        quantity: it.quantity || 1,
+        image: it.image_url || (prod && prod.image_url ? prod.image_url.split('||')[0] : '/products/chakki-atta.jpg')
+      });
+    }
+    addedCount++;
+  }
+
+  persistParchaToLocalStorage();
+
+  showToast(
+    currentLang.value === 'mr'
+      ? `📋 कोमल AI: ${addedCount} सामान तुमच्या मासिक रेशन यादीत सेव्ह झाले!`
+      : (currentLang.value === 'hi'
+        ? `📋 कोमल AI: ${addedCount} सामान आपकी मासिक राशन सूची में सेव हो गए!`
+        : `📋 Komal AI: Added ${addedCount} items to your Monthly Ration list!`)
+  );
+}
+
+function quickCodOrderFromDraft() {
+  if (!aiResult.value || !aiResult.value.items) return;
+  const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  if (matchedItems.length === 0) {
+    showToast(
+      currentLang.value === 'mr'
+        ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
+        : (currentLang.value === 'hi'
+          ? 'कृपया पहले सामान का चयन पूरा करें।'
+          : 'Please select/resolve items first.')
+    );
+    return;
+  }
+
+  // 1. Put matched items in cart
+  addAllAiItemsToCart(false);
+
+  // 2. Pre-select Cash on Delivery (COD)
+  customerForm.value.paymentMethod = 'Cash on Delivery (COD)';
+
+  // 3. Auto-populate customer details if logged in
+  if (currentUser.value && currentUser.value.phone) {
+    customerForm.value.name = currentUser.value.name || customerForm.value.name;
+    customerForm.value.phone = currentUser.value.phone;
+    customerForm.value.address = currentUser.value.address || customerForm.value.address;
+  }
+
+  // 4. Close AI draft modal and cart drawer, open checkout modal directly
+  showKomalAiModal.value = false;
+  showCartDrawer.value = false;
+  showCheckoutModal.value = true;
+
+  showToast(
+    currentLang.value === 'mr'
+      ? '⚡ कॅश ऑन डिलिव्हरी निवडले आहे! कृपया १-टॅप मध्ये ऑर्डर कन्फर्म करा.'
+      : (currentLang.value === 'hi'
+        ? '⚡ कैश ऑन डिलीवरी चुना गया है! कृपया १-टैप में ऑर्डर कन्फर्म करें।'
+        : '⚡ Cash on Delivery selected! Please confirm your order with 1 tap.')
+  );
 }
 
 function getCartItemQuantity(productId, variantId) {
@@ -9442,6 +9680,19 @@ onMounted(() => {
   checkAuth();
   fetchCategories();
   fetchProducts();
+
+  // Restore saved Monthly Ration Parcha from localStorage
+  try {
+    const savedParcha = localStorage.getItem('komal_monthly_parcha');
+    if (savedParcha) {
+      const parsed = JSON.parse(savedParcha);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        monthlyParchaItems.value = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse saved parcha:', e);
+  }
 
   // Handle #admin route direct access
   if (window.location.hash === '#admin') {

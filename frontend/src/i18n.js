@@ -342,7 +342,12 @@ export const translations = {
     ai_empty_order: "कृपया काहीतरी बोला किंवा सामानाची नावे टाका.",
     ai_clear: "साफ करा",
     ai_speech_unsupported: "तुमच्या ब्राउझरमध्ये व्हॉइस सपोर्ट नाही. कृपया खाली टाईप करा.",
-    ai_audio_confirmation: "तुमचे सामान बिलमध्ये जोडले आहे. कृपया तपासा!"
+    ai_audio_confirmation: "तुमचे सामान बिलमध्ये जोडले आहे. कृपया तपासा!",
+    ai_save_to_parcha: "📋 मासिक रेशन यादीत जोडा",
+    ai_cod_checkout: "⚡ रोख देऊन थेट ऑर्डर (COD)",
+    ai_view_parcha: "📋 मासिक रेशन यादी पहा",
+    ai_parcha_saved_toast: "📋 कोमल AI: सर्व सामान तुमच्या मासिक रेशन यादीत सेव्ह झाले!",
+    ai_cod_ready_toast: "⚡ कोमल AI: कॅश ऑन डिलिव्हरी ऑर्डर तयार आहे! १-टॅप मध्ये पुष्टी करा."
   },
 
   hi: {
@@ -683,7 +688,12 @@ export const translations = {
     ai_empty_order: "कृपया कुछ बोलें या राशन का नाम दर्ज करें।",
     ai_clear: "साफ करें",
     ai_speech_unsupported: "आपके ब्राउज़र में आवाज़ इनपुट सपोर्ट नहीं है। कृपया नीचे टाइप करें।",
-    ai_audio_confirmation: "आपका सामान बिल में जोड़ दिया गया है। कृपया जाँचें!"
+    ai_audio_confirmation: "आपका सामान बिल में जोड़ दिया गया है। कृपया जाँचें!",
+    ai_save_to_parcha: "📋 मासिक राशन सूची में जोड़ें",
+    ai_cod_checkout: "⚡ नकद देकर तुरंत ऑर्डर (COD)",
+    ai_view_parcha: "📋 मासिक राशन सूची देखें",
+    ai_parcha_saved_toast: "📋 कोमल AI: सभी सामान आपकी मासिक राशन सूची में सेव हो गए!",
+    ai_cod_ready_toast: "⚡ कोमल AI: कैश ऑन डिलीवरी ऑर्डर तैयार है! १-टैप में पुष्टि करें।"
   },
 
   en: {
@@ -1024,7 +1034,12 @@ export const translations = {
     ai_empty_order: "Please speak or type your grocery list.",
     ai_clear: "Clear",
     ai_speech_unsupported: "Voice input is not supported in this browser. Please type below.",
-    ai_audio_confirmation: "Your grocery items have been added to the bill. Please review!"
+    ai_audio_confirmation: "Your grocery items have been added to the bill. Please review!",
+    ai_save_to_parcha: "📋 Save to Monthly Ration",
+    ai_cod_checkout: "⚡ Quick Cash on Delivery (COD)",
+    ai_view_parcha: "📋 View Monthly Ration",
+    ai_parcha_saved_toast: "📋 Komal AI: All items saved to your Monthly Ration List!",
+    ai_cod_ready_toast: "⚡ Komal AI: Cash on Delivery order ready! Confirm with 1 tap."
   }
 };
 

@@ -531,9 +531,9 @@ def get_tiered_unit_price(product_id, qty):
         print(f"[TIER PRICE ERROR] {e}")
     return None
 
-def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
+def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_data=None, mime_type='audio/webm'):
     """
-    Parses natural language grocery order text (Hindi, Marathi, English, or mixed)
+    Parses natural language grocery order text or recorded audio (Hindi, Marathi, English, or mixed)
     against the active Komal Mart catalog using Google Gemini AI Studio API.
     Implements a resilient model fallback cascade:
     1. gemini-flash-lite-latest (fastest, lowest token overhead, 500 RPD)
@@ -616,17 +616,28 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
         "9. Exact Match:\n"
         "   - If product and variant are identified, set match_status to 'matched'.\n"
-        "10. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English."
+        "10. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English.\n"
+        "11. Long-Form Monthly Kirana Recitation (20 to 30+ Items):\n"
+        "   - Real household customers recite long 20 to 30 item ration lists in a single turn.\n"
+        "   - You MUST parse every single commodity spoken across the entire speech. Never stop or truncate after a few items.\n"
+        "   - Support full grocery baskets: flours, rice, dals, oils, ghee, sugar, tea, spices, bath soaps, dish soaps, detergents, toothpastes, dry fruits, snacks."
     )
+
+    if audio_data and not raw_text:
+        customer_input_desc = "Customer Order Speech (Audio Recording Attached):\nListen to the customer's spoken grocery recitation in audio. Transcribe the customer's spoken words into the 'transcript' field (in the language spoken: Marathi, Hindi, or English), and match all items to the catalog snapshot."
+    elif audio_data and raw_text:
+        customer_input_desc = f"Customer Order Speech Transcript:\n\"{raw_text}\"\n(Raw audio recording is also attached for acoustic clarity. Transcribe full speech into 'transcript' field if any words were omitted.)"
+    else:
+        customer_input_desc = f"Customer Order Speech/Text:\n\"{raw_text}\""
 
     prompt = f"""Catalog Snapshot:
 {json.dumps(catalog_snapshot, ensure_ascii=False)}
 
-Customer Order Speech/Text:
-"{raw_text}"
+{customer_input_desc}
 
 Return JSON matching this exact structure:
 {{
+  "transcript": "string (verbatim customer speech transcript)",
   "items": [
     {{
       "query_term": "string (what customer called it)",
@@ -650,13 +661,22 @@ Return JSON matching this exact structure:
     last_error = None
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        parts = [
+            {"text": system_instruction},
+            {"text": prompt}
+        ]
+        if audio_data:
+            parts.append({
+                "inlineData": {
+                    "mimeType": mime_type or "audio/webm",
+                    "data": audio_data
+                }
+            })
+
         payload = {
             "contents": [
                 {
-                    "parts": [
-                        {"text": system_instruction},
-                        {"text": prompt}
-                    ]
+                    "parts": parts
                 }
             ],
             "generationConfig": {
@@ -667,7 +687,7 @@ Return JSON matching this exact structure:
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'})
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=18) as response:
                 result_raw = json.loads(response.read().decode('utf-8'))
                 candidates = result_raw.get('candidates', [])
                 if candidates and 'content' in candidates[0]:
@@ -684,6 +704,63 @@ Return JSON matching this exact structure:
             continue
 
     return False, None, last_error or "All cascade models failed"
+
+def call_gemini_tts(text, voice='Kore'):
+    """
+    Synthesizes natural, high-fidelity regional speech (Marathi / Hindi / English)
+    using Gemini Next-Gen TTS models and Google Voices endpoint.
+    Model Cascade:
+    1. gemini-3.8-flash-lite-tts (ultra-fast, cost-efficient, low latency)
+    2. gemini-3.8-flash-tts (studio-grade fidelity)
+    3. gemini-2.5-flash-preview-tts (stable fallback)
+    """
+    api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not api_key or not text:
+        return False, None, "No API key or text"
+
+    models = [
+        'gemini-3.8-flash-lite-tts',
+        'gemini-3.8-flash-tts',
+        'gemini-2.5-flash-preview-tts'
+    ]
+
+    payload = {
+        "contents": [{"parts": [{"text": text.strip()}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": voice or "Kore"
+                    }
+                }
+            }
+        }
+    }
+
+    req_data = json.dumps(payload).encode('utf-8')
+    for m in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
+        try:
+            req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                res = json.loads(resp.read().decode('utf-8'))
+                candidates = res.get('candidates', [])
+                if candidates and 'content' in candidates[0]:
+                    parts = candidates[0]['content'].get('parts', [])
+                    for part in parts:
+                        if 'inlineData' in part:
+                            audio_b64 = part['inlineData'].get('data')
+                            mime = part['inlineData'].get('mimeType', 'audio/wav')
+                            return True, audio_b64, mime
+        except urllib.error.HTTPError as he:
+            print(f"[GEMINI TTS WARNING] Model {m} HTTP {he.code}: {he.reason}. Trying next...")
+            continue
+        except Exception as e:
+            print(f"[GEMINI TTS WARNING] Model {m} failed: {e}. Trying next...")
+            continue
+
+    return False, None, "All TTS models failed"
 
 def fallback_heuristic_order_parser(raw_text, all_products):
     """
@@ -1629,9 +1706,11 @@ def create_app():
         """
         data = request.get_json() or {}
         raw_text = (data.get('text') or '').strip()
+        audio_b64 = (data.get('audio') or '').strip()
+        mime_type = (data.get('mime_type') or 'audio/webm').strip()
         lang = (data.get('language') or 'mr').lower()
 
-        if not raw_text:
+        if not raw_text and not audio_b64:
             return jsonify({'error': 'कृपया काहीतरी बोला किंवा किराणा सामानाची यादी टाईप करा.', 'code': 'EMPTY_TEXT'}), 400
 
         # Query all active products with variants
@@ -1657,14 +1736,21 @@ def create_app():
                     'variants': variants_info
                 })
 
-        # Step 1: Attempt Gemini cascade
-        success, ai_data, engine_used = call_gemini_order_parser(raw_text, catalog_snapshot, language=lang)
+        # Step 1: Attempt Gemini cascade (supports text + direct audio recording)
+        success, ai_data, engine_used = call_gemini_order_parser(
+            raw_text, catalog_snapshot, language=lang, audio_data=audio_b64, mime_type=mime_type
+        )
+        if success and ai_data and ai_data.get('transcript') and not raw_text:
+            raw_text = ai_data.get('transcript').strip()
 
-        # Step 2: Fallback to local heuristic if Gemini failed
+        # Step 2: Fallback to local heuristic if Gemini failed (requires text)
         if not success or not ai_data or not isinstance(ai_data.get('items'), list):
             print(f"[AI PARSE] Falling back to local heuristic parser (Reason: {engine_used})")
-            ai_data = fallback_heuristic_order_parser(raw_text, all_products)
-            engine_used = 'local-kirana-heuristic'
+            if raw_text:
+                ai_data = fallback_heuristic_order_parser(raw_text, all_products)
+                engine_used = 'local-kirana-heuristic'
+            else:
+                return jsonify({'error': 'आवाज ओळखता आला नाही. कृपया पुन्हा बोला किंवा टाईप करा.', 'code': 'AUDIO_UNRECOGNIZED'}), 400
 
         # Step 3: Sanitize, cross-verify against DB and calculate pricing
         verified_items = []
@@ -1911,14 +1997,55 @@ def create_app():
         summary_key = f'summary_text_{lang}'
         summary_msg = ai_data.get(summary_key) or ai_data.get('summary_text_mr') or ai_data.get('summary_text_hi') or ai_data.get('summary_text_en') or 'सामान ड्राफ्ट बिलमध्ये जोडले आहे.'
 
+        # Step 4: Synthesize high-fidelity Marathi / Hindi spoken audio with Gemini 3.8 Flash-Lite TTS
+        tts_audio = None
+        tts_mime = 'audio/wav'
+        try:
+            tts_ok, tts_b64, tts_m = call_gemini_tts(summary_msg, voice='Kore')
+            if tts_ok and tts_b64:
+                tts_audio = tts_b64
+                tts_mime = tts_m
+        except Exception as e:
+            print(f"[AI PARSE TTS PRE-SYNTHESIS WARNING] {e}")
+
         return jsonify({
             'success': True,
             'engine': engine_used,
             'raw_text': raw_text,
             'items': verified_items,
             'estimated_total': round(estimated_total, 2),
-            'summary_text': summary_msg
+            'summary_text': summary_msg,
+            'audio_base64': tts_audio,
+            'audio_mime_type': tts_mime
         })
+
+    @app.route('/api/ai/tts', methods=['POST'])
+    def ai_text_to_speech():
+        """
+        Komal AI Next-Gen Regional Voice Synthesis Endpoint:
+        Generates natural, high-fidelity Marathi/Hindi/English spoken audio
+        using Gemini 3.8 Flash-Lite TTS and Gemini Audio Voices.
+        """
+        data = request.get_json() or {}
+        text = (data.get('text') or '').strip()
+        voice = (data.get('voice') or 'Kore').strip()
+
+        if not text:
+            return jsonify({'error': 'No text provided for speech synthesis', 'code': 'EMPTY_TEXT'}), 400
+
+        ok, audio_b64, mime_or_err = call_gemini_tts(text, voice=voice)
+        if ok and audio_b64:
+            return jsonify({
+                'success': True,
+                'audio_base64': audio_b64,
+                'mime_type': mime_or_err,
+                'voice': voice
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': mime_or_err or 'TTS generation failed'
+            }), 502
 
     @app.route('/api/categories', methods=['GET'])
     def get_categories():
