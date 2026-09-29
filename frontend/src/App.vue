@@ -63,7 +63,7 @@
         <span style="display: inline-flex; align-items: center; gap: 6px;">🛵 {{ t('delivery_announcement') }}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 16px;">
-        <span>📞 {{ t('helpline_label') }}: <strong>98765-43210</strong></span>
+        <span>📞 {{ t('helpline_label') }}: <strong>91420-52967</strong></span>
         <!-- Header Language Switcher Dropdown -->
         <div class="lang-dropdown-pill">
           <button class="lang-pill-btn" @click="toggleLangDropdown">
@@ -190,8 +190,8 @@
               <button class="store-credit-header-badge" @click="openAccountModal" :title="t('store_credit_balance')">
                 💳 <strong>₹{{ (currentUser.wallet_balance || 0).toFixed(2) }}</strong>
               </button>
-              <button class="user-btn" @click="openAccountModal">
-                👤 <span class="desktop-only">{{ t('greeting') }}, </span>{{ currentUser.name.split(' ')[0] }}<span class="desktop-only">! ({{ t('account') }})</span>
+              <button class="user-btn" @click="openAccountModal" :title="t('account')">
+                👤 <span class="desktop-only">{{ t('greeting') }}, </span><strong>{{ currentUser.name.split(' ')[0] }}</strong>
               </button>
               <button class="user-btn user-logout-btn" @click="logout" :title="t('logout')" style="padding: 7px 10px; color: #dc2626; border-color: #fecaca; background: #fff1f2;">
                 🚪<span class="desktop-only" style="margin-left: 4px;">{{ t('logout') }}</span>
@@ -3277,7 +3277,7 @@
               <div v-if="resetNoEmailPhone" style="background: #fffbeb; border: 1.5px solid #fef3c7; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.82rem; color: #92400e;">
                 <p style="margin: 0 0 8px 0; font-weight: 700;">{{ t('auth_reset_no_email_error') }}</p>
                 <a
-                  :href="`https://wa.me/919876543210?text=${encodeURIComponent(`नमस्ते कोमल मार्ट! मी माझ्या खात्याचा पासवर्ड विसरलो आहे. माझा नोंदणीकृत फोन नंबर ${resetNoEmailPhone} आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा.`)}`"
+                  :href="`https://wa.me/919142052967?text=${encodeURIComponent(`नमस्ते कोमल मार्ट! मी माझ्या खात्याचा पासवर्ड विसरलो आहे. माझा नोंदणीकृत फोन नंबर ${resetNoEmailPhone} आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा.`)}`"
                   target="_blank"
                   style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 800; font-size: 0.8rem;"
                 >
@@ -3869,7 +3869,7 @@
         <div class="parcha-receipt" id="printable-parcha-slip">
           <div class="parcha-header">
             <h3>{{ t('store_name_full') }}</h3>
-            <p style="font-size: 0.8rem;">मेन बाजार, स्टेशन रोड • फोन: 98765-43210</p>
+            <p style="font-size: 0.8rem;">मेन बाजार, स्टेशन रोड • फोन: 91420-52967</p>
             <p style="font-size: 0.85rem; font-weight: bold; margin-top: 4px;">
               {{ t('parcha_invoice_title') }}
             </p>
@@ -4021,7 +4021,7 @@
                 <!-- Slip Header -->
                 <div class="slip-header">
                   <div class="slip-store-title">{{ t('store_name_full') }}</div>
-                  <div class="slip-store-sub">मेन बाजार, स्टेशन रोड • मो. 98765-43210</div>
+                  <div class="slip-store-sub">मेन बाजार, स्टेशन रोड • मो. 91420-52967</div>
                   <div class="slip-meta-row">
                     <span>बिल नं: <strong>{{ slip.order_number }}</strong></span>
                     <span>{{ slip.created_at }}</span>
@@ -8703,15 +8703,15 @@ function sendAdminWhatsAppStatus(order, statusType) {
 
   let msg = '';
   if (statusType === 'confirmed') {
-    msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (98765-43210)`;
+    msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
   } else if (statusType === 'out_for_delivery') {
-    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\n\nक्या आप घर पर उपलब्ध हैं? हमारा डिलीवरी बॉय अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता या निर्देश के लिए कॉल करें: 98765-43210. धन्यवाद! 🙏\n- कोमल मार्ट`;
+    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\n\nक्या आप घर पर उपलब्ध हैं? हमारा डिलीवरी बॉय अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता या निर्देश के लिए कॉल करें: 91420-52967. धन्यवाद! 🙏\n- कोमल मार्ट`;
   } else if (statusType === 'delivered') {
     msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
   } else if (statusType === 'verified') {
     msg = `नमस्ते ${custName} जी, आपके ऑर्डर #${orderNum} का UPI पेमेंट (₹${amount}) सफलतापूर्वक वेरिफाई हो गया है! ✅\nऑर्डर डिलीवरी के लिए तैयार किया जा रहा है। धन्यवाद! 🙏\n- कोमल मार्ट`;
   } else if (statusType === 'payment_failed') {
-    msg = `नमस्ते ${custName} जी, आपने ऑर्डर #${orderNum} (₹${amount}) के लिए UPI पेमेंट मार्क किया था, लेकिन बैंक सर्वर में समस्या के कारण यह राशि हमारे खाते में प्राप्त नहीं हुई है (यदि आपके बैंक खाते से पैसे कटे हैं तो 24 घंटे में बैंक द्वारा स्वतः वापस रिफंड हो जाएंगे)। ⚠️\n\nचिंता न करें! आप सामान प्राप्त करते समय नकद (Cash on Delivery) दे सकते हैं या डिलीवरी बॉय के सामने दोबारा UPI कर सकते हैं।\nसहायता या पूछताछ के लिए कॉल करें: 98765-43210\nधन्यवाद! 🙏\n- कोमल मार्ट`;
+    msg = `नमस्ते ${custName} जी, आपने ऑर्डर #${orderNum} (₹${amount}) के लिए UPI पेमेंट मार्क किया था, लेकिन बैंक सर्वर में समस्या के कारण यह राशि हमारे खाते में प्राप्त नहीं हुई है (यदि आपके बैंक खाते से पैसे कटे हैं तो 24 घंटे में बैंक द्वारा स्वतः वापस रिफंड हो जाएंगे)। ⚠️\n\nचिंता न करें! आप सामान प्राप्त करते समय नकद (Cash on Delivery) दे सकते हैं या डिलीवरी बॉय के सामने दोबारा UPI कर सकते हैं।\nसहायता या पूछताछ के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट`;
   } else {
     msg = `नमस्ते ${custName} जी, आपके कोमल मार्ट ऑर्डर #${orderNum} का स्टेटस अपडेट: ठीक है।`;
   }
@@ -8722,7 +8722,7 @@ function sendAdminWhatsAppStatus(order, statusType) {
 
 function sendCustomerUpiProofWhatsApp(order) {
   if (!order) return;
-  const storePhone = '919876543210';
+  const storePhone = '919142052967';
   const orderNum = order.order_number || ('KM-' + order.id);
   const amount = Number(order.final_amount || 0).toFixed(2);
   const name = order.customer_name || currentUser.value?.name || 'Customer';

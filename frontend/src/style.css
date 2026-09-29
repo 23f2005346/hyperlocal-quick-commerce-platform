@@ -101,6 +101,13 @@ a {
   text-decoration: none;
 }
 
+/* Mobile / Desktop Display Utilities (Hidden by default on Desktop) */
+.mobile-only,
+.mobile-only-inline,
+.mobile-only-flex {
+  display: none !important;
+}
+
 /* ==========================================================================
    TOP ANNOUNCEMENT BAR
    ========================================================================== */
@@ -163,6 +170,8 @@ a {
   cursor: pointer;
   user-select: none;
   transition: transform 0.15s ease;
+  flex-shrink: 0;
+  min-width: max-content;
 }
 
 .store-brand:hover {
@@ -181,6 +190,13 @@ a {
   font-size: 1.4rem;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .brand-text h1 {
@@ -189,20 +205,23 @@ a {
   color: #064e3b;
   line-height: 1.15;
   font-family: var(--font-hindi);
+  white-space: nowrap;
 }
 
 .brand-text p {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: var(--text-subtle);
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  margin-top: 1px;
 }
 
 /* Search Bar */
 .search-bar-wrap {
-  flex: 1 1 320px;
-  min-width: 260px;
-  max-width: 560px;
+  flex: 1 1 240px;
+  min-width: 180px;
+  max-width: 480px;
   position: relative;
   display: flex;
   align-items: center;
@@ -269,21 +288,24 @@ a {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .user-btn {
   background: #ffffff;
   border: 1.5px solid var(--border);
-  padding: 9px 18px;
+  padding: 8px 14px;
   border-radius: var(--radius-pill);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-main);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   box-shadow: var(--shadow-xs);
   transition: all 0.15s ease;
 }
@@ -299,14 +321,16 @@ a {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
   border: none;
-  padding: 9px 20px;
+  padding: 8px 16px;
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 800;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1724,6 +1748,15 @@ a {
 @media (max-width: 768px) {
   .desktop-only {
     display: none !important;
+  }
+  .mobile-only {
+    display: block !important;
+  }
+  .mobile-only-inline {
+    display: inline-flex !important;
+  }
+  .mobile-only-flex {
+    display: flex !important;
   }
   .header-actions {
     gap: 6px;
