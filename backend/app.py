@@ -416,9 +416,13 @@ SEARCH_ALIASES = {
     'coffee': ['coffee', 'कॉफी'],
 
     # Cleaning & Oral Care
-    'soap': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'rin'],
-    'sabun': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'rin'],
+    'soap': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'lux', 'lifebuoy', 'margo', 'moti', 'rin'],
+    'sabun': ['soap', 'sabun', 'saabun', 'साबण', 'साबुन', 'dettol', 'lux', 'lifebuoy', 'margo', 'moti', 'rin'],
     'saabun': ['soap', 'sabun', 'साबण', 'साबुन'],
+    'lux': ['lux', 'soap', 'लक्स'],
+    'lifebuoy': ['lifebuoy', 'soap', 'लाइफबॉय'],
+    'margo': ['margo', 'neem soap', 'मार्गो'],
+    'moti': ['moti', 'sandal soap', 'मोती'],
     'detergent': ['detergent', 'surf', 'surf excel', 'powder', 'सर्फ', 'डिटर्जंट'],
     'surf': ['surf', 'surf excel', 'detergent', 'powder', 'सर्फ'],
     'rin': ['rin', 'bar', 'साबण', 'रिन'],
@@ -583,7 +587,10 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "        Choose the standard BASE 1KG VARIANT and set quantity equal to that weight in integer kgs (e.g. quantity = 3 for 3 kilo, quantity = 4 for 4 kilo).\n"
         "        NEVER pick a 2kg or 5kg variant and set a fractional quantity like 1.5 or 0.8! Always use integer multiples of the 1kg variant!\n"
         "     c) For half-kg fractions (e.g. '1.5 kilo', '2.5 kilo'): if a 500g variant exists, use it (quantity = 3 or 5), or use 1kg variant with 1.5. NEVER assign 1.5 to a 2kg variant!\n"
-        "     Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
+        "     d) Packaged FMCG & Bathing Soaps (e.g. 'ek dettol sabun', '2 lux', '3 lifebuoy', 'dettol ka 4 pack', 'lux ka 4+1 pack'):\n"
+        "        - If customer asks for single bars or count (e.g. '1 dettol sabun', '2 lux sabun', '3 lifebuoy'): choose the SINGLE BAR variant (e.g. '75g Single Bar' or '100g Bar') with quantity = count (1, 2, 3).\n"
+        "        - If customer asks for a pack/multipack (e.g. '4 pack', 'pack of 4', '4+1 pack'): choose the MULTIPACK variant (e.g. 'Pack of 4 x 75g' or 'Pack of 4') with quantity = number of packs.\n"
+        "     Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight or count!\n"
         "5. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
         "   - Customers often correct themselves while reciting a monthly list: e.g. '5 kg toor daal, 2 kilo aata, 3 kilo chini... oh wait can you do aata 12kg, 2 kilo nahi' or 'chini mat lena / chini cancel'.\n"
         "   - Quantity Updates / Corrections: When customer updates an item's quantity (e.g. 'aata 12kg, 2 kilo nahi' or 'pehla 2 kilo bola tha ab 12 kilo kardo'): use ONLY the final corrected quantity (12kg, NOT 2kg)! Emit only ONE entry for that commodity with quantity=12.\n"

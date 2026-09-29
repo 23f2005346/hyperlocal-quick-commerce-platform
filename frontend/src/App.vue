@@ -448,7 +448,7 @@
           <!-- Product Photo (Verified Local Images) -->
           <div class="product-thumb-wrap" @click="openQuickView(prod)">
             <img
-              :src="prod.image_url"
+              :src="getProductCardImage(prod)"
               :alt="prod.name"
               class="product-thumb"
               loading="lazy"
@@ -7201,6 +7201,23 @@ function addCustomWeightItemToCart(prod) {
   }
   const tierMsg = tier ? ` 🎉 ${tier.tier_label} लागू!` : '';
   showToast(`🛒 ${prod.name} (${unitSize} - ₹${subtotal})${tierMsg} थैले में जोड़ा गया!`);
+}
+
+function getProductCardImage(prod) {
+  if (!prod) return '/products/chakki-atta.jpg';
+  const imgs = prod.images && prod.images.length > 0
+    ? prod.images
+    : (prod.image_url ? prod.image_url.split('||').map(s => s.trim()) : []);
+  if (imgs.length <= 1) return imgs[0] || '/products/chakki-atta.jpg';
+
+  const activeV = getActiveVariant(prod);
+  if (activeV && activeV.unit_size) {
+    const u = activeV.unit_size.toLowerCase();
+    if ((u.includes('pack') || u.includes('bundle') || u.includes('+') || u.includes('saver')) && imgs[1]) {
+      return imgs[1];
+    }
+  }
+  return imgs[0] || '/products/chakki-atta.jpg';
 }
 
 function handleImageFallback(event) {
