@@ -1884,29 +1884,35 @@ def create_app():
                 if var_kg is not None and qty > 0:
                     total_kg = round(var_kg * qty, 3)
 
-                    exact_v = None
-                    for v in active_vars:
-                        vu = v.unit_size.lower().replace(" ", "")
-                        v_kg = re.search(r'([\d\.]+)\s*kg', vu)
-                        v_g = re.search(r'([\d\.]+)\s*g(?:m)?', vu)
-                        w = float(v_kg.group(1)) if v_kg else (float(v_g.group(1)) / 1000.0 if v_g else None)
-                        if w is not None and abs(w - total_kg) < 0.001:
-                            exact_v = v
-                            break
+                    v_1kg = next((v for v in active_vars if '1kg' in v.unit_size.lower().replace(" ", "")), None)
+                    v_500g = next((v for v in active_vars if '500g' in v.unit_size.lower().replace(" ", "")), None)
 
-                    if exact_v:
-                        db_var = exact_v
-                        v_id = exact_v.id
-                        qty = 1.0
-                    elif total_kg >= 1.0 and abs(total_kg - round(total_kg)) < 0.01:
-                        v_1kg = next((v for v in active_vars if '1kg' in v.unit_size.lower().replace(" ", "")), None)
-                        if v_1kg:
+                    if db_prod.is_loose and v_1kg and total_kg in (2.0, 3.0, 4.0):
+                        # Loose staples (sugar, atta, dals, rice) ordered in 2-4kg: use base 1kg variant
+                        # with qty = total_kg so counter stepper displays '2' for 2kg, '3' for 3kg, '4' for 4kg!
+                        db_var = v_1kg
+                        v_id = v_1kg.id
+                        qty = float(round(total_kg))
+                    else:
+                        exact_v = None
+                        for v in active_vars:
+                            vu = v.unit_size.lower().replace(" ", "")
+                            v_kg = re.search(r'([\d\.]+)\s*kg', vu)
+                            v_g = re.search(r'([\d\.]+)\s*g(?:m)?', vu)
+                            w = float(v_kg.group(1)) if v_kg else (float(v_g.group(1)) / 1000.0 if v_g else None)
+                            if w is not None and abs(w - total_kg) < 0.001:
+                                exact_v = v
+                                break
+
+                        if exact_v:
+                            db_var = exact_v
+                            v_id = exact_v.id
+                            qty = 1.0
+                        elif total_kg >= 1.0 and abs(total_kg - round(total_kg)) < 0.01 and v_1kg:
                             db_var = v_1kg
                             v_id = v_1kg.id
                             qty = float(round(total_kg))
-                    elif total_kg < 1.0 or abs((total_kg * 2) - round(total_kg * 2)) < 0.01:
-                        v_500g = next((v for v in active_vars if '500g' in v.unit_size.lower().replace(" ", "")), None)
-                        if v_500g and abs((total_kg / 0.5) - round(total_kg / 0.5)) < 0.01:
+                        elif (total_kg < 1.0 or abs((total_kg * 2) - round(total_kg * 2)) < 0.01) and v_500g and abs((total_kg / 0.5) - round(total_kg / 0.5)) < 0.01:
                             db_var = v_500g
                             v_id = v_500g.id
                             qty = float(round(total_kg / 0.5))

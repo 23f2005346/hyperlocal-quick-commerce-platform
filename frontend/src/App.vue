@@ -7545,28 +7545,29 @@ function startNewRecognitionInstance(currentSession) {
   const lang = aiLanguage.value || currentLang.value || 'mr';
   recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
 
-  let sessionFinalText = '';
-
   recognition.onstart = () => {
     isRecording.value = true;
   };
 
   recognition.onresult = (event) => {
-    let interimText = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    let finalTranscript = '';
+    let interimTranscript = '';
+    for (let i = 0; i < event.results.length; ++i) {
       const res = event.results[i];
       if (res && res[0]) {
         if (res.isFinal) {
-          sessionFinalText += (sessionFinalText ? ' ' : '') + res[0].transcript.trim();
+          finalTranscript += (finalTranscript ? ' ' : '') + res[0].transcript.trim();
         } else {
-          interimText += (interimText ? ' ' : '') + res[0].transcript.trim();
+          interimTranscript += (interimTranscript ? ' ' : '') + res[0].transcript.trim();
         }
       }
     }
 
-    const currentCombined = [baseSpeechInput.value, sessionFinalText, interimText].filter(Boolean).join(', ');
-    if (currentCombined) {
-      aiInputText.value = currentCombined;
+    const sessionText = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+    if (baseSpeechInput.value) {
+      aiInputText.value = baseSpeechInput.value + (sessionText ? ', ' + sessionText : '');
+    } else {
+      aiInputText.value = sessionText;
     }
 
     // Generous 30-second silence auto-cutoff timer for elders reciting 20-30 items
