@@ -200,9 +200,12 @@ a {
 
 /* Search Bar */
 .search-bar-wrap {
-  flex: 1;
-  max-width: 520px;
+  flex: 1 1 320px;
+  min-width: 260px;
+  max-width: 560px;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .search-icon {
@@ -217,14 +220,15 @@ a {
 
 .search-input {
   width: 100%;
-  padding: 11px 18px 11px 44px;
+  padding: 11px 40px 11px 44px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   outline: none;
   background: #f8fafc;
   color: var(--text-main);
   transition: all 0.2s ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .search-input:focus {
@@ -235,7 +239,30 @@ a {
 
 .search-input::placeholder {
   color: var(--text-light);
-  font-size: 0.85rem;
+  font-size: 0.86rem;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
 }
 
 /* Header Actions */
@@ -1460,6 +1487,111 @@ a {
   cursor: pointer;
 }
 
+/* Admin Product Packshot Thumbnail (Desktop Table) */
+.admin-prod-thumb-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-prod-thumb-wrap:hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-color: #059669;
+}
+
+.admin-prod-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+/* Admin Product Packshot Thumbnail (Mobile Native Card) */
+.admin-mob-thumb-box {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.admin-mob-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+/* Admin Category Filter Pills */
+.admin-cat-filter-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 2px 4px 2px;
+  margin-top: 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-cat-filter-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.admin-cat-filter-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.admin-cat-pill {
+  white-space: nowrap;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-cat-pill:hover {
+  border-color: #059669;
+  color: #064e3b;
+  background: #f0fdf4;
+}
+
+.admin-cat-pill.active {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+}
+
 .admin-orders-filter-row {
   display: flex;
   gap: 8px;
@@ -1568,6 +1700,24 @@ a {
   background: #ffffff;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+/* Laptop & Medium Screen Header Wrap (Prevents Search Bar Squishing) */
+@media (min-width: 769px) and (max-width: 1160px) {
+  .header-container {
+    flex-wrap: wrap !important;
+    row-gap: 10px !important;
+    padding: 10px 16px !important;
+  }
+  .search-bar-wrap {
+    order: 3 !important;
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    margin-top: 2px !important;
+  }
+  .desktop-only.qr-header-btn {
+    display: none !important;
+  }
 }
 
 /* Responsive adjustments */

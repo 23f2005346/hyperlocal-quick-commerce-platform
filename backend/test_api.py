@@ -364,6 +364,13 @@ clearance_order = clearance_order_res.get_json()['order']
 print("Clearance Order Final Amount:", clearance_order['final_amount'], "(Expected: 110.0)")
 assert clearance_order['final_amount'] == 110.0
 
+# Revert clearance mode so test does not pollute production/staging database
+client.patch(
+    '/api/admin/products/variants/1',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'is_clearance': False, 'clearance_price': None, 'selling_price': 95.0, 'mrp': 95.0}
+)
+
 # 17. Weekly Summary Report Tests
 # 17a. Unauthorized rejection without cron key or token
 unauth_weekly = client.get('/api/reports/weekly-summary')

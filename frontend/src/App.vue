@@ -137,6 +137,15 @@
             :placeholder="t('search_placeholder')"
             class="search-input"
           />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="search-clear-btn"
+            @click="clearSearch"
+            title="Clear search"
+          >
+            ✕
+          </button>
         </div>
 
         <!-- Header Actions: User Profile / Login & Cart -->
@@ -818,6 +827,28 @@
             </div>
           </div>
 
+          <!-- Admin Category Filter Pills -->
+          <div class="admin-cat-filter-scroll">
+            <button
+              type="button"
+              class="admin-cat-pill"
+              :class="{ active: adminCategoryFilter === '' }"
+              @click="adminCategoryFilter = ''"
+            >
+              🌟 {{ currentLang === 'en' ? 'All' : (currentLang === 'mr' ? 'सर्व' : 'सभी') }} ({{ products.length }})
+            </button>
+            <button
+              v-for="cat in categories"
+              :key="'admin-cat-' + cat.id"
+              type="button"
+              class="admin-cat-pill"
+              :class="{ active: adminCategoryFilter === cat.id }"
+              @click="adminCategoryFilter = (adminCategoryFilter === cat.id ? '' : cat.id)"
+            >
+              {{ currentLang === 'mr' ? (cat.name_hi || cat.name) : cat.name }} ({{ products.filter(p => p.category_id === cat.id).length }})
+            </button>
+          </div>
+
           <!-- DESKTOP DATA TABLE -->
           <div class="admin-table-wrap desktop-table-view">
             <table class="admin-table">
@@ -832,6 +863,7 @@
                       title="Select all products"
                     />
                   </th>
+                  <th style="width: 56px; text-align: center;">{{ currentLang === 'mr' ? 'फोटो' : (currentLang === 'hi' ? 'फोटो' : 'Photo') }}</th>
                   <th>{{ currentLang === 'mr' ? 'सामान' : (currentLang === 'hi' ? 'सामान' : 'Product') }}</th>
                   <th>{{ currentLang === 'mr' ? 'प्रकार' : (currentLang === 'hi' ? 'प्रकार' : 'Type') }}</th>
                   <th>{{ currentLang === 'mr' ? 'ब्रँड' : (currentLang === 'hi' ? 'ब्रांड' : 'Brand') }}</th>
@@ -854,6 +886,17 @@
                         @change="toggleProductSelection(prod.id)"
                         style="width: 17px; height: 17px; accent-color: #ef4444; cursor: pointer;"
                       />
+                    </td>
+                    <td v-if="vIdx === 0" :rowspan="prod.variants.length" style="text-align: center; vertical-align: middle; width: 56px;">
+                      <div class="admin-prod-thumb-wrap" @click="openEditPhotosModal(prod)" title="Click to view/edit photo">
+                        <img
+                          :src="prod.image_url || '/products/chakki-atta.jpg'"
+                          :alt="prod.name"
+                          class="admin-prod-thumb"
+                          loading="lazy"
+                          @error="handleImageFallback($event)"
+                        />
+                      </div>
                     </td>
                     <td>
                       <strong>{{ prod.name }}</strong>
@@ -965,14 +1008,23 @@
           <div class="admin-mobile-inventory-list">
             <div v-for="prod in filteredAdminProducts" :key="'mob-' + prod.id" class="admin-mob-item-card">
               <div class="admin-mob-card-head">
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
                   <input
                     type="checkbox"
                     :checked="selectedAdminProductIds.includes(prod.id)"
                     @change="toggleProductSelection(prod.id)"
                     style="width: 18px; height: 18px; accent-color: #ef4444; cursor: pointer; flex-shrink: 0;"
                   />
-                  <div>
+                  <div class="admin-mob-thumb-box" @click="openEditPhotosModal(prod)" title="Click to view/edit photos">
+                    <img
+                      :src="prod.image_url || '/products/chakki-atta.jpg'"
+                      :alt="prod.name"
+                      class="admin-mob-thumb-img"
+                      loading="lazy"
+                      @error="handleImageFallback($event)"
+                    />
+                  </div>
+                  <div style="min-width: 0; flex: 1;">
                     <div class="admin-mob-name">{{ prod.name }}</div>
                     <div class="admin-mob-sub">
                       <span class="admin-mob-hi">{{ prod.name_hi }}</span>
@@ -5533,7 +5585,7 @@
                   :src="item.image_url || '/products/chakki-atta.jpg'"
                   :alt="item.product_name"
                   class="ai-item-thumb"
-                  @error="onImgError"
+                  @error="handleImageFallback($event)"
                 />
                 <div class="ai-item-details">
                   <div class="ai-item-name">
@@ -5542,6 +5594,9 @@
                   <div class="ai-item-sub">
                     <span v-if="item.match_status === 'matched'" class="ai-matched-badge">
                       ✓ {{ item.unit_size }} • ₹{{ item.unit_price }}
+                      <span v-if="item.quantity > 1" style="font-weight: 800; color: #047857; margin-left: 4px;">
+                        ({{ item.quantity }} {{ currentLang === 'mr' ? 'पॅक' : (currentLang === 'hi' ? 'पैक' : 'packs') }})
+                      </span>
                     </span>
                     <span v-else-if="item.match_status === 'ambiguous'" class="ai-ambiguous-badge">
                       ⚠️ {{ t('ai_ambiguous_prompt') }}
@@ -5826,6 +5881,7 @@ const profileForm = ref({ name: '', email: '', phone: '', address: '' });
 // Admin State & Batch Printing
 const adminActiveTab = ref('inventory');
 const adminSearch = ref('');
+const adminCategoryFilter = ref('');
 const adminOrders = ref([]);
 const showAddProductModal = ref(false);
 const selectedAdminOrderIds = ref([]);
@@ -6964,6 +7020,12 @@ function debounceFetchProducts() {
   debounceTimer = setTimeout(() => { fetchProducts(); }, 300);
 }
 
+function clearSearch() {
+  clearTimeout(debounceTimer);
+  searchQuery.value = '';
+  fetchProducts();
+}
+
 function selectCategory(slug) {
   selectedCategorySlug.value = slug;
   fetchProducts();
@@ -8019,9 +8081,13 @@ function addMonthlyParchaToCart() {
 
 // Admin Operations (Protected)
 const filteredAdminProducts = computed(() => {
-  if (!adminSearch.value.trim()) return products.value;
+  let list = products.value;
+  if (adminCategoryFilter.value !== '') {
+    list = list.filter(p => p.category_id === adminCategoryFilter.value);
+  }
+  if (!adminSearch.value.trim()) return list;
   const q = adminSearch.value.toLowerCase();
-  return products.value.filter(p =>
+  return list.filter(p =>
     p.name.toLowerCase().includes(q) ||
     (p.name_hi && p.name_hi.includes(q)) ||
     (p.brand && p.brand.toLowerCase().includes(q))

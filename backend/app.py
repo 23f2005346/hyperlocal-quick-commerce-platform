@@ -575,10 +575,15 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr'):
         "     b) Add the 'Chakki Pisai Grinding Service' line item with quantity matching the wheat weight (quantity = 10, unit_price = 7.0, line_total = 70.0).\n"
         "   - If customer asks to add/mix soyabean into the wheat (e.g. 'usme 100 gram / 200 gram soyabean mix kar dena' or 'soyabean dal dena'):\n"
         "     Match 'Whole Soyabean Grain for Flour Mixing' with the requested quantity (e.g. 100g or 200g pack).\n"
-        "4. Accurate Variant Multiplier Matching (CRITICAL - NEVER MARK AMBIGUOUS FOR STATED WEIGHTS):\n"
-        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '10 kilo maida', '12 kilo aata', 'paune 6 kilo aata', 'sawa 8 kilo chawal'):\n"
-        "     a) If an exact pack size matches that amount (e.g. 5kg pack for '5 kilo'), match that variant with quantity = 1.\n"
-        "     b) If no single variant matches that exact weight: choose the standard base unit variant (1kg variant) and set quantity equal to that weight (e.g. 2 for 2kg, 5.75 for 5.75kg, 8.25 for 8.25kg). Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
+        "4. Accurate Variant Multiplier Matching (CRITICAL - NEVER USE FRACTIONAL PACK MULTIPLIERS):\n"
+        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '500g toor daal'):\n"
+        "     a) If an exact pack size matches that amount (e.g. 500g pack for '500g' or 'aadha kilo', 2kg pack for '2 kilo', 5kg pack for '5 kilo'):\n"
+        "        Match that EXACT variant with quantity = 1.\n"
+        "     b) If no single variant matches that exact weight (e.g. '3 kilo sugar', '4 kilo aata', '6 kilo chawal'):\n"
+        "        Choose the standard BASE 1KG VARIANT and set quantity equal to that weight in integer kgs (e.g. quantity = 3 for 3 kilo, quantity = 4 for 4 kilo).\n"
+        "        NEVER pick a 2kg or 5kg variant and set a fractional quantity like 1.5 or 0.8! Always use integer multiples of the 1kg variant!\n"
+        "     c) For half-kg fractions (e.g. '1.5 kilo', '2.5 kilo'): if a 500g variant exists, use it (quantity = 3 or 5), or use 1kg variant with 1.5. NEVER assign 1.5 to a 2kg variant!\n"
+        "     Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight!\n"
         "5. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
         "   - Customers often correct themselves while reciting a monthly list: e.g. '5 kg toor daal, 2 kilo aata, 3 kilo chini... oh wait can you do aata 12kg, 2 kilo nahi' or 'chini mat lena / chini cancel'.\n"
         "   - Quantity Updates / Corrections: When customer updates an item's quantity (e.g. 'aata 12kg, 2 kilo nahi' or 'pehla 2 kilo bola tha ab 12 kilo kardo'): use ONLY the final corrected quantity (12kg, NOT 2kg)! Emit only ONE entry for that commodity with quantity=12.\n"
@@ -1760,6 +1765,52 @@ def create_app():
                 imgs = [u.strip() for u in raw_img.split('||') if u.strip()]
                 if imgs:
                     image_url = imgs[0]
+
+            # Normalization: Prevent fractional multipliers on multi-kg variants (e.g. 1.5 of 2kg -> 3 of 1kg)
+            if db_prod and db_prod.variants and status == 'matched':
+                active_vars = [v for v in db_prod.variants if v.is_available]
+                if not active_vars:
+                    active_vars = db_prod.variants
+
+                cur_v_size = (db_var.unit_size if db_var else (item.get('unit_size') or '')).lower().replace(" ", "")
+                kg_match = re.search(r'([\d\.]+)\s*kg', cur_v_size)
+                g_match = re.search(r'([\d\.]+)\s*g(?:m)?', cur_v_size)
+
+                var_kg = None
+                if kg_match:
+                    var_kg = float(kg_match.group(1))
+                elif g_match:
+                    var_kg = float(g_match.group(1)) / 1000.0
+
+                if var_kg is not None and qty > 0:
+                    total_kg = round(var_kg * qty, 3)
+
+                    exact_v = None
+                    for v in active_vars:
+                        vu = v.unit_size.lower().replace(" ", "")
+                        v_kg = re.search(r'([\d\.]+)\s*kg', vu)
+                        v_g = re.search(r'([\d\.]+)\s*g(?:m)?', vu)
+                        w = float(v_kg.group(1)) if v_kg else (float(v_g.group(1)) / 1000.0 if v_g else None)
+                        if w is not None and abs(w - total_kg) < 0.001:
+                            exact_v = v
+                            break
+
+                    if exact_v:
+                        db_var = exact_v
+                        v_id = exact_v.id
+                        qty = 1.0
+                    elif total_kg >= 1.0 and abs(total_kg - round(total_kg)) < 0.01:
+                        v_1kg = next((v for v in active_vars if '1kg' in v.unit_size.lower().replace(" ", "")), None)
+                        if v_1kg:
+                            db_var = v_1kg
+                            v_id = v_1kg.id
+                            qty = float(round(total_kg))
+                    elif total_kg < 1.0 or abs((total_kg * 2) - round(total_kg * 2)) < 0.01:
+                        v_500g = next((v for v in active_vars if '500g' in v.unit_size.lower().replace(" ", "")), None)
+                        if v_500g and abs((total_kg / 0.5) - round(total_kg / 0.5)) < 0.01:
+                            db_var = v_500g
+                            v_id = v_500g.id
+                            qty = float(round(total_kg / 0.5))
 
             # Price computation
             unit_price = float(item.get('price') or 0.0)
