@@ -551,6 +551,9 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         'gemini-2.5-flash-lite'
     ]
 
+    if raw_text:
+        raw_text = raw_text.translate(str.maketrans('०१२३४५६७८९', '0123456789'))
+
     system_instruction = (
         "You are Komal, the intelligent grocery order parsing assistant for Komal Mart (कोमल मार्ट), "
         "a hyperlocal neighborhood general store (kirana) in Wadala, Mumbai.\n"
@@ -580,9 +583,9 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         "   - If customer asks to add/mix soyabean into the wheat (e.g. 'usme 100 gram / 200 gram soyabean mix kar dena' or 'soyabean dal dena'):\n"
         "     Match 'Whole Soyabean Grain for Flour Mixing' with the requested quantity (e.g. 100g or 200g pack).\n"
         "4. Accurate Variant Multiplier Matching (CRITICAL - NEVER USE FRACTIONAL PACK MULTIPLIERS):\n"
-        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '500g toor daal'):\n"
-        "     a) If an exact pack size matches that amount (e.g. 500g pack for '500g' or 'aadha kilo', 2kg pack for '2 kilo', 5kg pack for '5 kilo'):\n"
-        "        Match that EXACT variant with quantity = 1.\n"
+        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '500g toor daal', '250g haldi'):\n"
+        "     a) If an exact pack size matches that amount across any available brand or loose variant (e.g. 250g pack for '250g', 500g pack for '500g', 2kg pack for '2 kilo', 5kg pack for '5 kilo', 10kg pack for '10 kilo'):\n"
+        "        Match that EXACT variant with quantity = 1. ALWAYS prioritize matching the customer's stated size (e.g. 250g) over a larger size (e.g. 500g).\n"
         "     b) If no single variant matches that exact weight (e.g. '3 kilo sugar', '4 kilo aata', '6 kilo chawal'):\n"
         "        Choose the standard BASE 1KG VARIANT and set quantity equal to that weight in integer kgs (e.g. quantity = 3 for 3 kilo, quantity = 4 for 4 kilo).\n"
         "        NEVER pick a 2kg or 5kg variant and set a fractional quantity like 1.5 or 0.8! Always use integer multiples of the 1kg variant!\n"
@@ -1709,6 +1712,9 @@ def create_app():
         audio_b64 = (data.get('audio') or '').strip()
         mime_type = (data.get('mime_type') or 'audio/webm').strip()
         lang = (data.get('language') or 'mr').lower()
+
+        if raw_text:
+            raw_text = raw_text.translate(str.maketrans('०१२३४५६७८९', '0123456789'))
 
         if not raw_text and not audio_b64:
             return jsonify({'error': 'कृपया काहीतरी बोला किंवा किराणा सामानाची यादी टाईप करा.', 'code': 'EMPTY_TEXT'}), 400

@@ -5423,16 +5423,16 @@
         <div class="komal-ai-header">
           <div class="komal-ai-title-wrap">
             <h3 class="komal-ai-title">
-              <span class="ai-sparkle-anim">✨</span> {{ t('ai_modal_title') }}
+              <span class="ai-sparkle-anim">✨</span> {{ tAi('ai_modal_title') }}
             </h3>
-            <p class="komal-ai-subtitle">{{ t('ai_modal_subtitle') }}</p>
+            <p class="komal-ai-subtitle">{{ tAi('ai_modal_subtitle') }}</p>
           </div>
           <button class="close-btn" @click="closeKomalAiModal">✕</button>
         </div>
 
         <!-- Language Selector Chips -->
         <div class="komal-ai-lang-bar">
-          <span class="ai-lang-label">🗣️ {{ currentLang === 'mr' ? 'भाषा निवडा:' : (currentLang === 'hi' ? 'भाषा चुनें:' : 'Language:') }}</span>
+          <span class="ai-lang-label">🗣️ {{ (aiLanguage || currentLang) === 'mr' ? 'भाषा निवडा:' : ((aiLanguage || currentLang) === 'hi' ? 'भाषा चुनें:' : 'Language:') }}</span>
           <button
             type="button"
             class="ai-lang-chip"
@@ -5468,13 +5468,13 @@
               class="komal-ai-mic-btn"
               :class="{ 'is-recording': isRecording }"
               @click="toggleSpeechRecognition"
-              :title="isRecording ? t('ai_mic_stop') : t('ai_mic_start')"
+              :title="isRecording ? tAi('ai_mic_stop') : tAi('ai_mic_start')"
             >
               <div v-if="isRecording" class="mic-wave-pulse"></div>
               <span class="mic-icon">{{ isRecording ? '⏹️' : '🎙️' }}</span>
             </button>
             <span class="mic-status-hint">
-              {{ isRecording ? t('ai_mic_listening') : t('ai_mic_start') }}
+              {{ isRecording ? tAi('ai_mic_listening') : tAi('ai_mic_start') }}
             </span>
           </div>
 
@@ -5484,11 +5484,11 @@
               v-model="aiInputText"
               rows="3"
               class="komal-ai-textarea"
-              :placeholder="aiLanguage === 'mr' ? 'उदा. कोमल २ किलो साखर, ५ किलो चक्की आटा, आणि तूर डाळ स्वस्त वाली १ किलो...' : (aiLanguage === 'hi' ? 'उदा. कोमल २ किलो चीनी, ५ किलो आटा, और १ किलो तूर दाल सस्ती वाली...' : 'e.g. 2kg sugar, 5kg chakki atta, and 1kg cheapest toor dal...')"
+              :placeholder="(aiLanguage || currentLang) === 'mr' ? 'उदा. कोमल २ किलो साखर, ५ किलो चक्की आटा, आणि तूर डाळ स्वस्त वाली १ किलो...' : ((aiLanguage || currentLang) === 'hi' ? 'उदा. कोमल २ किलो चीनी, ५ किलो आटा, और १ किलो तूर दाल सस्ती वाली...' : 'e.g. 2kg sugar, 5kg chakki atta, and 1kg cheapest toor dal...')"
             ></textarea>
             <div class="ai-textarea-footer">
               <span class="ai-hint-caption">
-                {{ aiLanguage === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू किंवा टाईप करू शकता.' : (aiLanguage === 'hi' ? '💡 आप हिंदी, मराठी या इंग्लिश में बोल या टाइप कर सकते हैं।' : '💡 You can speak or type freely in Marathi, Hindi, or English.') }}
+                {{ (aiLanguage || currentLang) === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू किंवा टाईप करू शकता.' : ((aiLanguage || currentLang) === 'hi' ? '💡 आप हिंदी, मराठी या इंग्लिश में बोल या टाइप कर सकते हैं।' : '💡 You can speak or type freely in Marathi, Hindi, or English.') }}
               </span>
               <button
                 v-if="aiInputText"
@@ -5496,14 +5496,14 @@
                 class="ai-clear-btn"
                 @click="aiInputText = ''; aiResult = null"
               >
-                {{ t('ai_clear') }}
+                {{ tAi('ai_clear') }}
               </button>
             </div>
           </div>
 
           <!-- Quick Prompts / Examples -->
           <div class="ai-quick-examples" v-if="!aiResult">
-            <span class="quick-examples-title">⚡ {{ currentLang === 'mr' ? 'उदाहरणे (टॅप करा):' : (currentLang === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
+            <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
             <div class="quick-chips">
               <button
                 type="button"
@@ -5538,7 +5538,7 @@
           >
             <span v-if="isAiLoading" class="ai-spinner">⏳</span>
             <span v-else>⚡</span>
-            {{ isAiLoading ? t('ai_analyzing') : t('ai_submit_btn') }}
+            {{ isAiLoading ? tAi('ai_analyzing') : tAi('ai_submit_btn') }}
           </button>
         </div>
 
@@ -5561,9 +5561,9 @@
 
           <!-- Bill Header -->
           <div class="ai-bill-title-bar">
-            <h4>🧾 {{ t('ai_draft_bill_title') }}</h4>
+            <h4>🧾 {{ tAi('ai_draft_bill_title') }}</h4>
             <span class="ai-bill-count">
-              {{ aiResult.items ? aiResult.items.length : 0 }} {{ currentLang === 'mr' ? 'वस्तू' : (currentLang === 'hi' ? 'आइटम' : 'items') }}
+              {{ aiResult.items ? aiResult.items.length : 0 }} {{ (aiLanguage || currentLang) === 'mr' ? 'वस्तू' : ((aiLanguage || currentLang) === 'hi' ? 'आइटम' : 'items') }}
             </span>
           </div>
 
@@ -5589,20 +5589,20 @@
                 />
                 <div class="ai-item-details">
                   <div class="ai-item-name">
-                    {{ currentLang === 'mr' ? item.product_name_hi || item.product_name : (currentLang === 'hi' ? item.product_name_hi || item.product_name : item.product_name) }}
+                    {{ (aiLanguage || currentLang) === 'mr' ? item.product_name_hi || item.product_name : ((aiLanguage || currentLang) === 'hi' ? item.product_name_hi || item.product_name : item.product_name) }}
                   </div>
                   <div class="ai-item-sub">
                     <span v-if="item.match_status === 'matched'" class="ai-matched-badge">
                       ✓ {{ item.unit_size }} • ₹{{ item.unit_price }}
                       <span v-if="item.quantity > 1" style="font-weight: 800; color: #047857; margin-left: 4px;">
-                        ({{ item.quantity }} {{ currentLang === 'mr' ? 'पॅक' : (currentLang === 'hi' ? 'पैक' : 'packs') }})
+                        ({{ item.quantity }} {{ (aiLanguage || currentLang) === 'mr' ? 'पॅक' : ((aiLanguage || currentLang) === 'hi' ? 'पैक' : 'packs') }})
                       </span>
                     </span>
                     <span v-else-if="item.match_status === 'ambiguous'" class="ai-ambiguous-badge">
-                      ⚠️ {{ t('ai_ambiguous_prompt') }}
+                      ⚠️ {{ tAi('ai_ambiguous_prompt') }}
                     </span>
                     <span v-else class="ai-unavailable-badge">
-                      ❌ {{ t('ai_unavailable_tag') }}
+                      ❌ {{ tAi('ai_unavailable_tag') }}
                     </span>
                   </div>
                 </div>
@@ -5625,7 +5625,7 @@
 
               <!-- Ambiguous Item Controls: Selection Chips -->
               <div v-if="item.match_status === 'ambiguous'" class="ai-ambiguous-options">
-                <div class="ai-options-label">{{ t('ai_ambiguous_prompt') }}:</div>
+                <div class="ai-options-label">{{ tAi('ai_ambiguous_prompt') }}:</div>
                 <div class="ai-chips-group">
                   <button
                     v-for="opt in item.options"
@@ -5642,14 +5642,14 @@
               <!-- Unavailable Item Controls: Alternative Suggestion -->
               <div v-if="item.match_status === 'unavailable' && item.suggested_alternative" class="ai-alternative-box">
                 <span class="ai-alt-text">
-                  💡 {{ t('ai_add_alternative') }}: <strong>{{ item.suggested_alternative.product_name }}</strong> ({{ item.suggested_alternative.unit_size }} - ₹{{ item.suggested_alternative.price }})
+                  💡 {{ tAi('ai_add_alternative') }}: <strong>{{ item.suggested_alternative.product_name }}</strong> ({{ item.suggested_alternative.unit_size }} - ₹{{ item.suggested_alternative.price }})
                 </span>
                 <button
                   type="button"
                   class="ai-add-alt-btn"
                   @click="addAlternativeItem(item)"
                 >
-                  ➕ {{ t('ai_add_alternative') }}
+                  ➕ {{ tAi('ai_add_alternative') }}
                 </button>
               </div>
             </div>
@@ -5662,7 +5662,7 @@
               <input
                 type="text"
                 v-model="draftSearchQuery"
-                :placeholder="currentLang === 'mr' ? 'यादीत आणखी सामान जोडा (उदा. मीठ, चहा, बिस्किट)...' : (currentLang === 'hi' ? 'बिल में और सामान जोड़ें (उदा. नमक, चाय, बिस्कुट)...' : 'Search and add any item to draft bill...')"
+                :placeholder="(aiLanguage || currentLang) === 'mr' ? 'यादीत आणखी सामान जोडा (उदा. मीठ, चहा, बिस्किट)...' : ((aiLanguage || currentLang) === 'hi' ? 'बिल में और सामान जोड़ें (उदा. नमक, चाय, बिस्कुट)...' : 'Search and add any item to draft bill...')"
                 class="ai-add-input"
               />
               <button v-if="draftSearchQuery" type="button" class="ai-add-clear" @click="draftSearchQuery = ''">✕</button>
@@ -5677,12 +5677,12 @@
               >
                 <img :src="p.image_url" :alt="p.name" class="ai-add-thumb" @error="handleImageFallback($event)" />
                 <div class="ai-add-info">
-                  <div class="ai-add-name">{{ getLocalizedProductName(p, currentLang) }}</div>
+                  <div class="ai-add-name">{{ getLocalizedProductName(p, aiLanguage || currentLang) }}</div>
                   <div class="ai-add-sub">
                     {{ p.variants && p.variants[0] ? p.variants[0].unit_size + ' • ₹' + (p.variants[0].clearance_price || p.variants[0].selling_price) : '' }}
                   </div>
                 </div>
-                <button type="button" class="ai-add-plus-btn">➕ {{ currentLang === 'mr' ? 'जोडा' : (currentLang === 'hi' ? 'जोड़ें' : 'Add') }}</button>
+                <button type="button" class="ai-add-plus-btn">➕ {{ (aiLanguage || currentLang) === 'mr' ? 'जोडा' : ((aiLanguage || currentLang) === 'hi' ? 'जोड़ें' : 'Add') }}</button>
               </div>
             </div>
           </div>
@@ -5690,7 +5690,7 @@
           <!-- Total Footer -->
           <div class="ai-bill-footer">
             <div class="ai-total-row">
-              <span class="ai-total-label">{{ t('ai_est_total') }}:</span>
+              <span class="ai-total-label">{{ tAi('ai_est_total') }}:</span>
               <span class="ai-total-amount">₹{{ aiEstimatedTotal }}</span>
             </div>
 
@@ -5701,30 +5701,30 @@
                 class="ai-cart-btn"
                 @click="addAllAiItemsToCart(false)"
               >
-                🛒 {{ t('ai_add_to_cart') }}
+                🛒 {{ tAi('ai_add_to_cart') }}
               </button>
               <button
                 type="button"
                 class="ai-parcha-btn"
                 @click="saveAllAiItemsToMonthlyParcha"
-                :title="t('ai_save_to_parcha')"
+                :title="tAi('ai_save_to_parcha')"
               >
-                {{ t('ai_save_to_parcha') }}
+                {{ tAi('ai_save_to_parcha') }}
               </button>
               <button
                 type="button"
                 class="ai-cod-btn"
                 @click="quickCodOrderFromDraft"
-                :title="t('ai_cod_checkout')"
+                :title="tAi('ai_cod_checkout')"
               >
-                {{ t('ai_cod_checkout') }}
+                {{ tAi('ai_cod_checkout') }}
               </button>
               <button
                 type="button"
                 class="ai-checkout-btn"
                 @click="addAllAiItemsToCart(true)"
               >
-                {{ t('ai_fast_checkout') }}
+                {{ tAi('ai_fast_checkout') }}
               </button>
             </div>
           </div>
@@ -5857,6 +5857,11 @@ function toggleLangDropdown() {
 
 function t(key) {
   return translations[currentLang.value]?.[key] || translations['en']?.[key] || key;
+}
+
+function tAi(key) {
+  const l = aiLanguage.value || currentLang.value || 'mr';
+  return translations[l]?.[key] || translations['en']?.[key] || key;
 }
 
 // Auth State
@@ -7403,8 +7408,11 @@ function setAiLanguage(lang) {
   }
   if (isRecording.value && activeSpeechRecognition) {
     try { activeSpeechRecognition.stop(); } catch (e) {}
-    isRecording.value = false;
   }
+  if (isRecording.value && mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try { mediaRecorder.stop(); } catch (e) {}
+  }
+  isRecording.value = false;
 }
 
 function applyAiExample(phrase) {
@@ -7586,10 +7594,11 @@ function startNewRecognitionInstance(currentSession) {
       isUserExplicitStop = true;
       isRecording.value = false;
       if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      const l = aiLanguage.value || currentLang.value || 'mr';
       showToast(
-        currentLang.value === 'mr'
+        l === 'mr'
           ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
-          : (currentLang.value === 'hi'
+          : (l === 'hi'
             ? 'माइक की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में अनुमति दें।'
             : 'Microphone permission denied. Please allow mic access.')
       );
@@ -7625,10 +7634,11 @@ function startNewRecognitionInstance(currentSession) {
 function toggleSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
+    const l = aiLanguage.value || currentLang.value || 'mr';
     showToast(
-      currentLang.value === 'mr'
+      l === 'mr'
         ? 'तुमच्या ब्राउझरमध्ये व्हॉइस इनपुट सपोर्ट नाही. कृपया खाली टाईप करा.'
-        : (currentLang.value === 'hi'
+        : (l === 'hi'
           ? 'आपके ब्राउज़र में आवाज़ इनपुट सपोर्ट नहीं है। कृपया नीचे टाइप करें।'
           : 'Voice input is not supported in this browser. Please type below.')
     );
@@ -7658,22 +7668,26 @@ function toggleSpeechRecognition() {
   const thisSession = speechSessionId;
   baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
 
-  // Start background MediaRecorder audio stream
-  startAudioMediaRecorder();
-
-  // Start SpeechRecognition
+  // Exclusive mic capture:
+  // On Chrome / Edge / Safari / Android, SpeechRecognition handles real-time speech-to-text natively.
+  // Running MediaRecorder (getUserMedia) concurrently locks the Android microphone hardware channel,
+  // triggering the Android OS conflict: "Speech Recognition and Synthesis from Google cannot record now as Chrome is recording."
+  // Therefore, use SpeechRecognition when available, and only fallback to MediaRecorder if SpeechRecognition is unsupported.
   if (SpeechRecognition) {
     startNewRecognitionInstance(thisSession);
+  } else {
+    startAudioMediaRecorder();
   }
 }
 
 async function handleProcessAiOrder() {
   const text = (aiInputText.value || '').trim();
   if (!text && !recordedAudioBase64) {
+    const l = aiLanguage.value || currentLang.value || 'mr';
     showToast(
-      currentLang.value === 'mr'
+      l === 'mr'
         ? 'कृपया काहीतरी बोला किंवा सामानाची नावे टाका.'
-        : (currentLang.value === 'hi'
+        : (l === 'hi'
           ? 'कृपया कुछ बोलें या राशन का नाम दर्ज करें।'
           : 'Please speak or enter your grocery list.')
     );
@@ -7832,11 +7846,12 @@ function addManualProductToDraft(prod) {
 function addAllAiItemsToCart(autoOpenCheckout = false) {
   if (!aiResult.value || !aiResult.value.items) return;
   const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  const l = aiLanguage.value || currentLang.value || 'mr';
   if (matchedItems.length === 0) {
     showToast(
-      currentLang.value === 'mr'
+      l === 'mr'
         ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
-        : (currentLang.value === 'hi'
+        : (l === 'hi'
           ? 'कृपया पहले सामान का चयन पूरा करें।'
           : 'Please select/resolve items first.')
     );
@@ -7865,9 +7880,9 @@ function addAllAiItemsToCart(autoOpenCheckout = false) {
   }
 
   showToast(
-    currentLang.value === 'mr'
+    l === 'mr'
       ? `🎉 कोमल AI: ${addedCount} सामान थैलीमध्ये जोडले!`
-      : (currentLang.value === 'hi'
+      : (l === 'hi'
         ? `🎉 कोमल AI: ${addedCount} सामान थैले में जोड़ा गया!`
         : `🎉 Komal AI: Added ${addedCount} items to your cart!`)
   );
@@ -7884,11 +7899,12 @@ function addAllAiItemsToCart(autoOpenCheckout = false) {
 function saveAllAiItemsToMonthlyParcha() {
   if (!aiResult.value || !aiResult.value.items) return;
   const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  const l = aiLanguage.value || currentLang.value || 'mr';
   if (matchedItems.length === 0) {
     showToast(
-      currentLang.value === 'mr'
+      l === 'mr'
         ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
-        : (currentLang.value === 'hi'
+        : (l === 'hi'
           ? 'कृपया पहले सामान का चयन पूरा करें।'
           : 'Please select/resolve items first.')
     );
@@ -7906,7 +7922,7 @@ function saveAllAiItemsToMonthlyParcha() {
       monthlyParchaItems.value.unshift({
         id: `ai_${it.product_id || Date.now()}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         productId: it.product_id,
-        name: currentLang.value === 'mr' ? (it.product_name_hi || it.product_name) : (currentLang.value === 'hi' ? (it.product_name_hi || it.product_name) : it.product_name),
+        name: l === 'mr' ? (it.product_name_hi || it.product_name) : (l === 'hi' ? (it.product_name_hi || it.product_name) : it.product_name),
         productQuery: it.product_name,
         variantUnit: it.unit_size || '1 Unit',
         fallbackPrice: it.unit_price || 50,
@@ -7924,9 +7940,9 @@ function saveAllAiItemsToMonthlyParcha() {
   persistParchaToLocalStorage();
 
   showToast(
-    currentLang.value === 'mr'
+    l === 'mr'
       ? `📋 कोमल AI: ${addedCount} सामान तुमच्या मासिक रेशन यादीत सेव्ह झाले!`
-      : (currentLang.value === 'hi'
+      : (l === 'hi'
         ? `📋 कोमल AI: ${addedCount} सामान आपकी मासिक राशन सूची में सेव हो गए!`
         : `📋 Komal AI: Added ${addedCount} items to your Monthly Ration list!`)
   );
@@ -7935,11 +7951,12 @@ function saveAllAiItemsToMonthlyParcha() {
 function quickCodOrderFromDraft() {
   if (!aiResult.value || !aiResult.value.items) return;
   const matchedItems = aiResult.value.items.filter(it => it.match_status === 'matched');
+  const l = aiLanguage.value || currentLang.value || 'mr';
   if (matchedItems.length === 0) {
     showToast(
-      currentLang.value === 'mr'
+      l === 'mr'
         ? 'कृपया आधी सामानाची निवड पूर्ण करा.'
-        : (currentLang.value === 'hi'
+        : (l === 'hi'
           ? 'कृपया पहले सामान का चयन पूरा करें।'
           : 'Please select/resolve items first.')
     );
