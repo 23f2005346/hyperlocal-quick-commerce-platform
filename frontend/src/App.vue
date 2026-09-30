@@ -8231,6 +8231,18 @@ function startAudioMediaRecorder() {
   });
 }
 
+function cleanSpokenTranscript(text) {
+  if (!text) return '';
+  let str = text;
+  // Convert vernacular pauna / paun phonetic misrecognitions (e.g. "पन पन पन किलो" -> "पाऊण किलो")
+  str = str.replace(/(?:(?:पन|पान|पोन)\s*(?:किलो|kg)?\s*)+/gi, 'पाऊण किलो ');
+  // Deduplicate consecutive identical 2-word phrases like "आधा किलो आधा किलो" -> "आधा किलो"
+  str = str.replace(/(\b[\w\u0900-\u097F]+\s+[\w\u0900-\u097F]+)(?:\s*,?\s*\1)+/gi, '$1');
+  // Deduplicate consecutive identical words/numbers like "1 1 1 किलो" -> "1 किलो"
+  str = str.replace(/(\b[\w\u0900-\u097F]+)(?:\s*,?\s*\1){2,}/gi, '$1');
+  return str.replace(/\s{2,}/g, ' ').trim();
+}
+
 function startNewRecognitionInstance(currentSession) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition || isUserExplicitStop || !isRecording.value || currentSession !== speechSessionId) return;
@@ -8263,9 +8275,11 @@ function startNewRecognitionInstance(currentSession) {
 
     const sessionText = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
     if (baseSpeechInput.value) {
-      aiInputText.value = baseSpeechInput.value + (sessionText ? ', ' + sessionText : '');
+      if (sessionText && !baseSpeechInput.value.endsWith(sessionText)) {
+        aiInputText.value = cleanSpokenTranscript(baseSpeechInput.value + ', ' + sessionText);
+      }
     } else {
-      aiInputText.value = sessionText;
+      aiInputText.value = cleanSpokenTranscript(sessionText);
     }
 
     // Generous 30-second silence auto-cutoff timer for elders reciting 20-30 items
@@ -8307,7 +8321,7 @@ function startNewRecognitionInstance(currentSession) {
   recognition.onend = () => {
     // If not user-stopped, seamlessly cycle recognition to avoid browser session timeout
     if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
-      baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
+      baseSpeechInput.value = aiInputText.value ? cleanSpokenTranscript(aiInputText.value) : '';
       setTimeout(() => {
         if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
           startNewRecognitionInstance(currentSession);
@@ -8570,21 +8584,51 @@ function addAllAiItemsToCart(autoOpenCheckout = false) {
   for (const it of matchedItems) {
     const prod = products.value.find(p => p.id === it.product_id);
     if (!prod) continue;
-    const variant = (prod.variants || []).find(v => v.id === it.variant_id) || prod.variants[0];
-    if (!variant) continue;
 
-    const existing = cart.value.find(c => !c.is_custom_weight && c.variant && c.variant.id === variant.id);
-    if (existing) {
-      existing.quantity += it.quantity;
+    if (it.is_custom_weight && it.custom_weight) {
+      const wt = it.custom_weight;
+      const rate = it.rate_per_kg || (it.unit_price / wt);
+      const subtotal = it.line_total || Math.round(rate * wt * 100) / 100;
+      const mrp = subtotal;
+
+      const existing = cart.value.find(item => item.is_custom_weight && item.product && item.product.id === prod.id && item.custom_weight === wt);
+      if (existing) {
+        existing.quantity += it.quantity || 1;
+        existing.subtotal = Math.round(existing.quantity * subtotal * 100) / 100;
+        existing.mrp = Math.round(existing.quantity * mrp * 100) / 100;
+      } else {
+        cart.value.push({
+          id: `custom_${prod.id}_${wt}`,
+          is_custom_weight: true,
+          product: prod,
+          custom_weight: wt,
+          custom_unit_size: it.unit_size || `${wt} kg`,
+          unit_price: rate,
+          single_subtotal: subtotal,
+          single_mrp: mrp,
+          subtotal: Math.round((it.quantity || 1) * subtotal * 100) / 100,
+          mrp: Math.round((it.quantity || 1) * mrp * 100) / 100,
+          quantity: it.quantity || 1
+        });
+      }
+      addedCount++;
     } else {
-      cart.value.push({
-        is_custom_weight: false,
-        product: prod,
-        variant: variant,
-        quantity: it.quantity
-      });
+      const variant = (prod.variants || []).find(v => v.id === it.variant_id) || prod.variants[0];
+      if (!variant) continue;
+
+      const existing = cart.value.find(c => !c.is_custom_weight && c.variant && c.variant.id === variant.id);
+      if (existing) {
+        existing.quantity += it.quantity;
+      } else {
+        cart.value.push({
+          is_custom_weight: false,
+          product: prod,
+          variant: variant,
+          quantity: it.quantity
+        });
+      }
+      addedCount++;
     }
-    addedCount++;
   }
 
   showToast(

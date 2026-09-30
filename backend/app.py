@@ -565,7 +565,7 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         "1. Quantities, Vernacular Units & Compound Fractions:\n"
         "   - 'aadha kilo' / 'ardha kilo' / 'half kg' -> 0.5 kg or 500g\n"
         "   - 'pav kilo' / 'paav' / 'quarter kg' -> 0.25 kg or 250g\n"
-        "   - 'paun kilo' / 'pauna kilo' / 'paavne ek' -> 0.75 kg or 750g\n"
+        "   - 'paun kilo' / 'pauna kilo' / 'paune' / 'paavne ek' / 'पाऊण' / 'पावणा' / 'पावना' / 'पौना' / 'पौने' / 'पन किलो' / 'पान किलो' / 'पोन किलो' / 'pan kilo' -> 0.75 kg or 750g\n"
         "   - 'dedh kilo' / 'deedh' -> 1.5 kg\n"
         "   - 'sawa kilo' -> 1.25 kg\n"
         "   - 'dhai kilo' -> 2.5 kg\n"
@@ -829,7 +829,7 @@ def fallback_heuristic_order_parser(raw_text, all_products):
     vernacular_nums = {
         'aadha': 0.5, 'adha': 0.5, 'ardha': 0.5, 'aradha': 0.5, 'half': 0.5, 'अर्धा': 0.5, 'आधा': 0.5,
         'pav': 0.25, 'paav': 0.25, 'paw': 0.25, 'pao': 0.25, 'quarter': 0.25, 'पाव': 0.25,
-        'paun': 0.75, 'pauna': 0.75, 'paune': 0.75, 'पाऊण': 0.75, 'पौना': 0.75,
+        'paun': 0.75, 'pauna': 0.75, 'paune': 0.75, 'पाऊण': 0.75, 'पावणा': 0.75, 'पावना': 0.75, 'पौना': 0.75, 'पौने': 0.75,
         'dedh': 1.5, 'deedh': 1.5, 'dhed': 1.5, 'dheed': 1.5, 'दीड': 1.5, 'डेढ़': 1.5,
         'dhai': 2.5, 'dhaee': 2.5, 'dhaai': 2.5, 'अडीच': 2.5, 'ढाई': 2.5,
         'sawa': 1.25, 'sawwa': 1.25, 'सव्वा': 1.25, 'सवा': 1.25,
@@ -875,6 +875,19 @@ def fallback_heuristic_order_parser(raw_text, all_products):
                 qty = 3.5
         elif rupee_budget:
             qty = 1.0
+        # Standalone vernacular fractions (paun kilo, aadha kilo, pav kilo, etc.)
+        elif re.search(r'(?:paun|pauna|paune|पाऊण|पावणा|पावना|पौना|पौने|पन|पान|पोन)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 0.75
+        elif re.search(r'(?:aadha|ardha|half|आधा|अर्धा)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 0.5
+        elif re.search(r'(?:pav|paav|quarter|पाव)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 0.25
+        elif re.search(r'(?:dedh|deedh|दीड|डेढ़)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 1.5
+        elif re.search(r'(?:dhai|dhaee|अडीच|ढाई)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 2.5
+        elif re.search(r'(?:sawa|sawwa|सवा|सव्वा)\s*(?:kilo|kg|किलो)?', p_clean, flags=re.IGNORECASE):
+            qty = 1.25
         else:
             num_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kg|kilo|किलो|gm|g|gram|ग्रॅम|ग्राम|liter|l|लिटर|packet|pkt|पॅकेट)?', p_clean, flags=re.IGNORECASE)
             if num_match:
@@ -2198,19 +2211,24 @@ def create_app():
                 elif g_match:
                     var_kg = float(g_match.group(1)) / 1000.0
 
+                is_custom_weight = False
+                custom_weight_val = None
+                rate_per_kg = 0.0
+
                 if var_kg is not None and qty > 0:
                     total_kg = round(var_kg * qty, 3)
 
                     v_1kg = next((v for v in active_vars if '1kg' in v.unit_size.lower().replace(" ", "")), None)
                     v_500g = next((v for v in active_vars if '500g' in v.unit_size.lower().replace(" ", "")), None)
+                    v_250g = next((v for v in active_vars if '250g' in v.unit_size.lower().replace(" ", "")), None)
 
-                    if db_prod.is_loose and v_1kg and 1.0 <= total_kg < 25.0 and abs(total_kg - round(total_kg)) < 0.01:
-                        # Loose staples (sugar, atta, dals, rice) ordered in whole kilograms (1-20kg): use base 1kg variant
-                        # with qty = total_kg so counter stepper displays exact kilograms ('2' for 2kg, '5' for 5kg, etc.)!
+                    # 1. Whole integer kilograms (1kg, 2kg, 3kg, 5kg, 10kg, etc.) on loose staple products:
+                    if db_prod.is_loose and v_1kg and 1.0 <= total_kg < 50.0 and abs(total_kg - round(total_kg)) < 0.01:
                         db_var = v_1kg
                         v_id = v_1kg.id
                         qty = float(round(total_kg))
                     else:
+                        # 2. Check for an exact fixed variant match (e.g. 500g for 0.5kg, 250g for 0.25kg, 100g for 0.1kg)
                         exact_v = None
                         for v in active_vars:
                             vu = v.unit_size.lower().replace(" ", "")
@@ -2221,7 +2239,7 @@ def create_app():
                                 exact_v = v
                                 break
 
-                        if exact_v:
+                        if exact_v and not (db_prod.is_loose and v_1kg and total_kg > 1.0 and abs(total_kg - round(total_kg)) < 0.01):
                             db_var = exact_v
                             v_id = exact_v.id
                             qty = 1.0
@@ -2229,20 +2247,40 @@ def create_app():
                             db_var = v_1kg
                             v_id = v_1kg.id
                             qty = float(round(total_kg))
-                        elif (total_kg < 1.0 or abs((total_kg * 2) - round(total_kg * 2)) < 0.01) and v_500g and abs((total_kg / 0.5) - round(total_kg / 0.5)) < 0.01:
+                        elif v_500g and abs((total_kg / 0.5) - round(total_kg / 0.5)) < 0.01:
                             db_var = v_500g
                             v_id = v_500g.id
                             qty = float(round(total_kg / 0.5))
+                        elif v_250g and abs((total_kg / 0.25) - round(total_kg / 0.25)) < 0.01:
+                            db_var = v_250g
+                            v_id = v_250g.id
+                            qty = float(round(total_kg / 0.25))
+                        elif db_prod.is_loose:
+                            # 3. Custom / Fractional Weight on Loose Goods (e.g. 0.75kg / 750g pauna kilo, 1.25kg sawa kilo, 350g, etc.)
+                            is_custom_weight = True
+                            custom_weight_val = total_kg
+                            rate_per_kg = (v_1kg.clearance_price if v_1kg and v_1kg.is_clearance and v_1kg.clearance_price else (v_1kg.selling_price if v_1kg else (v_500g.selling_price * 2 if v_500g else 100.0)))
+                            db_var = None
+                            v_id = None
+                            qty = 1.0
 
             # Price computation
-            unit_price = float(item.get('price') or 0.0)
-            if db_var:
-                unit_price = db_var.clearance_price if db_var.is_clearance and db_var.clearance_price else db_var.selling_price
-                unit_size = db_var.unit_size
+            if is_custom_weight and custom_weight_val is not None:
+                unit_price = round(rate_per_kg * custom_weight_val, 2)
+                if custom_weight_val < 1.0:
+                    unit_size = f"{int(round(custom_weight_val * 1000))}g ({custom_weight_val} kg)"
+                else:
+                    unit_size = f"{custom_weight_val} kg"
+                line_total = unit_price
             else:
-                unit_size = item.get('unit_size') or ''
+                unit_price = float(item.get('price') or 0.0)
+                if db_var:
+                    unit_price = db_var.clearance_price if db_var.is_clearance and db_var.clearance_price else db_var.selling_price
+                    unit_size = db_var.unit_size
+                else:
+                    unit_size = item.get('unit_size') or ''
+                line_total = round(unit_price * qty, 2)
 
-            line_total = round(unit_price * qty, 2)
             if status == 'matched' and unit_price > 0:
                 estimated_total += line_total
 
@@ -2284,6 +2322,9 @@ def create_app():
                 'product_name_hi': prod_name_hi,
                 'image_url': image_url,
                 'is_loose': is_loose,
+                'is_custom_weight': is_custom_weight,
+                'custom_weight': custom_weight_val,
+                'rate_per_kg': rate_per_kg,
                 'unit_size': unit_size,
                 'quantity': qty,
                 'unit_price': unit_price,
