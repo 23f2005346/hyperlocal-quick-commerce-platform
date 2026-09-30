@@ -288,3 +288,41 @@ class RestockAlert(db.Model):
             'notified_at': self.notified_at.strftime('%d %b %Y, %I:%M %p') if self.notified_at else None
         }
 
+
+class SupportTicket(db.Model):
+    __tablename__ = 'support_tickets'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_number = db.Column(db.String(50), unique=True, nullable=False)
+    ticket_type = db.Column(db.String(20), nullable=False, default='complaint') # 'complaint' or 'feedback'
+    category = db.Column(db.String(100), nullable=False)
+    order_number = db.Column(db.String(50), nullable=True) # Optional related order number
+    customer_name = db.Column(db.String(100), nullable=False)
+    customer_phone = db.Column(db.String(20), nullable=False)
+    customer_email = db.Column(db.String(120), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(30), default='Open') # 'Open', 'In Review', 'Resolved'
+    admin_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ticket_number': self.ticket_number,
+            'ticket_type': self.ticket_type,
+            'category': self.category,
+            'order_number': self.order_number or '',
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'customer_email': self.customer_email or '',
+            'user_id': self.user_id,
+            'message': self.message,
+            'status': self.status,
+            'admin_notes': self.admin_notes or '',
+            'created_at': self.created_at.strftime('%d %b %Y, %I:%M %p') if self.created_at else '',
+            'resolved_at': self.resolved_at.strftime('%d %b %Y, %I:%M %p') if self.resolved_at else None
+        }
+
+

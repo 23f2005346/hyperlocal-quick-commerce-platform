@@ -779,6 +779,16 @@
               {{ pendingRestockCount }}
             </span>
           </button>
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'support' }"
+            @click="switchAdminTab('support')"
+          >
+            {{ t('admin_tab_support') }}
+            <span v-if="adminOpenComplaintsCount > 0" class="tab-badge-danger" style="margin-left: 4px;">
+              {{ adminOpenComplaintsCount }}
+            </span>
+          </button>
         </div>
 
         <!-- TAB 1: INVENTORY & QUICK PRICE CHANGER -->
@@ -2512,6 +2522,173 @@
             </div>
           </div>
         </div>
+
+        <!-- TAB 8: CUSTOMER COMPLAINTS & FEEDBACK TICKETS -->
+        <div v-if="adminActiveTab === 'support'" style="margin-top: 14px;">
+          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+              <div>
+                <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                  💬 {{ currentLang === 'en' ? 'Customer Complaints & Feedback Center' : (currentLang === 'mr' ? 'ग्राहक तक्रार व अभिप्राय निवारण केंद्र' : 'ग्राहक शिकायत व सुझाव निवारण केंद्र') }}
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0 0;">
+                  {{ currentLang === 'en' ? 'Review and resolve incoming customer complaints, feedback, and delivery issues.' : (currentLang === 'mr' ? 'ग्राहकांच्या तक्रारी व सूचना तपासा, ग्राहकांशी त्वरित संपर्क करा व समस्या सोडवा.' : 'ग्राहकों की शिकायतें व सुझाव देखें, तुरंत संपर्क करें और समाधान करें।') }}
+                </p>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span v-if="adminOpenComplaintsCount > 0" class="tab-badge-danger" style="padding: 6px 12px; font-size: 0.88rem; font-weight: 800;">
+                  🚨 {{ adminOpenComplaintsCount }} {{ currentLang === 'en' ? 'Urgent Complaints' : (currentLang === 'mr' ? 'तातडीच्या तक्रारी' : 'गंभीर शिकायतें') }}
+                </span>
+                <button
+                  type="button"
+                  @click="loadAdminSupportTickets"
+                  class="btn-secondary"
+                  style="padding: 8px 14px; font-size: 0.84rem; font-weight: 700; border-radius: 8px; cursor: pointer;"
+                >
+                  🔄 {{ currentLang === 'en' ? 'Refresh' : 'रीफ्रेश' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Segmented Tabs -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+              <button
+                type="button"
+                class="account-tab-btn"
+                :class="{ active: adminSupportFilter === 'all' }"
+                @click="adminSupportFilter = 'all'"
+              >
+                {{ currentLang === 'en' ? 'All Tickets' : (currentLang === 'mr' ? 'सर्व नोंदी' : 'सभी रिकॉर्ड') }} ({{ adminSupportTickets.length }})
+              </button>
+              <button
+                type="button"
+                class="account-tab-btn"
+                :class="{ active: adminSupportFilter === 'complaint' }"
+                @click="adminSupportFilter = 'complaint'"
+              >
+                🚨 {{ currentLang === 'en' ? 'Complaints Only' : (currentLang === 'mr' ? 'फक्त तक्रारी' : 'केवल शिकायतें') }}
+              </button>
+              <button
+                type="button"
+                class="account-tab-btn"
+                :class="{ active: adminSupportFilter === 'feedback' }"
+                @click="adminSupportFilter = 'feedback'"
+              >
+                💡 {{ currentLang === 'en' ? 'Feedback Only' : (currentLang === 'mr' ? 'फक्त अभिप्राय' : 'केवल सुझाव') }}
+              </button>
+              <button
+                type="button"
+                class="account-tab-btn"
+                :class="{ active: adminSupportFilter === 'open' }"
+                @click="adminSupportFilter = 'open'"
+              >
+                ⏳ {{ currentLang === 'en' ? 'Pending Open' : (currentLang === 'mr' ? 'पेंडिंग (Open)' : 'लंबित (Open)') }}
+              </button>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="filteredAdminSupportTickets.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+              <div style="font-size: 2.5rem; margin-bottom: 10px;">✨</div>
+              <div style="font-weight: 800; font-size: 1.1rem; color: #334155;">
+                {{ currentLang === 'en' ? 'No tickets match the selected filter!' : (currentLang === 'mr' ? 'निवडलेल्या फिल्टरनुसार कोणतीही नोंद नाही.' : 'चुने गए फ़िल्टर के अनुसार कोई रिकॉर्ड नहीं है।') }}
+              </div>
+            </div>
+
+            <!-- Tickets List -->
+            <div v-else style="display: flex; flex-direction: column; gap: 14px;">
+              <div
+                v-for="tkt in filteredAdminSupportTickets"
+                :key="tkt.id"
+                style="border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.04);"
+                :style="tkt.ticket_type === 'complaint' && tkt.status === 'Open' ? 'border-left: 5px solid #dc2626;' : ''"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 1.1rem;">{{ tkt.ticket_type === 'complaint' ? '🚨' : '💡' }}</span>
+                      <strong style="font-size: 1rem; color: #0f172a;">#{{ tkt.ticket_number }}</strong>
+                      <span
+                        class="ticket-badge"
+                        :class="{
+                          'ticket-badge-open': tkt.status === 'Open',
+                          'ticket-badge-in-review': tkt.status === 'In Review',
+                          'ticket-badge-resolved': tkt.status === 'Resolved'
+                        }"
+                      >
+                        {{ tkt.status }}
+                      </span>
+                    </div>
+                    <div style="font-size: 0.78rem; color: var(--text-subtle); margin-top: 2px;">
+                      {{ tkt.created_at }}
+                      <span v-if="tkt.order_number" style="margin-left: 8px; font-weight: 700; color: #0284c7;">
+                        • {{ currentLang === 'en' ? 'Order' : 'ऑर्डर' }} #{{ tkt.order_number }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Customer Contact Quick Actions -->
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <a
+                      :href="'tel:' + tkt.customer_phone"
+                      class="phone-call-pill"
+                      style="text-decoration: none;"
+                      title="Call customer"
+                    >
+                      📞 {{ tkt.customer_phone }} ({{ tkt.customer_name }})
+                    </a>
+                    <a
+                      :href="'https://wa.me/91' + tkt.customer_phone.replace(/\D/g, '') + '?text=' + encodeURIComponent('नमस्ते ' + tkt.customer_name + ', कोमल मार्टकडून आपल्या तक्रार/अभिप्राय #' + tkt.ticket_number + ' संदर्भात:')"
+                      target="_blank"
+                      style="display: inline-flex; align-items: center; gap: 4px; background: #16a34a; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; text-decoration: none;"
+                    >
+                      💬 WhatsApp
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Category & Message -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                  <div style="font-size: 0.8rem; font-weight: 800; color: #475569; margin-bottom: 4px;">
+                    {{ currentLang === 'en' ? 'Category:' : 'प्रवर्ग:' }} {{ tkt.category }}
+                  </div>
+                  <div style="font-size: 0.88rem; color: #1e293b; line-height: 1.5; white-space: pre-wrap;">
+                    {{ tkt.message }}
+                  </div>
+                </div>
+
+                <!-- Admin Status Update & Notes inline form -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f1f5f9; padding: 10px 12px; border-radius: 8px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 0.8rem; font-weight: 700; color: #334155;">{{ currentLang === 'en' ? 'Status:' : 'स्थिती:' }}</label>
+                    <select
+                      v-model="tkt.status"
+                      style="padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.8rem; font-weight: 700;"
+                    >
+                      <option value="Open">Open (पेंडिंग)</option>
+                      <option value="In Review">In Review (तपासणी सुरू)</option>
+                      <option value="Resolved">Resolved (निवारण झाले)</option>
+                    </select>
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <input
+                      type="text"
+                      v-model="tkt.admin_notes"
+                      :placeholder="currentLang === 'en' ? 'Resolution note / explanation to customer...' : 'निवारण टीप / उत्तर...'"
+                      style="width: 100%; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.8rem;"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    @click="updateTicketByAdmin(tkt)"
+                    style="background: #064e3b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;"
+                  >
+                    💾 {{ currentLang === 'en' ? 'Save Status' : 'जतन करा' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -2876,6 +3053,16 @@
           >
             🌐 {{ t('select_language') }}
           </button>
+          <button
+            class="account-tab-btn"
+            :class="{ active: customerActiveTab === 'support' }"
+            @click="customerActiveTab = 'support'; loadCustomerSupportTickets();"
+          >
+            💬 {{ t('tab_help_feedback') }}
+            <span v-if="openSupportTicketsCount > 0" class="tab-badge-danger" style="margin-left: 4px;">
+              {{ openSupportTicketsCount }}
+            </span>
+          </button>
         </div>
 
         <!-- CUSTOMER TAB 1: MY ORDERS -->
@@ -3120,6 +3307,215 @@
                       {{ currentLang === 'en' ? 'Pay Now' : (currentLang === 'mr' ? 'चुकता करा' : 'चुकता करें') }}
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUSTOMER TAB 5: HELP & FEEDBACK / COMPLAINTS -->
+        <div v-if="customerActiveTab === 'support'">
+          <!-- Mode Switcher: Complaint vs Feedback -->
+          <div class="support-type-toggle">
+            <button
+              type="button"
+              class="support-type-btn"
+              :class="{ active: supportTicketType === 'complaint', complaint: true }"
+              @click="supportTicketType = 'complaint'"
+            >
+              <span>🚨</span>
+              <span>{{ t('support_complaint') }}</span>
+            </button>
+            <button
+              type="button"
+              class="support-type-btn"
+              :class="{ active: supportTicketType === 'feedback', feedback: true }"
+              @click="supportTicketType = 'feedback'"
+            >
+              <span>💡</span>
+              <span>{{ t('support_feedback') }}</span>
+            </button>
+          </div>
+
+          <!-- Description banner based on active mode -->
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin: -8px 0 14px 4px;">
+            {{ supportTicketType === 'complaint' ? t('support_complaint_desc') : t('support_feedback_desc') }}
+          </p>
+
+          <!-- Success Confirmation Banner -->
+          <div v-if="supportSuccessTicket" class="support-success-card">
+            <span style="font-size: 1.8rem; line-height: 1;">✅</span>
+            <div style="flex: 1;">
+              <div style="font-weight: 800; font-size: 0.95rem; color: #065f46; margin-bottom: 4px;">
+                {{ supportSuccessTicket.ticket_type === 'complaint' ? (currentLang === 'mr' ? 'तक्रार यशस्वीरीत्या नोंदवली गेली!' : (currentLang === 'hi' ? 'शिकायत सफलतापूर्वक दर्ज हो गई!' : 'Complaint registered successfully!')) : (currentLang === 'mr' ? 'अभिप्राय यशस्वीरीत्या पाठवला!' : (currentLang === 'hi' ? 'सुझाव सफलतापूर्वक भेज दिया गया!' : 'Feedback submitted successfully!')) }}
+              </div>
+              <div style="font-size: 0.84rem; color: #047857; margin-bottom: 6px;">
+                <strong>{{ currentLang === 'en' ? 'Ticket ID:' : (currentLang === 'mr' ? 'तिकीट क्र.:' : 'टिकट नं.:') }}</strong> #{{ supportSuccessTicket.ticket_number }}
+              </div>
+              <div style="font-size: 0.8rem; color: #065f46; line-height: 1.4;">
+                {{ supportSuccessTicket.ticket_type === 'complaint' ? (currentLang === 'mr' ? 'आमचे दुकान व्यवस्थापक या तक्रारीची लवकरात लवकर तपासणी करून आपल्याशी संपर्क साधतील.' : (currentLang === 'hi' ? 'हमारे स्टोर मैनेजर इस शिकायत की शीघ्र जांच करके आपसे संपर्क करेंगे।' : 'Our store manager will review this urgently and reach out.')) : (currentLang === 'mr' ? 'आपल्या बहुमूल्य अभिप्रायाबद्दल मनःपूर्वक धन्यवाद.' : (currentLang === 'hi' ? 'आपके बहुमूल्य सुझाव के लिए धन्यवाद।' : 'Thank you for helping us improve Komal Mart.')) }}
+              </div>
+              <div style="margin-top: 10px;">
+                <button
+                  type="button"
+                  @click="resetSupportForm"
+                  style="background: #059669; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer;"
+                >
+                  + {{ currentLang === 'en' ? 'Submit Another' : (currentLang === 'mr' ? 'नवीन नोंदवा' : 'नया दर्ज करें') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ticket Form -->
+          <form v-if="!supportSuccessTicket" @submit.prevent="submitSupportTicket">
+            <!-- Category Selection -->
+            <div class="form-group">
+              <label class="form-label">{{ t('support_select_category') }}</label>
+              <select v-model="supportCategory" required class="form-input" style="cursor: pointer;">
+                <option value="" disabled>{{ currentLang === 'mr' ? '-- निवडा --' : (currentLang === 'hi' ? '-- चुनें --' : '-- Select --') }}</option>
+                <template v-if="supportTicketType === 'complaint'">
+                  <option :value="t('support_category_delivery_delayed')">{{ t('support_category_delivery_delayed') }}</option>
+                  <option :value="t('support_category_delivery_boy')">{{ t('support_category_delivery_boy') }}</option>
+                  <option :value="t('support_category_missing_items')">{{ t('support_category_missing_items') }}</option>
+                  <option :value="t('support_category_damaged_items')">{{ t('support_category_damaged_items') }}</option>
+                  <option :value="t('support_category_billing')">{{ t('support_category_billing') }}</option>
+                  <option :value="t('support_category_app_issue')">{{ t('support_category_app_issue') }}</option>
+                  <option :value="t('support_category_other_complaint')">{{ t('support_category_other_complaint') }}</option>
+                </template>
+                <template v-else>
+                  <option :value="t('support_category_new_product')">{{ t('support_category_new_product') }}</option>
+                  <option :value="t('support_category_pricing')">{{ t('support_category_pricing') }}</option>
+                  <option :value="t('support_category_packaging')">{{ t('support_category_packaging') }}</option>
+                  <option :value="t('support_category_praise')">{{ t('support_category_praise') }}</option>
+                  <option :value="t('support_category_general_suggestion')">{{ t('support_category_general_suggestion') }}</option>
+                </template>
+              </select>
+            </div>
+
+            <!-- Optional Related Order -->
+            <div class="form-group" v-if="customerOrders && customerOrders.length > 0">
+              <label class="form-label">{{ t('support_related_order') }}</label>
+              <select v-model="supportOrderNumber" class="form-input" style="cursor: pointer;">
+                <option value="">{{ t('support_no_related_order') }}</option>
+                <option v-for="ord in customerOrders" :key="ord.id" :value="ord.order_number">
+                  #{{ ord.order_number }} (₹{{ ord.final_amount }} — {{ ord.created_at }})
+                </option>
+              </select>
+            </div>
+
+            <!-- Message with Mic speech-to-text -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">{{ t('support_message_label') }}</label>
+                <span v-if="isSupportRecording" style="font-size: 0.75rem; color: #dc2626; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+                  <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; animation: pulse-red 1s infinite;"></span>
+                  {{ t('support_mic_listening') }}
+                </span>
+              </div>
+              <div class="support-textarea-wrap">
+                <textarea
+                  v-model="supportMessage"
+                  rows="4"
+                  required
+                  class="form-input"
+                  :placeholder="t('support_message_placeholder')"
+                  style="resize: vertical; padding-right: 110px; min-height: 100px;"
+                ></textarea>
+                <button
+                  type="button"
+                  class="support-mic-btn"
+                  :class="{ recording: isSupportRecording }"
+                  @click="toggleSupportVoiceInput"
+                  :title="isSupportRecording ? 'बोलणे थांबवा' : 'माईक दाबून बोला'"
+                >
+                  <span>{{ isSupportRecording ? '⏹️' : '🎙️' }}</span>
+                  <span>{{ isSupportRecording ? (currentLang === 'en' ? 'Stop' : 'थांबवा') : t('support_mic_btn') }}</span>
+                </button>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <span style="font-size: 0.72rem; color: var(--text-subtle);">
+                  {{ currentLang === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्रजीत बोलू शकता.' : (currentLang === 'hi' ? '💡 आप हिंदी, मराठी या अंग्रेजी में बोल सकते हैं।' : '💡 You can speak in Marathi, Hindi, or English.') }}
+                </span>
+                <button
+                  v-if="supportMessage"
+                  type="button"
+                  @click="supportMessage = ''"
+                  style="background: none; border: none; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;"
+                >
+                  {{ currentLang === 'en' ? 'Clear text' : 'मजकूर पुसा' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="supportSubmitting"
+              style="width: 100%; padding: 12px; font-size: 0.95rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; margin-top: 8px;"
+              :style="supportTicketType === 'complaint' ? 'background: #dc2626;' : 'background: #059669;'"
+            >
+              <span>{{ supportSubmitting ? t('support_submitting') : (supportTicketType === 'complaint' ? t('support_submit_complaint') : t('support_submit_feedback')) }}</span>
+            </button>
+          </form>
+
+          <!-- Customer Previous Tickets History -->
+          <div style="margin-top: 24px; border-top: 1.5px solid var(--border); padding-top: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h4 style="font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px;">
+                📋 {{ t('support_history_title') }}
+              </h4>
+              <button
+                type="button"
+                @click="loadCustomerSupportTickets"
+                style="background: none; border: none; font-size: 0.78rem; font-weight: 700; color: #059669; cursor: pointer;"
+              >
+                🔄 {{ currentLang === 'en' ? 'Refresh' : 'रीफ्रेश' }}
+              </button>
+            </div>
+
+            <div v-if="supportTicketsLoading" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
+              {{ currentLang === 'en' ? 'Loading tickets...' : (currentLang === 'mr' ? 'तिकीट माहिती लोड होत आहे...' : 'टिकट लोड हो रहे हैं...') }}
+            </div>
+            <div v-else-if="supportTicketsList.length === 0" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.84rem; background: #f8fafc; border-radius: 8px;">
+              {{ t('support_no_history') }}
+            </div>
+            <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+              <div v-for="tkt in supportTicketsList" :key="tkt.id" class="ticket-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
+                  <div>
+                    <span style="font-weight: 800; font-size: 0.88rem; color: #0f172a;">
+                      {{ tkt.ticket_type === 'complaint' ? '🚨' : '💡' }} #{{ tkt.ticket_number }}
+                    </span>
+                    <div style="font-size: 0.74rem; color: var(--text-subtle);">{{ tkt.created_at }}</div>
+                  </div>
+                  <span
+                    class="ticket-badge"
+                    :class="{
+                      'ticket-badge-open': tkt.status === 'Open',
+                      'ticket-badge-in-review': tkt.status === 'In Review',
+                      'ticket-badge-resolved': tkt.status === 'Resolved'
+                    }"
+                  >
+                    {{ tkt.status === 'Open' ? t('support_status_open') : (tkt.status === 'In Review' ? t('support_status_in_review') : t('support_status_resolved')) }}
+                  </span>
+                </div>
+
+                <div style="font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                  {{ tkt.category }}
+                  <span v-if="tkt.order_number" style="color: #64748b; font-weight: normal; margin-left: 6px;">
+                    ({{ currentLang === 'en' ? 'Order' : 'ऑर्डर' }} #{{ tkt.order_number }})
+                  </span>
+                </div>
+
+                <p style="font-size: 0.82rem; color: #475569; margin: 0 0 6px 0; background: #f8fafc; padding: 8px 10px; border-radius: 6px; white-space: pre-wrap;">
+                  {{ tkt.message }}
+                </p>
+
+                <!-- Store Resolution / Admin Notes if present -->
+                <div v-if="tkt.admin_notes" style="background: #ecfdf5; border-left: 3px solid #10b981; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: 0.78rem; color: #065f46;">
+                  <strong>{{ t('support_admin_response') }}</strong> {{ tkt.admin_notes }}
                 </div>
               </div>
             </div>
@@ -5899,6 +6295,38 @@ const customerOrders = ref([]);
 const customerOrdersLoading = ref(false);
 const profileForm = ref({ name: '', email: '', phone: '', address: '' });
 
+// Customer Support & Feedback State
+const supportTicketType = ref('complaint'); // 'complaint' | 'feedback'
+const supportCategory = ref('');
+const supportOrderNumber = ref('');
+const supportMessage = ref('');
+const isSupportRecording = ref(false);
+const supportSubmitting = ref(false);
+const supportSuccessTicket = ref(null);
+const supportTicketsList = ref([]);
+const supportTicketsLoading = ref(false);
+
+const openSupportTicketsCount = computed(() => {
+  return (supportTicketsList.value || []).filter(t => t.status === 'Open').length;
+});
+
+// Admin Support Tickets State
+const adminSupportTickets = ref([]);
+const adminSupportLoading = ref(false);
+const adminSupportFilter = ref('all'); // 'all' | 'complaint' | 'feedback' | 'open'
+const adminOpenComplaintsCount = ref(0);
+
+const filteredAdminSupportTickets = computed(() => {
+  if (adminSupportFilter.value === 'complaint') {
+    return adminSupportTickets.value.filter(t => t.ticket_type === 'complaint');
+  } else if (adminSupportFilter.value === 'feedback') {
+    return adminSupportTickets.value.filter(t => t.ticket_type === 'feedback');
+  } else if (adminSupportFilter.value === 'open') {
+    return adminSupportTickets.value.filter(t => t.status === 'Open');
+  }
+  return adminSupportTickets.value;
+});
+
 // Admin State & Batch Printing
 const adminActiveTab = ref('inventory');
 const adminSearch = ref('');
@@ -6576,6 +7004,7 @@ async function checkAuth() {
         if (data.user.role === 'admin') {
           loadAdminOrders();
           loadAdminCustomers();
+          loadAdminSupportTickets();
         }
       }
     } else {
@@ -6944,6 +7373,189 @@ async function loadCustomerOrders() {
   } finally {
     customerOrdersLoading.value = false;
   }
+}
+
+// --- Customer Support, Complaints & Voice Input ---
+let supportSpeechRecognition = null;
+let baseSupportInput = '';
+
+function toggleSupportVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert(currentLang.value === 'mr' ? 'तुमच्या ब्राउझरमध्ये व्हॉइस इनपुट समर्थित नाही.' : (currentLang.value === 'hi' ? 'आपके ब्राउज़र में वॉइस इनपुट समर्थित नहीं है।' : 'Voice recognition is not supported in this browser.'));
+    return;
+  }
+
+  if (isSupportRecording.value) {
+    stopSupportVoiceInput();
+  } else {
+    startSupportVoiceInput();
+  }
+}
+
+function startSupportVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  try {
+    if (supportSpeechRecognition) {
+      supportSpeechRecognition.abort();
+    }
+  } catch (e) {}
+
+  baseSupportInput = supportMessage.value ? supportMessage.value.trim() : '';
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  const lang = currentLang.value || 'mr';
+  recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+
+  recognition.onstart = () => {
+    isSupportRecording.value = true;
+  };
+
+  recognition.onresult = (event) => {
+    let finalTranscript = '';
+    let interimTranscript = '';
+    for (let i = 0; i < event.results.length; ++i) {
+      const res = event.results[i];
+      if (res && res[0]) {
+        if (res.isFinal) {
+          finalTranscript += (finalTranscript ? ' ' : '') + res[0].transcript.trim();
+        } else {
+          interimTranscript += (interimTranscript ? ' ' : '') + res[0].transcript.trim();
+        }
+      }
+    }
+    const sessionText = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+    if (baseSupportInput) {
+      supportMessage.value = baseSupportInput + ' ' + sessionText;
+    } else {
+      supportMessage.value = sessionText;
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.warn('Support speech error:', event.error);
+    if (event.error !== 'no-speech') {
+      isSupportRecording.value = false;
+    }
+  };
+
+  recognition.onend = () => {
+    isSupportRecording.value = false;
+  };
+
+  supportSpeechRecognition = recognition;
+  try {
+    recognition.start();
+  } catch (err) {
+    console.warn('Failed to start support speech:', err);
+    isSupportRecording.value = false;
+  }
+}
+
+function stopSupportVoiceInput() {
+  if (supportSpeechRecognition) {
+    try {
+      supportSpeechRecognition.stop();
+    } catch (e) {}
+  }
+  isSupportRecording.value = false;
+}
+
+async function loadCustomerSupportTickets() {
+  if (!authToken.value && !currentUser.value) return;
+  supportTicketsLoading.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/support/my-tickets`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      supportTicketsList.value = await res.json();
+    }
+  } catch (err) {
+    console.error('Failed to load support tickets:', err);
+  } finally {
+    supportTicketsLoading.value = false;
+  }
+}
+
+async function submitSupportTicket() {
+  if (!supportCategory.value) {
+    alert(currentLang.value === 'mr' ? 'कृपया प्रवर्गाची निवड करा.' : (currentLang.value === 'hi' ? 'कृपया श्रेणी का चयन करें।' : 'Please select a category.'));
+    return;
+  }
+  if (!supportMessage.value || supportMessage.value.trim().length < 5) {
+    alert(currentLang.value === 'mr' ? 'कृपया तक्रार किंवा अभिप्रायाचे सविस्तर वर्णन लिहा किंवा माईक वापरून बोला.' : (currentLang.value === 'hi' ? 'कृपया शिकायत या सुझाव का विवरण लिखें या माइक से बोलें।' : 'Please describe your complaint or feedback (or speak using mic).'));
+    return;
+  }
+
+  const name = currentUser.value?.name || '';
+  const phone = currentUser.value?.phone || '';
+  const email = currentUser.value?.email || '';
+
+  if (!name || !phone) {
+    alert(currentLang.value === 'mr' ? 'कृपया आधी लॉगिन करा.' : 'Please log in to continue.');
+    return;
+  }
+
+  if (isSupportRecording.value) {
+    stopSupportVoiceInput();
+  }
+
+  supportSubmitting.value = true;
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken.value}`
+    };
+
+    const payload = {
+      ticket_type: supportTicketType.value,
+      category: supportCategory.value,
+      order_number: supportOrderNumber.value || null,
+      message: supportMessage.value.trim(),
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email
+    };
+
+    const res = await fetch(`${API_BASE}/support/ticket`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Failed to submit ticket');
+      return;
+    }
+
+    supportSuccessTicket.value = data.ticket;
+    showToast(data.message || (supportTicketType.value === 'complaint' ? 'तक्रार नोंदवली गेली आहे!' : 'अभिप्राय पाठवला आहे!'));
+    supportCategory.value = '';
+    supportOrderNumber.value = '';
+    supportMessage.value = '';
+
+    loadCustomerSupportTickets();
+  } catch (err) {
+    console.error('Error submitting support ticket:', err);
+    alert('नेटवर्क त्रुटी. कृपया पुन्हा प्रयत्न करा.');
+  } finally {
+    supportSubmitting.value = false;
+  }
+}
+
+function resetSupportForm() {
+  supportSuccessTicket.value = null;
+  supportCategory.value = '';
+  supportOrderNumber.value = '';
+  supportMessage.value = '';
 }
 
 function openUpiPayForCustomerOrder(order) {
@@ -9019,6 +9631,8 @@ function switchAdminTab(tabName) {
     loadDailyZReport();
   } else if (tabName === 'restock') {
     loadRestockAlerts();
+  } else if (tabName === 'support') {
+    loadAdminSupportTickets();
   }
   nextTick(() => {
     const anchor = document.getElementById('admin-tab-content-anchor');
@@ -9026,6 +9640,52 @@ function switchAdminTab(tabName) {
       anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+}
+
+async function loadAdminSupportTickets() {
+  if (!authToken.value) return;
+  adminSupportLoading.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/support/tickets`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      adminSupportTickets.value = data.tickets || [];
+      adminOpenComplaintsCount.value = data.open_complaints_count || 0;
+    }
+  } catch (err) {
+    console.error('Error loading admin support tickets:', err);
+  } finally {
+    adminSupportLoading.value = false;
+  }
+}
+
+async function updateTicketByAdmin(tkt) {
+  if (!tkt || !tkt.id) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/support/tickets/${tkt.id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        status: tkt.status,
+        admin_notes: tkt.admin_notes || ''
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Status updated successfully!');
+      loadAdminSupportTickets();
+    } else {
+      alert(data.error || 'Failed to update ticket');
+    }
+  } catch (err) {
+    console.error('Error updating ticket:', err);
+    alert('Network error while updating status');
+  }
 }
 
 async function loadCustomerKhata() {

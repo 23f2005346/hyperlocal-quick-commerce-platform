@@ -8,6 +8,7 @@ import smtplib
 import json
 import urllib.request
 import urllib.error
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -17,7 +18,7 @@ from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment, TieredPricing, RestockAlert, get_ist_time
+from models import db, User, Category, Product, ProductVariant, Order, OrderItem, KhataPayment, TieredPricing, RestockAlert, SupportTicket, get_ist_time
 from seed_data import CATEGORIES_DATA, PRODUCTS_DATA
 from backup_service import create_hot_backup, list_backups, verify_backup
 
@@ -1683,6 +1684,257 @@ def create_app():
             'message': f'UPI payment submitted for Order {order.order_number}! Store owner will verify before marking Paid.',
             'order': order.to_dict(),
             'user': user.to_dict()
+        })
+
+    # --- CUSTOMER SUPPORT & FEEDBACK ROUTES ---
+
+    def send_support_ticket_email(ticket):
+        """
+        Dispatches an urgent email notification to Roushan (thisisroushan01@gmail.com)
+        when a customer files a complaint or submits feedback.
+        Uses Resend REST API over Port 443 HTTPS.
+        """
+        recipient = 'thisisroushan01@gmail.com'
+        is_complaint = (ticket.ticket_type == 'complaint')
+        emoji = "🚨" if is_complaint else "💡"
+        type_label = "तक्रार (COMPLAINT)" if is_complaint else "अभिप्राय / सूचना (FEEDBACK)"
+        priority_color = "#dc2626" if is_complaint else "#059669"
+        badge_bg = "#fef2f2" if is_complaint else "#ecfdf5"
+        badge_border = "#fca5a5" if is_complaint else "#a7f3d0"
+
+        subject = f"{emoji} [{'URGENT COMPLAINT' if is_complaint else 'CUSTOMER FEEDBACK'}] #{ticket.ticket_number} - {ticket.category} ({ticket.customer_name})"
+
+        phone_clean = re.sub(r'\D', '', ticket.customer_phone or '')
+        if len(phone_clean) == 10:
+            wa_link = f"https://wa.me/91{phone_clean}?text=Namaste%20{urllib.parse.quote(ticket.customer_name)},%20regarding%20your%20Komal%20Mart%20ticket%20{ticket.ticket_number}:"
+        else:
+            wa_link = f"https://wa.me/{phone_clean}"
+
+        order_html = ""
+        if ticket.order_number:
+            order_html = f"""
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+                <span style="font-size: 12px; color: #64748b; font-weight: 600;">संबंधित ऑर्डर क्र. (Related Order):</span>
+                <strong style="color: #0f172a; font-size: 14px; margin-left: 6px;">#{ticket.order_number}</strong>
+            </div>
+            """
+
+        email_row = ""
+        if ticket.customer_email:
+            email_row = f"""<tr><td style="padding: 4px 0; color: #64748b; font-weight: 600;">ईमेल:</td><td style="padding: 4px 0; color: #0f172a;">{ticket.customer_email}</td></tr>"""
+
+        created_str = ticket.created_at.strftime('%d %b %Y, %I:%M %p') if ticket.created_at else ''
+
+        html_content = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px; color: #1e293b;">
+    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+        <div style="background: linear-gradient(135deg, {priority_color}, #1e293b); padding: 20px 24px; color: white;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; opacity: 0.9;">कोमल मार्ट (Komal Mart) • ग्राहक सेवा व तक्रार निवारण</div>
+            <h1 style="margin: 6px 0 0 0; font-size: 20px; font-weight: 800; color: white;">{emoji} {type_label}</h1>
+            <div style="font-size: 13px; margin-top: 4px; opacity: 0.9;">तिकीट क्र. <strong>#{ticket.ticket_number}</strong> • {created_str}</div>
+        </div>
+
+        <div style="padding: 24px;">
+            <div style="margin-bottom: 16px;">
+                <span style="background: {badge_bg}; color: {priority_color}; border: 1px solid {badge_border}; border-radius: 6px; padding: 4px 12px; font-weight: 700; font-size: 13px;">
+                    प्रवर्ग (Category): {ticket.category}
+                </span>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <tr>
+                        <td style="padding: 4px 0; color: #64748b; width: 120px; font-weight: 600;">ग्राहक नाव:</td>
+                        <td style="padding: 4px 0; color: #0f172a; font-weight: 700;">{ticket.customer_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; color: #64748b; font-weight: 600;">मोबाईल नंबर:</td>
+                        <td style="padding: 4px 0;">
+                            <a href="tel:{ticket.customer_phone}" style="color: #0284c7; font-weight: 700; text-decoration: none;">📞 {ticket.customer_phone}</a>
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            <a href="{wa_link}" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none;">💬 WhatsApp चॅट</a>
+                        </td>
+                    </tr>
+                    {email_row}
+                </table>
+            </div>
+
+            {order_html}
+
+            <div style="margin-bottom: 20px;">
+                <div style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px;">ग्राहकाचा संदेश / तक्रार तपशील:</div>
+                <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 14px 16px; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.6; color: #78350f; white-space: pre-wrap;">{ticket.message}</div>
+            </div>
+
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 12px; color: #64748b;">
+                <p style="margin: 0 0 6px 0;"><strong>टीप:</strong> ग्राहकाला संपर्क करून समस्या सोडवा व ॲडमिन पॅनेलमधून तिकीट 'Resolved' करा.</p>
+                <a href="https://komalmart.onrender.com/#admin" style="display: inline-block; background: #064e3b; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 13px; margin-top: 6px;">ॲडमिन डॅशबोर्ड उघडा →</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+
+        try:
+            ok, msg = send_email_resend(recipient, subject, html_content)
+            print(f"[SUPPORT EMAIL DISPATCH] Sent to {recipient} for ticket {ticket.ticket_number}: {ok}, {msg}")
+            return ok, msg
+        except Exception as e:
+            print(f"[SUPPORT EMAIL ERROR] {e}")
+            return False, str(e)
+
+    @app.route('/api/support/ticket', methods=['POST'])
+    def create_support_ticket():
+        """
+        Registers a customer complaint or feedback/suggestion.
+        Accepts voice-transcribed or typed text in Marathi, Hindi, or English.
+        Dispatches an instant email alert to store admin (thisisroushan01@gmail.com).
+        """
+        user = get_current_user()
+        data = request.get_json() or {}
+
+        ticket_type = (data.get('ticket_type') or 'complaint').strip().lower()
+        if ticket_type not in ('complaint', 'feedback'):
+            ticket_type = 'complaint'
+
+        category = (data.get('category') or '').strip()
+        message = (data.get('message') or '').strip()
+        order_number = (data.get('order_number') or '').strip()
+
+        # Customer details from auth or body
+        customer_name = (data.get('customer_name') or (user.name if user else '')).strip()
+        customer_phone = (data.get('customer_phone') or (user.phone if user else '')).strip()
+        customer_email = (data.get('customer_email') or (user.email if user else '')).strip()
+
+        if not category:
+            return jsonify({'error': 'कृपया प्रवर्गाची (Category) निवड करा.'}), 400
+
+        if not message or len(message) < 5:
+            return jsonify({'error': 'कृपया तक्रार किंवा अभिप्रायाचे सविस्तर वर्णन लिहा (किंवा माईक वापरून बोला).'}), 400
+
+        if not customer_name:
+            return jsonify({'error': 'कृपया आपले नाव टाका.'}), 400
+
+        if not customer_phone or not re.match(r'^[6-9]\d{9}$', customer_phone):
+            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका.'}), 400
+
+        if is_dummy_phone(customer_phone):
+            return jsonify({'error': 'अवैध मोबाईल नंबर! कृपया खरा मोबाईल नंबर टाका जेणेकरून आम्ही संपर्क करू शकू.'}), 400
+
+        # Generate readable unique Ticket Number: TKT-YYYYMMDD-XXXX
+        today_str = get_ist_time().strftime('%Y%m%d')
+        unique_suffix = uuid.uuid4().hex[:4].upper()
+        ticket_number = f"TKT-{today_str}-{unique_suffix}"
+
+        ticket = SupportTicket(
+            ticket_number=ticket_number,
+            ticket_type=ticket_type,
+            category=category,
+            order_number=order_number if order_number else None,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            customer_email=customer_email if customer_email else None,
+            user_id=user.id if user else None,
+            message=message,
+            status='Open'
+        )
+
+        db.session.add(ticket)
+        db.session.commit()
+
+        # Dispatch instant email alert to Roushan via Resend Port 443 HTTPS
+        send_support_ticket_email(ticket)
+
+        if ticket_type == 'complaint':
+            success_msg = f"तुमची तक्रार नोंदवली गेली आहे (तक्रार क्र. #{ticket_number}). आमचे व्यवस्थापक लवकरात लवकर तपासणी करून तुमच्याशी संपर्क साधतील."
+        else:
+            success_msg = f"आपल्या मौल्यवान अभिप्रायाबद्दल धन्यवाद! (संदर्भ क्र. #{ticket_number}). आम्ही सेवेत सुधारणा करण्यासाठी याचा नक्की वापर करू."
+
+        return jsonify({
+            'message': success_msg,
+            'ticket': ticket.to_dict()
+        }), 201
+
+    @app.route('/api/support/my-tickets', methods=['GET'])
+    def get_my_support_tickets():
+        """
+        Retrieves support tickets for the current authenticated user or matching customer phone.
+        """
+        user = get_current_user()
+        phone = (request.args.get('phone') or '').strip()
+
+        query = SupportTicket.query
+        if user:
+            query = query.filter((SupportTicket.user_id == user.id) | (SupportTicket.customer_phone == user.phone))
+        elif phone:
+            query = query.filter_by(customer_phone=phone)
+        else:
+            return jsonify([])
+
+        tickets = query.order_by(SupportTicket.created_at.desc()).all()
+        return jsonify([t.to_dict() for t in tickets])
+
+    @app.route('/api/admin/support/tickets', methods=['GET'])
+    @admin_required
+    def get_admin_support_tickets():
+        """
+        Admin endpoint to list all customer complaints and feedback.
+        Supports filtering by ticket_type ('complaint' / 'feedback') and status ('Open' / 'In Review' / 'Resolved').
+        """
+        ticket_type = request.args.get('type')
+        status = request.args.get('status')
+
+        query = SupportTicket.query
+        if ticket_type:
+            query = query.filter_by(ticket_type=ticket_type)
+        if status:
+            query = query.filter_by(status=status)
+
+        tickets = query.order_by(SupportTicket.created_at.desc()).all()
+
+        open_complaints_count = SupportTicket.query.filter_by(ticket_type='complaint', status='Open').count()
+        total_open_count = SupportTicket.query.filter_by(status='Open').count()
+
+        return jsonify({
+            'tickets': [t.to_dict() for t in tickets],
+            'open_complaints_count': open_complaints_count,
+            'total_open_count': total_open_count
+        })
+
+    @app.route('/api/admin/support/tickets/<int:ticket_id>/status', methods=['PATCH'])
+    @admin_required
+    def update_admin_support_ticket_status(ticket_id):
+        """
+        Admin updates ticket status ('Open', 'In Review', 'Resolved') and adds store resolution notes.
+        """
+        ticket = db.session.get(SupportTicket, ticket_id)
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+        data = request.get_json() or {}
+
+        new_status = data.get('status')
+        admin_notes = data.get('admin_notes')
+
+        if new_status:
+            valid_statuses = ('Open', 'In Review', 'Resolved')
+            if new_status not in valid_statuses:
+                return jsonify({'error': f"अवैध स्टेटस. कृपया निवडा: {', '.join(valid_statuses)}"}), 400
+            ticket.status = new_status
+            if new_status == 'Resolved':
+                ticket.resolved_at = get_ist_time()
+            else:
+                ticket.resolved_at = None
+
+        if admin_notes is not None:
+            ticket.admin_notes = admin_notes.strip()
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f"तक्रार/अभिप्राय #{ticket.ticket_number} चे स्टेटस '{ticket.status}' केले!",
+            'ticket': ticket.to_dict()
         })
 
     # --- PUBLIC STORE ROUTES ---
