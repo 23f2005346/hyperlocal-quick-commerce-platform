@@ -5949,6 +5949,10 @@ a {
   transform: translateY(0) scale(0.98);
 }
 
+.floating-komal-ai-btn.has-floating-cart {
+  bottom: 96px;
+}
+
 .ai-sparkle-icon {
   font-size: 1.15rem;
   animation: aiSparklePulse 2.5s infinite ease-in-out;

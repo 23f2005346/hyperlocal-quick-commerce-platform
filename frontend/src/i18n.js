@@ -8,7 +8,7 @@ export const translations = {
     // Top Bar
     store_name_full: "कोमल मार्ट",
     tagline_announcement: "ताजा माल • अचूक वजन • कमी भाव",
-    delivery_announcement: "३० मिनिटांत घरपोच • मोफत डिलिव्हरी",
+    delivery_announcement: "जलद वडाळा डिलिव्हरी • ₹५००+ वर मोफत (⚡ ३० मिनिट एक्सप्रेस उपलब्ध)",
     helpline_label: "ऑर्डर हेल्पलाइन",
     
     // Header
@@ -53,7 +53,7 @@ export const translations = {
     hero_title: "शुद्ध धान्य, अस्सल चव • थेट बाजार भाव",
     hero_desc: "ताज्या गिरणीचे गव्हाचे पीठ, अनपॉलिश्ड डाळी आणि १००% अस्सल मसाले थेट घाऊक दरात.",
     hero_perk_weight: "अचूक वजन • डिजिटल काटा",
-    hero_perk_delivery: "३० मिनिटांत घरपोच डिलिव्हरी",
+    hero_perk_delivery: "जलद घरपोच डिलिव्हरी (₹५००+ वर मोफत)",
     hero_perk_khata: "मासिक उधारी खाते (Khata)",
     hero_perk_brands: "१००% अस्सल खात्रीशीर ब्रँड्स",
     hero_cta: "मासिक किराणा यादी बनवा (Monthly Checklist) ➔",
@@ -247,8 +247,8 @@ export const translations = {
     pillar_rates_desc: "दलालांशिवाय थेट शेतकरी व एपीएमसी दर, थेट बचत.",
     pillar_khata_title: "मासिक बहीखाता (उधारी)",
     pillar_khata_desc: "घरगुती व छोट्या दुकानदारांसाठी मासिक पावती सुविधा.",
-    pillar_speed_title: "३० मिनिट एक्सप्रेस डिलिव्हरी",
-    pillar_speed_desc: "स्थानिक रायडर्सद्वारे वेगाने घरपोच ताजा माल.",
+    pillar_speed_title: "जलद घरपोच डिलिव्हरी (Free ₹५००+)",
+    pillar_speed_desc: "वडाळा व नजीकच्या परिसरात मोफत घरपोच (₹५००+ वर). तातडीच्या गरजेसाठी ३० मिनिट एक्सप्रेस सुविधा उपलब्ध.",
 
     // Quick View
     quick_view_title: "सामानाचा तपशील (Quick View)",
@@ -393,7 +393,7 @@ export const translations = {
     // Top Bar
     store_name_full: "कोमल मार्ट",
     tagline_announcement: "ताज़ा माल • सही तोल • कम दाम",
-    delivery_announcement: "30 मिनट में घर पहुँचाएं • फ्री डिलीवरी",
+    delivery_announcement: "तेज़ वडाला डिलीवरी • ₹500+ पर फ्री (⚡ 30 मिनट एक्सप्रेस उपलब्ध)",
     helpline_label: "ऑर्डर हेल्पलाइन",
 
     // Header
@@ -438,7 +438,7 @@ export const translations = {
     hero_title: "शुद्ध अनाज, असली स्वाद • डायरेक्ट मंडी भाव",
     hero_desc: "ताज़ी चक्की पिसाई का आटा, बिना पॉलिश की दालें एवं 100% असली देसी मसाले मंडी के सीधे दाम पर।",
     hero_perk_weight: "सही तोल • डिजिटल काँटा",
-    hero_perk_delivery: "30 मिनट में घर पहुँचाएं",
+    hero_perk_delivery: "तेज़ घरपोच डिलीवरी (₹500+ पर फ्री)",
     hero_perk_khata: "मासिक राशन उधारी खाता (Khata)",
     hero_perk_brands: "100% असली विश्वसनीय ब्रांड्स",
     hero_cta: "एकमुश्त मासिक राशन पर्चा बनाएं ➔",
@@ -632,8 +632,8 @@ export const translations = {
     pillar_rates_desc: "बिना बिचौलियों के सीधा एपीएमसी रेट, अधिक बचत।",
     pillar_khata_title: "मासिक बहीखाता (उधारी)",
     pillar_khata_desc: "घरेलू व छोटे दुकानदारों के लिए पर्चा सुविधा।",
-    pillar_speed_title: "30 मिनट एक्सप्रेस डिलीवरी",
-    pillar_speed_desc: "स्थानीय राइडर्स द्वारा तेज़ी से घर तक ताज़ा सामान।",
+    pillar_speed_title: "तेज़ घरपोच डिलीवरी (Free ₹500+)",
+    pillar_speed_desc: "वडाला और नजदीकी इलाके में फ्री होम डिलीवरी (₹500+ पर)। आपातकाल में 30 मिनट एक्सप्रेस सुविधा।",
 
     // Quick View
     quick_view_title: "सामान का विवरण (Quick View)",
@@ -778,7 +778,7 @@ export const translations = {
     // Top Bar
     store_name_full: "Komal Mart",
     tagline_announcement: "Fresh Goods • Accurate Weight • Wholesale Rates",
-    delivery_announcement: "30-Min Fast Home Delivery • Free on ₹300+",
+    delivery_announcement: "Fast Wadala Delivery • Free on ₹500+ (⚡ 30-Min Urgent Option)",
     helpline_label: "Order Helpline",
 
     // Header
@@ -823,7 +823,7 @@ export const translations = {
     hero_title: "Pure Grains, Real Taste • Direct Mandi Wholesale Rates",
     hero_desc: "Fresh stone-ground chakki atta, unpolished pulses, and genuine spices at direct wholesale mandi rates.",
     hero_perk_weight: "100% Accurate Digital Scale",
-    hero_perk_delivery: "30-Min Express Delivery",
+    hero_perk_delivery: "Fast Home Delivery (Free on ₹500+)",
     hero_perk_khata: "Monthly Khata Credit Account",
     hero_perk_brands: "100% Genuine Certified Brands",
     hero_cta: "Create Monthly Ration Checklist ➔",
@@ -1017,8 +1017,8 @@ export const translations = {
     pillar_rates_desc: "APMC wholesale prices without middlemen markups.",
     pillar_khata_title: "Monthly Khata Ledger",
     pillar_khata_desc: "Convenient monthly ledger credit for local families.",
-    pillar_speed_title: "30-Min Fast Delivery",
-    pillar_speed_desc: "Prompt hyperlocal doorstep dispatch for fresh staples.",
+    pillar_speed_title: "Fast Home Delivery (Free on ₹500+)",
+    pillar_speed_desc: "Same-day doorstep delivery across Wadala (Free on ₹500+). 30-min urgent priority dispatch available.",
 
     // Quick View
     quick_view_title: "Product Details (Quick View)",

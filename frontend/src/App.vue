@@ -121,7 +121,7 @@
           <div class="brand-text">
             <div style="display: flex; align-items: center; gap: 6px;">
               <h1>{{ t('store_title') }}</h1>
-              <span class="mobile-delivery-tag" style="display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 800; color: #047857; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">⚡ 30m</span>
+              <span class="mobile-delivery-tag" style="display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 800; color: #047857; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">⚡ {{ currentLang === 'en' ? 'Fast Wadala' : (currentLang === 'mr' ? 'जलद वडाळा' : 'तेज़ वडाला') }}</span>
             </div>
             <p class="desktop-only">{{ t('store_subtitle') }}</p>
           </div>
@@ -328,7 +328,7 @@
             </div>
             <div class="hero-showcase-badge-bar">
               <span>⚖️ {{ currentLang === 'mr' ? 'सरकारी वजन प्रमाणित' : (currentLang === 'hi' ? 'सरकारी काँटा प्रमाणित' : 'Govt Scale Certified') }}</span>
-              <span>⚡ 30 Min Express</span>
+              <span>⚡ {{ currentLang === 'mr' ? 'जलद घरपोच डिलिव्हरी' : (currentLang === 'hi' ? 'तेज़ होम डिलीवरी' : 'Fast Home Delivery') }}</span>
             </div>
           </div>
         </div>
