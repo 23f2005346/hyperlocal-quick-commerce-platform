@@ -7993,7 +7993,9 @@ function reorderEntireBill(order) {
 // Komal AI Voice & Smart Draft Bill Handlers
 // ==========================================
 function openKomalAiModal() {
-  aiLanguage.value = currentLang.value || 'mr';
+  if (!aiLanguage.value) {
+    aiLanguage.value = (currentLang.value === 'hi' || currentLang.value === 'mr') ? currentLang.value : 'mr';
+  }
   showKomalAiModal.value = true;
   initSpeechRecognition();
 }
@@ -8013,6 +8015,22 @@ function closeKomalAiModal() {
 
 function setAiLanguage(lang) {
   aiLanguage.value = lang;
+  cachedAiAudio.value = null; // Invalidate cached audio so speech matches the newly chosen language!
+
+  // Instant response translation & speech: If an order summary already exists, switch to selected language
+  if (aiResult.value) {
+    if (lang === 'mr') {
+      aiResult.value.summary_text = aiResult.value.summary_text_mr || aiResult.value.summary_text;
+    } else if (lang === 'hi') {
+      aiResult.value.summary_text = aiResult.value.summary_text_hi || aiResult.value.summary_text;
+    } else {
+      aiResult.value.summary_text = aiResult.value.summary_text_en || aiResult.value.summary_text;
+    }
+    if (aiResult.value.summary_text) {
+      speakAiSummary(aiResult.value.summary_text, true);
+    }
+  }
+
   isUserExplicitStop = true;
   if (speechSilenceTimer) {
     clearTimeout(speechSilenceTimer);
@@ -8057,7 +8075,20 @@ function playNaturalAiAudio(audioB64, mime = 'audio/wav') {
 }
 
 async function speakAiSummary(text, forceApi = false) {
-  if (cachedAiAudio.value && !forceApi) {
+  const lang = aiLanguage.value || currentLang.value || 'mr';
+
+  // Stop any currently playing audio element
+  if (currentAiAudioPlayer) {
+    try { currentAiAudioPlayer.pause(); } catch (e) {}
+    currentAiAudioPlayer = null;
+  }
+  // Stop browser speech synthesis if running
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  // If we already have cached audio for this exact language, play it
+  if (cachedAiAudio.value && !forceApi && cachedAiAudio.value.lang === lang) {
     playNaturalAiAudio(cachedAiAudio.value.b64, cachedAiAudio.value.mime);
     return;
   }
@@ -8069,13 +8100,13 @@ async function speakAiSummary(text, forceApi = false) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: text,
-        language: aiLanguage.value || currentLang.value || 'mr',
+        language: lang,
         voice: 'Kore'
       })
     });
     const data = await res.json();
     if (res.ok && data.success && data.audio_base64) {
-      cachedAiAudio.value = { b64: data.audio_base64, mime: data.mime_type || 'audio/wav' };
+      cachedAiAudio.value = { b64: data.audio_base64, mime: data.mime_type || 'audio/wav', lang: lang };
       playNaturalAiAudio(data.audio_base64, data.mime_type || 'audio/wav');
       return;
     }
@@ -8083,15 +8114,20 @@ async function speakAiSummary(text, forceApi = false) {
     console.warn('Gemini TTS network warning, falling back to browser speech:', e);
   }
 
-  // Fallback to browser speechSynthesis
+  // Fallback to browser speechSynthesis in the exact chosen language
   if (!('speechSynthesis' in window) || !text) return;
   try {
-    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const lang = aiLanguage.value || currentLang.value || 'mr';
     utterance.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
-    utterance.rate = 1.0;
-    utterance.pitch = 1.05;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const voiceMatch = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(utterance.lang.toLowerCase()) || v.lang.toLowerCase().startsWith(lang));
+    if (voiceMatch) {
+      utterance.voice = voiceMatch;
+    }
+
     window.speechSynthesis.speak(utterance);
   } catch (e) {
     console.warn('Speech synthesis warning:', e);
@@ -8346,14 +8382,28 @@ async function handleProcessAiOrder() {
     const data = await res.json();
     if (res.ok && data.success) {
       aiResult.value = data;
+      // If backend detected regional Marathi or Hindi from the customer's input, sync aiLanguage
+      if (data.language && ['mr', 'hi', 'en'].includes(data.language)) {
+        aiLanguage.value = data.language;
+      }
+
+      // Ensure displayed summary text strictly matches the active language
+      if (aiLanguage.value === 'mr' && data.summary_text_mr) {
+        aiResult.value.summary_text = data.summary_text_mr;
+      } else if (aiLanguage.value === 'hi' && data.summary_text_hi) {
+        aiResult.value.summary_text = data.summary_text_hi;
+      } else if (aiLanguage.value === 'en' && data.summary_text_en) {
+        aiResult.value.summary_text = data.summary_text_en;
+      }
+
       if (data.raw_text && !aiInputText.value.trim()) {
         aiInputText.value = data.raw_text;
       }
       if (data.audio_base64) {
-        cachedAiAudio.value = { b64: data.audio_base64, mime: data.audio_mime_type || 'audio/wav' };
+        cachedAiAudio.value = { b64: data.audio_base64, mime: data.audio_mime_type || 'audio/wav', lang: aiLanguage.value };
         playNaturalAiAudio(data.audio_base64, data.audio_mime_type || 'audio/wav');
-      } else if (data.summary_text) {
-        speakAiSummary(data.summary_text);
+      } else if (aiResult.value.summary_text) {
+        speakAiSummary(aiResult.value.summary_text, true);
       }
     } else {
       showToast(data.error || 'ऑर्डर तयार करताना अडचण आली. कृपया पुन्हा प्रयत्न करा.');

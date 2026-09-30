@@ -1973,6 +1973,15 @@ def create_app():
         mime_type = (data.get('mime_type') or 'audio/webm').strip()
         lang = (data.get('language') or 'mr').lower()
 
+        # Automatic Language Detection: If customer spoke or typed in Marathi or Hindi, respect that language
+        if raw_text and re.search(r'[\u0900-\u097F]', raw_text):
+            if re.search(r'(?:साखर|तांदूळ|पीठ|डाळ|आहे|पाहिजे|द्या|दोन|पाच|हवा|हवे|नको|मराठी|स्वस्त|तसेच|आणि|दीड|अडीच|सव्वा|पाव|पाऊण)', raw_text):
+                lang = 'mr'
+            elif re.search(r'(?:चीनी|चावल|आटा|दाल|है|चाहिए|देना|दो|पांच|चाहिये|नहीं|और|सस्ता|दे|दीजिये|डेढ़|ढाई|सवा|पौना)', raw_text):
+                lang = 'hi'
+            elif lang == 'en':
+                lang = 'mr'
+
         if raw_text:
             raw_text = raw_text.translate(str.maketrans('०१२३४५६७८९', '0123456789'))
 
@@ -2266,8 +2275,19 @@ def create_app():
                 })
                 estimated_total += p_line_total
 
-        summary_key = f'summary_text_{lang}'
-        summary_msg = ai_data.get(summary_key) or ai_data.get('summary_text_mr') or ai_data.get('summary_text_hi') or ai_data.get('summary_text_en') or 'सामान ड्राफ्ट बिलमध्ये जोडले आहे.'
+        summary_mr = ai_data.get('summary_text_mr')
+        summary_hi = ai_data.get('summary_text_hi')
+        summary_en = ai_data.get('summary_text_en')
+
+        matched_count = len([it for it in verified_items if it.get('match_status') == 'matched'])
+        if not summary_mr:
+            summary_mr = f"कोमल मार्टमध्ये {matched_count} वस्तू यशस्वीरित्या जोडल्या आहेत."
+        if not summary_hi:
+            summary_hi = f"कोमल मार्ट में {matched_count} सामान सफलतापूर्वक जोड़ दिया गया है।"
+        if not summary_en:
+            summary_en = f"Successfully added {matched_count} items to your Komal Mart order."
+
+        summary_msg = summary_mr if lang == 'mr' else (summary_hi if lang == 'hi' else summary_en)
 
         # Step 4: Synthesize high-fidelity Marathi / Hindi spoken audio with Gemini 3.8 Flash-Lite TTS
         tts_audio = None
@@ -2287,6 +2307,10 @@ def create_app():
             'items': verified_items,
             'estimated_total': round(estimated_total, 2),
             'summary_text': summary_msg,
+            'summary_text_mr': summary_mr,
+            'summary_text_hi': summary_hi,
+            'summary_text_en': summary_en,
+            'language': lang,
             'audio_base64': tts_audio,
             'audio_mime_type': tts_mime
         })
