@@ -112,7 +112,7 @@ export const translations = {
 
     // Checkout
     checkout_title: "डिलिव्हरी व बिलाचा तपशील",
-    delivery_type_home: "🛵 ३० मिनिटांत घरपोच डिलिव्हरी (Home Delivery)",
+    delivery_type_home: "🛵 घरपोच डिलिव्हरी (Home Delivery)",
     delivery_type_pickup: "🏬 दुकान काउंटरवरून स्वतः उचलणे (Store Pickup)",
     delivery_zone_title: "डिलिव्हरी परिसर व पिनकोड (Wadala Zone)",
     delivery_pincode_error: "⚠️ दिलगीर आहोत! सध्या घरपोच डिलिव्हरी फक्त वडाळा व लगतच्या परिसरासाठी (४०००३१, ४०००३७...) मर्यादित आहे. तुम्ही 'दुकान काउंटरवरून स्वतः उचलणे' निवडू शकता.",
@@ -121,9 +121,11 @@ export const translations = {
     cust_name_label: "ग्राहकाचे पूर्ण नाव *",
     cust_phone_label: "मोबाईल नंबर *",
     cust_address_label: "डिलिव्हरी पत्ता / लँडमार्क *",
-    delivery_slot_title: "डिलिव्हरीची वेळ निवडा *",
-    slot_express_title: "३० मिनिट एक्सप्रेस डिलिव्हरी",
-    slot_express_desc: "सध्याचे सक्रिय स्थानिक रायडर्स",
+    delivery_slot_title: "डिलिव्हरी प्रकार व वेळ निवडा *",
+    slot_standard_title: "📦 प्रमाणित डिलिव्हरी (काही तासांत / आजच)",
+    slot_standard_desc: "₹५००+ वर मोफत (किंवा ₹३५). आज काही तासांत घरपोच.",
+    slot_express_title: "⚡ तातडीची एक्सप्रेस डिलिव्हरी (३० मिनिटांत)",
+    slot_express_desc: "तातडीचा किराणा. ₹५० एक्सप्रेस प्राधान्य शुल्क लागू.",
     slot_evening_title: "आज संध्याकाळी (६ ते ९)",
     slot_evening_desc: "संध्याकाळचा सोयीस्कर स्लॉट",
     slot_morning_title: "उद्या सकाळी (८ ते ११)",
@@ -277,7 +279,7 @@ export const translations = {
     add_to_unlock_free: "आणखी फक्त",
     delivery_charge_label: "डिलिव्हरी शुल्क",
     delivery_free_badge: "मोफत (FREE)",
-    under_threshold_warning: "₹300 पेक्षा कमी ऑर्डरवर ₹25 डिलिव्हरी शुल्क लागू आहे. मोफत डिलिव्हरीसाठी खालीलपैकी काहीही जोडा!",
+    under_threshold_warning: "₹५०० पेक्षा कमी ऑर्डरवर ₹३५ डिलिव्हरी शुल्क लागू आहे. मोफत डिलिव्हरीसाठी खालीलपैकी काहीही जोडा!",
 
     // Admin Orders & Batch Print
     admin_view_bill: "🧾 पावती / बिल पहा",
@@ -495,7 +497,7 @@ export const translations = {
 
     // Checkout
     checkout_title: "डिलीवरी व बिल विवरण",
-    delivery_type_home: "🛵 ३० मिनट में होम डिलीवरी (Home Delivery)",
+    delivery_type_home: "🛵 होम डिलीवरी (Home Delivery)",
     delivery_type_pickup: "🏬 दुकान काउंटर से स्वयं पिकअप (Store Pickup)",
     delivery_zone_title: "डिलीवरी क्षेत्र व पिनकोड (Wadala Zone)",
     delivery_pincode_error: "⚠️ क्षमा करें! वर्तमान में होम डिलीवरी केवल वडाला व आसपास (400031, 400037...) के लिए सीमित है। आप 'दुकान काउंटर से पिकअप' चुन सकते हैं।",
@@ -504,9 +506,11 @@ export const translations = {
     cust_name_label: "ग्राहक का पूरा नाम *",
     cust_phone_label: "मोबाइल नंबर *",
     cust_address_label: "डिलीवरी का पता / लैंडमार्क *",
-    delivery_slot_title: "डिलीवरी का समय चुनें *",
-    slot_express_title: "30 मिनट एक्सप्रेस डिलीवरी",
-    slot_express_desc: "नज़दीकी स्थानीय राइडर द्वारा",
+    delivery_slot_title: "डिलीवरी का प्रकार व समय चुनें *",
+    slot_standard_title: "📦 स्टैंडर्ड डिलीवरी (कुछ घंटों में / आज ही)",
+    slot_standard_desc: "₹500+ पर मुफ़्त (अन्यथा ₹35)। आज कुछ घंटों में घरपोच।",
+    slot_express_title: "⚡ ज़रूरी एक्सप्रेस डिलीवरी (30 मिनट में)",
+    slot_express_desc: "इमरजेंसी राशन तुरंत रवानगी। ₹50 एक्सप्रेस प्राथमिकता शुल्क लागू।",
     slot_evening_title: "आज शाम (6 से 9 बजे)",
     slot_evening_desc: "शाम का सुविधाजनक समय",
     slot_morning_title: "कल सुबह (8 से 11 बजे)",
@@ -660,7 +664,7 @@ export const translations = {
     add_to_unlock_free: "बस",
     delivery_charge_label: "डिलीवरी शुल्क",
     delivery_free_badge: "मुफ़्त (FREE)",
-    under_threshold_warning: "₹300 से कम के ऑर्डर पर ₹25 डिलीवरी शुल्क है। मुफ़्त डिलीवरी हेतु नीचे से सामान जोड़ें!",
+    under_threshold_warning: "₹500 से कम के ऑर्डर पर ₹35 डिलीवरी शुल्क है। मुफ़्त डिलीवरी हेतु नीचे से सामान जोड़ें!",
 
     // Admin Orders & Batch Print
     admin_view_bill: "🧾 पर्चा / बिल देखें",
@@ -878,7 +882,7 @@ export const translations = {
 
     // Checkout
     checkout_title: "Delivery & Billing Details",
-    delivery_type_home: "🛵 30-Min Express Home Delivery",
+    delivery_type_home: "🛵 Home Delivery",
     delivery_type_pickup: "🏬 Store Counter Pickup (Free)",
     delivery_zone_title: "Delivery Area & Pincode (Wadala Zone)",
     delivery_pincode_error: "⚠️ Delivery Unavailable: Currently delivering strictly within Wadala & nearby (400031, 400037...). You can choose Store Counter Pickup.",
@@ -887,9 +891,11 @@ export const translations = {
     cust_name_label: "Full Name *",
     cust_phone_label: "Phone Number (10-Digit) *",
     cust_address_label: "Delivery Address & Landmark *",
-    delivery_slot_title: "Select Delivery Time Slot *",
-    slot_express_title: "30-Minute Express Delivery",
-    slot_express_desc: "Nearest local delivery partner",
+    delivery_slot_title: "Select Delivery Speed & Timing *",
+    slot_standard_title: "📦 Standard Delivery (Same Day / Few Hours)",
+    slot_standard_desc: "FREE on ₹500+ (or ₹35). Relaxed delivery within a few hours today.",
+    slot_express_title: "⚡ Urgent Express (Under 30 Mins)",
+    slot_express_desc: "Emergency grocery dispatch. Flat ₹50 priority fee applies.",
     slot_evening_title: "Today Evening (6 PM - 9 PM)",
     slot_evening_desc: "Convenient after-work slot",
     slot_morning_title: "Tomorrow Morning (8 AM - 11 AM)",
@@ -1043,7 +1049,7 @@ export const translations = {
     add_to_unlock_free: "Add just",
     delivery_charge_label: "Delivery Charge",
     delivery_free_badge: "FREE",
-    under_threshold_warning: "Orders below ₹300 incur a nominal ₹25 delivery fee. Add any item below to get FREE delivery!",
+    under_threshold_warning: "Orders below ₹500 incur a nominal ₹35 delivery fee. Add any item below to get FREE delivery!",
 
     // Admin Orders & Batch Print
     admin_view_bill: "🧾 View Full Invoice",

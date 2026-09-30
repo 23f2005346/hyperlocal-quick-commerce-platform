@@ -1457,6 +1457,59 @@ a {
   justify-content: center;
 }
 
+.delivery-slot-card.urgent-card.active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.delivery-slot-card.urgent-card.active .slot-check-icon {
+  background: #d97706;
+}
+
+.urgent-express-callout {
+  margin-top: 10px;
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.urgent-express-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.urgent-express-callout-text {
+  font-size: 0.8rem;
+  color: #78350f;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.urgent-express-switch-btn {
+  background: #ffffff;
+  border: 1.5px solid #f59e0b;
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.urgent-express-switch-btn:hover {
+  background: #fef3c7;
+  color: #78350f;
+}
+
 /* Payment Notice Banners */
 .payment-notice-banner {
   padding: 12px;

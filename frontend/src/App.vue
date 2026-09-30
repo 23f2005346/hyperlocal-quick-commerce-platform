@@ -266,7 +266,7 @@
       <div class="mobile-app-quick-strip">
         <div class="quick-strip-left">
           <span>⚡</span>
-          <span>{{ currentLang === 'en' ? '30-Min Fast Wadala Delivery • Free on ₹300+' : (currentLang === 'mr' ? '३० मिनिट वडाळा डिलिव्हरी • ₹३००+ वर मोफत' : '30 मिनट वडाला डिलीवरी • ₹300+ पर फ्री') }}</span>
+          <span>{{ currentLang === 'en' ? 'Fast Wadala Delivery • Free on ₹500+' : (currentLang === 'mr' ? 'जलद वडाळा डिलिव्हरी • ₹५००+ वर मोफत' : 'तेज़ वडाला डिलीवरी • ₹500+ पर फ्री') }}</span>
         </div>
         <button
           type="button"
@@ -3885,28 +3885,28 @@
         <!-- Free Delivery Progress Meter -->
         <div class="free-delivery-meter" v-if="cart.length > 0">
           <div class="meter-text-row">
-            <span v-if="Number(cartTotalAmount) < 300">
-              🛵 {{ t('free_delivery_need') }} <strong>₹{{ (300 - Number(cartTotalAmount)).toFixed(2) }}</strong> {{ t('free_delivery_reach') }} <strong>{{ t('free_delivery_text') }}</strong>
+            <span v-if="Number(cartTotalAmount) < DELIVERY_FREE_THRESHOLD">
+              🛵 {{ t('free_delivery_need') }} <strong>₹{{ (DELIVERY_FREE_THRESHOLD - Number(cartTotalAmount)).toFixed(2) }}</strong> {{ t('free_delivery_reach') }} <strong>{{ t('free_delivery_text') }}</strong>
             </span>
             <span v-else style="color: #064e3b; font-weight: 800;">
               🎉 {{ t('free_delivery_success') }}
             </span>
-            <span class="meter-pct-badge">{{ Math.min(100, Math.round((Number(cartTotalAmount) / 300) * 100)) }}%</span>
+            <span class="meter-pct-badge">{{ Math.min(100, Math.round((Number(cartTotalAmount) / DELIVERY_FREE_THRESHOLD) * 100)) }}%</span>
           </div>
           <div class="meter-track">
             <div
               class="meter-bar"
-              :class="{ completed: Number(cartTotalAmount) >= 300 }"
-              :style="{ width: Math.min(100, Math.round((Number(cartTotalAmount) / 300) * 100)) + '%' }"
+              :class="{ completed: Number(cartTotalAmount) >= DELIVERY_FREE_THRESHOLD }"
+              :style="{ width: Math.min(100, Math.round((Number(cartTotalAmount) / DELIVERY_FREE_THRESHOLD) * 100)) + '%' }"
             ></div>
           </div>
         </div>
 
         <!-- Smart Add-ons for Free Delivery -->
-        <div class="cart-addons-section" v-if="cart.length > 0 && Number(cartTotalAmount) < 300 && smartAddons.length > 0">
+        <div class="cart-addons-section" v-if="cart.length > 0 && Number(cartTotalAmount) < DELIVERY_FREE_THRESHOLD && smartAddons.length > 0">
           <div class="cart-addons-header">
             <span class="addons-title">{{ t('free_delivery_addons_title') }}</span>
-            <span class="addons-fee-tag">₹25 {{ t('delivery_charge_label') }}</span>
+            <span class="addons-fee-tag">₹{{ DELIVERY_STANDARD_FEE }} {{ t('delivery_charge_label') }}</span>
           </div>
           <p class="addons-subtext">
             {{ t('under_threshold_warning') }}
@@ -4132,7 +4132,10 @@
                   v-for="slot in deliverySlotOptions"
                   :key="slot.id"
                   class="delivery-slot-card"
-                  :class="{ active: customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label }"
+                  :class="{ 
+                    active: customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label,
+                    'urgent-card': slot.id === 'urgent' || slot.id === 'instant'
+                  }"
                   @click="customerForm.deliverySlot = slot.id"
                 >
                   <div class="slot-icon">{{ slot.icon }}</div>
@@ -4142,6 +4145,37 @@
                   </div>
                   <div class="slot-check-icon" v-if="customerForm.deliverySlot === slot.id || customerForm.deliverySlot === slot.label">✓</div>
                 </div>
+              </div>
+
+              <!-- Accidental Click / Priority Notice for Urgent 30-min Delivery -->
+              <div
+                v-if="isUrgentDelivery"
+                class="urgent-express-callout"
+              >
+                <div class="urgent-express-callout-header">
+                  <span class="urgent-bolt">⚡</span>
+                  <strong>{{ currentLang === 'en' ? 'Urgent Express Surcharge Notice' : (currentLang === 'mr' ? 'तातडीची एक्सप्रेस डिलिव्हरी सूचना' : 'ज़रूरी एक्सप्रेस डिलीवरी सूचना') }}</strong>
+                </div>
+                <p class="urgent-express-callout-text">
+                  {{ currentLang === 'en'
+                    ? 'Under 30-minute delivery requires dedicated immediate dispatch and carries an express priority fee of ₹50.'
+                    : (currentLang === 'mr'
+                      ? '३० मिनिटांच्या आत तातडीच्या डिलिव्हरीसाठी विशेष रायडरची सोय केली जाते, यासाठी ₹५० एक्सप्रेस प्राधान्य शुल्क आकारले जाईल.'
+                      : '30 मिनट के भीतर तुरंत डिलीवरी के लिए विशेष राइडर भेजा जाता है, इसके लिए ₹50 एक्सप्रेस प्राथमिकता शुल्क लगेगा।')
+                  }}
+                </p>
+                <button
+                  type="button"
+                  class="urgent-express-switch-btn"
+                  @click="customerForm.deliverySlot = 'standard'"
+                >
+                  {{ currentLang === 'en'
+                    ? '← Switch to Standard Delivery (Free on ₹500+)'
+                    : (currentLang === 'mr'
+                      ? '← प्रमाणित डिलिव्हरीत बदला (₹५००+ वर मोफत)'
+                      : '← सामान्य स्टैंडर्ड डिलीवरी चुनें (₹500+ पर मुफ़्त)')
+                  }}
+                </button>
               </div>
             </div>
           </template>
@@ -6740,7 +6774,7 @@ const customerForm = ref({
   address: '',
   deliveryType: 'home_delivery', // 'home_delivery' | 'store_pickup'
   pincode: '400031',
-  deliverySlot: 'instant',
+  deliverySlot: 'standard',
   paymentMethod: 'Cash on Delivery (COD)',
   upiConfirmed: false,
   utrNumber: ''
@@ -6763,27 +6797,24 @@ const isPincodeServiceable = computed(() => {
   return ALLOWED_PINCODES.has(pin);
 });
 
+const isUrgentDelivery = computed(() => {
+  return customerForm.value.deliverySlot === 'urgent' || customerForm.value.deliverySlot === 'instant';
+});
+
 const deliverySlotOptions = computed(() => [
   {
-    id: 'instant',
+    id: 'standard',
+    icon: '📦',
+    title: t('slot_standard_title'),
+    desc: t('slot_standard_desc'),
+    label: currentLang.value === 'en' ? '📦 Standard Delivery (Same Day)' : (currentLang.value === 'mr' ? '📦 प्रमाणित डिलिव्हरी (आजच)' : '📦 स्टैंडर्ड डिलीवरी (आज ही)')
+  },
+  {
+    id: 'urgent',
     icon: '⚡',
-    title: currentLang.value === 'en' ? '30 Mins (Instant Delivery)' : (currentLang.value === 'mr' ? '३० मिनिटांत (Instant Delivery)' : '30 मिनट में (Instant Delivery)'),
-    desc: currentLang.value === 'en' ? 'Fresh & fast right to your doorstep' : (currentLang.value === 'mr' ? 'ताजे व त्वरित तुमच्या दारात' : 'ताज़ा व तुरंत आपके दरवाज़े पर'),
-    label: currentLang.value === 'en' ? '⚡ 30 Mins (Instant - 30 Mins)' : (currentLang.value === 'mr' ? '⚡ ३० मिनिटांत (Instant - 30 Mins)' : '⚡ 30 मिनट में (Instant - 30 Mins)')
-  },
-  {
-    id: 'morning',
-    icon: '🌅',
-    title: currentLang.value === 'en' ? 'Morning Slot (7:00 - 10:00 AM)' : (currentLang.value === 'mr' ? 'सकाळचा स्लॉट (7:00 - 10:00 AM)' : 'सुबह का स्लॉट (7:00 - 10:00 AM)'),
-    desc: currentLang.value === 'en' ? 'Fresh breakfast, milk & daily essentials' : (currentLang.value === 'mr' ? 'ताजा चहा, दूध व सकाळचा नाश्ता' : 'ताज़ी चाय, दूध व सुबह का नाश्ता'),
-    label: currentLang.value === 'en' ? '🌅 Morning (7:00 AM - 10:00 AM)' : (currentLang.value === 'mr' ? '🌅 सकाळ (7:00 AM - 10:00 AM)' : '🌅 सुबह (7:00 AM - 10:00 AM)')
-  },
-  {
-    id: 'evening',
-    icon: '🌆',
-    title: currentLang.value === 'en' ? 'Evening Slot (6:00 - 9:00 PM)' : (currentLang.value === 'mr' ? 'संध्याकाळचा स्लॉट (6:00 - 9:00 PM)' : 'शाम का स्लॉट (6:00 - 9:00 PM)'),
-    desc: currentLang.value === 'en' ? 'Dinner preparation & daily staples' : (currentLang.value === 'mr' ? 'रात्रीच्या जेवणासाठी व रोजचा किराणा' : 'रात के खाने व अगले दिन का राशन'),
-    label: currentLang.value === 'en' ? '🌆 Evening (6:00 PM - 9:00 PM)' : (currentLang.value === 'mr' ? '🌆 संध्याकाळ (6:00 PM - 9:00 PM)' : '🌆 शाम (6:00 PM - 9:00 PM)')
+    title: t('slot_express_title'),
+    desc: t('slot_express_desc'),
+    label: currentLang.value === 'en' ? '⚡ Urgent Express (Under 30 Mins)' : (currentLang.value === 'mr' ? '⚡ तातडीची एक्सप्रेस (३० मिनिटांत)' : '⚡ ज़रूरी एक्सप्रेस (30 मिनट में)')
   }
 ]);
 
@@ -8778,12 +8809,16 @@ const cartTotalSavings = computed(() => {
 });
 
 // Delivery Economics & Smart Add-ons
-const DELIVERY_FREE_THRESHOLD = 300;
-const DELIVERY_STANDARD_FEE = 25;
+const DELIVERY_FREE_THRESHOLD = 500;
+const DELIVERY_STANDARD_FEE = 35;
+const DELIVERY_EXPRESS_FEE = 50;
 
 const deliveryFee = computed(() => {
   if (cart.value.length === 0) return 0;
   if (customerForm.value.deliveryType === 'store_pickup') return 0;
+  if (isUrgentDelivery.value) {
+    return DELIVERY_EXPRESS_FEE;
+  }
   return Number(cartTotalAmount.value) < DELIVERY_FREE_THRESHOLD ? DELIVERY_STANDARD_FEE : 0;
 });
 
@@ -8930,13 +8965,17 @@ async function submitOrder() {
       })
     };
 
-    // If order total is below ₹300, attach delivery fee line item to persist in DB & bills
+    // If order has delivery fee, attach delivery fee line item to persist in DB & bills
     if (deliveryFee.value > 0) {
+      const isUrgent = isUrgentDelivery.value;
+      const feeLabel = isUrgent
+        ? (currentLang.value === 'en' ? '⚡ Urgent Express Priority Fee (Under 30 Mins)' : (currentLang.value === 'mr' ? '⚡ तातडीची एक्सप्रेस डिलिव्हरी शुल्क (३० मिनिटे)' : '⚡ ज़रूरी एक्सप्रेस डिलीवरी शुल्क (30 मिनट)'))
+        : (currentLang.value === 'en' ? 'Standard Delivery Fee (Under ₹500)' : (currentLang.value === 'mr' ? 'प्रमाणित डिलिव्हरी शुल्क (₹५०० पेक्षा कमी)' : 'स्टैंडर्ड डिलीवरी शुल्क (₹500 से कम)'));
       payload.items.push({
         is_custom_weight: true,
         product_id: null,
-        product_name: `${t('delivery_charge_label')} (डिलिव्हरी शुल्क)`,
-        unit_size: 'Standard',
+        product_name: feeLabel,
+        unit_size: isUrgent ? '30-Min Priority' : 'Standard',
         unit_price: deliveryFee.value,
         subtotal: deliveryFee.value,
         mrp: deliveryFee.value
