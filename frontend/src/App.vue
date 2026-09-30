@@ -8081,7 +8081,7 @@ function initSpeechRecognition() {
   speechSupported.value = true;
 }
 
-function playNaturalAiAudio(audioB64, mime = 'audio/wav') {
+function playNaturalAiAudio(audioB64, mime = 'audio/mpeg') {
   try {
     if (currentAiAudioPlayer) {
       currentAiAudioPlayer.pause();
@@ -8157,7 +8157,7 @@ async function speakAiSummary(text, forceApi = false) {
   // If Gemini API is available, try cloud synthesis with 2-second timeout
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(`${API_BASE}/ai/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -8171,8 +8171,9 @@ async function speakAiSummary(text, forceApi = false) {
     clearTimeout(timeoutId);
     const data = await res.json();
     if (res.ok && data.success && data.audio_base64) {
-      cachedAiAudio.value = { b64: data.audio_base64, mime: data.mime_type || 'audio/wav', lang: lang };
-      playNaturalAiAudio(data.audio_base64, data.mime_type || 'audio/wav');
+      const audioMime = data.mime_type || 'audio/mpeg';
+      cachedAiAudio.value = { b64: data.audio_base64, mime: audioMime, lang: lang };
+      playNaturalAiAudio(data.audio_base64, audioMime);
       return;
     }
   } catch (e) {
@@ -8443,8 +8444,9 @@ async function handleProcessAiOrder() {
         aiInputText.value = data.raw_text;
       }
       if (data.audio_base64) {
-        cachedAiAudio.value = { b64: data.audio_base64, mime: data.audio_mime_type || 'audio/wav', lang: aiLanguage.value };
-        playNaturalAiAudio(data.audio_base64, data.audio_mime_type || 'audio/wav');
+        const audioMime = data.audio_mime_type || 'audio/mpeg';
+        cachedAiAudio.value = { b64: data.audio_base64, mime: audioMime, lang: aiLanguage.value };
+        playNaturalAiAudio(data.audio_base64, audioMime);
       } else if (aiResult.value.summary_text) {
         speakAiSummary(aiResult.value.summary_text, true);
       }
