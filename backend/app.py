@@ -404,11 +404,11 @@ SEARCH_ALIASES = {
     'velchi': ['elaichi', 'elachi', 'cardamom', 'velchi', 'वेलची', 'इलायची'],
     'soyabean': ['soyabean', 'soya', 'soya dana', 'सोयाबीन', 'सोयाबीन दाना'],
     'soya': ['soyabean', 'soya', 'soya dana', 'सोयाबीन', 'सोयाबीन दाना'],
-    'pisai': ['pisai', 'pisva', 'pisun', 'dalne', 'daloon', 'dalwan', 'chakki', 'दळण', 'पिसाई'],
-    'dalne': ['pisai', 'dalne', 'daloon', 'chakki', 'दळण', 'पिसाई'],
-    'chakki': ['chakki', 'pisai', 'dalne', 'दळण', 'पिसाई'],
-    'dhania': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
-    'dhaniya': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'masala'],
+    'pisai': ['pisai', 'pisva', 'pisun', 'dalne', 'daloon', 'dalwan', 'chakki pisai', 'दळण', 'पिसाई'],
+    'dalne': ['pisai', 'dalne', 'daloon', 'chakki pisai', 'दळण', 'पिसाई'],
+    'chakki pisai': ['chakki pisai', 'pisai', 'dalne', 'दळण', 'पिसाई'],
+    'dhania': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'dhana powder', 'masala'],
+    'dhaniya': ['dhania', 'dhaniya', 'coriander', 'धने', 'धनिया', 'dhana powder', 'masala'],
 
     # Tea / Beverages
     'tea': ['tea', 'chai', 'chaha', 'चहा', 'चाय', 'tata tea', 'red label', 'wagh bakri', 'taj mahal'],
@@ -584,16 +584,19 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         "   - If customer asks to add/mix soyabean into the wheat (e.g. 'usme 100 gram / 200 gram soyabean mix kar dena' or 'soyabean dal dena'):\n"
         "     Match 'Whole Soyabean Grain for Flour Mixing' with the requested quantity (e.g. 100g or 200g pack).\n"
         "4. Accurate Variant Multiplier Matching (CRITICAL - NEVER USE FRACTIONAL PACK MULTIPLIERS):\n"
-        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '6 kilo gehun', '500g toor daal', '250g haldi'):\n"
-        "     a) If an exact pack size matches that amount across any available brand or loose variant (e.g. 250g pack for '250g', 500g pack for '500g', 2kg pack for '2 kilo', 5kg pack for '5 kilo', 10kg pack for '10 kilo'):\n"
-        "        Match that EXACT variant with quantity = 1. ALWAYS prioritize matching the customer's stated size (e.g. 250g) over a larger size (e.g. 500g).\n"
-        "     b) If no single variant matches that exact weight (e.g. '3 kilo sugar', '4 kilo aata', '6 kilo chawal'):\n"
+        "   - When customer asks for a specific total weight or count (e.g. '2 kilo aata', '3 kilo chini', '4 kilo chawal', '5 kilo chakki atta', '6 kilo gehun', '500g toor daal', '250g haldi'):\n"
+        "     a) For LOOSE staple commodities (is_loose is true, like loose atta, sugar, rice, dal, besan, poha, maida):\n"
+        "        When ordered in whole integer kilograms (1kg, 2kg, 3kg, 4kg, 5kg, 10kg, etc.), ALWAYS choose the base 1KG VARIANT and set quantity equal to that integer weight (e.g. 5kg chakki atta -> base 1kg variant with quantity = 5; 2kg sugar -> base 1kg variant with quantity = 2).\n"
+        "        This ensures the counter stepper matches the exact kilograms the customer ordered (5 for 5kg, 2 for 2kg) across all loose products identically!\n"
+        "     b) For BRANDED packaged goods (is_loose is false, e.g. Aashirvaad 5kg bag, Fortune 5L can) or small packaged spices/pouches (e.g. 250g haldi, 500g dal):\n"
+        "        If an exact pack size matches that amount, match that EXACT variant with quantity = 1.\n"
+        "     c) If no single variant matches that exact weight:\n"
         "        Choose the standard BASE 1KG VARIANT and set quantity equal to that weight in integer kgs (e.g. quantity = 3 for 3 kilo, quantity = 4 for 4 kilo).\n"
         "        NEVER pick a 2kg or 5kg variant and set a fractional quantity like 1.5 or 0.8! Always use integer multiples of the 1kg variant!\n"
-        "     c) For half-kg fractions (e.g. '1.5 kilo', '2.5 kilo'): if a 500g variant exists, use it (quantity = 3 or 5), or use 1kg variant with 1.5. NEVER assign 1.5 to a 2kg variant!\n"
-        "     d) Packaged FMCG & Bathing Soaps (e.g. 'ek dettol sabun', '2 lux', '3 lifebuoy', 'dettol ka 4 pack', 'lux ka 4+1 pack'):\n"
-        "        - If customer asks for single bars or count (e.g. '1 dettol sabun', '2 lux sabun', '3 lifebuoy'): choose the SINGLE BAR variant (e.g. '75g Single Bar' or '100g Bar') with quantity = count (1, 2, 3).\n"
-        "        - If customer asks for a pack/multipack (e.g. '4 pack', 'pack of 4', '4+1 pack'): choose the MULTIPACK variant (e.g. 'Pack of 4 x 75g' or 'Pack of 4') with quantity = number of packs.\n"
+        "     d) For half-kg fractions (e.g. '1.5 kilo', '2.5 kilo'): if a 500g variant exists, use it (quantity = 3 or 5), or use 1kg variant with 1.5. NEVER assign 1.5 to a 2kg variant!\n"
+        "     e) Packaged FMCG & Bathing Soaps (e.g. 'ek dettol sabun', '2 lux', '3 lifebuoy', 'dettol ka 4 pack', 'lux ka 4+1 pack'):\n"
+        "        - If customer asks for single bars or count: choose the SINGLE BAR variant (e.g. '75g Single Bar' or '100g Bar') with quantity = count (1, 2, 3).\n"
+        "        - If customer asks for a pack/multipack: choose the MULTIPACK variant (e.g. 'Pack of 4 x 75g' or 'Pack of 4') with quantity = number of packs.\n"
         "     Set match_status to 'matched'. NEVER set match_status to 'ambiguous' when customer explicitly specified a weight or count!\n"
         "5. Spoken Corrections, Quantity Updates & Removals (CRITICAL):\n"
         "   - Customers often correct themselves while reciting a monthly list: e.g. '5 kg toor daal, 2 kilo aata, 3 kilo chini... oh wait can you do aata 12kg, 2 kilo nahi' or 'chini mat lena / chini cancel'.\n"
@@ -777,11 +780,12 @@ def fallback_heuristic_order_parser(raw_text, all_products):
 
     vernacular_nums = {
         'aadha': 0.5, 'adha': 0.5, 'ardha': 0.5, 'aradha': 0.5, 'half': 0.5, 'अर्धा': 0.5, 'आधा': 0.5,
-        'pav': 0.25, 'paav': 0.25, 'quarter': 0.25, 'पाव': 0.25,
-        'paun': 0.75, 'pauna': 0.75, 'पाऊण': 0.75, 'पौना': 0.75,
-        'dedh': 1.5, 'deedh': 1.5, 'दीड': 1.5, 'डेढ़': 1.5,
-        'dhai': 2.5, 'अडीच': 2.5, 'ढाई': 2.5,
-        'sawa': 1.25, 'सव्वा': 1.25, 'सवा': 1.25,
+        'pav': 0.25, 'paav': 0.25, 'paw': 0.25, 'pao': 0.25, 'quarter': 0.25, 'पाव': 0.25,
+        'paun': 0.75, 'pauna': 0.75, 'paune': 0.75, 'पाऊण': 0.75, 'पौना': 0.75,
+        'dedh': 1.5, 'deedh': 1.5, 'dhed': 1.5, 'dheed': 1.5, 'दीड': 1.5, 'डेढ़': 1.5,
+        'dhai': 2.5, 'dhaee': 2.5, 'dhaai': 2.5, 'अडीच': 2.5, 'ढाई': 2.5,
+        'sawa': 1.25, 'sawwa': 1.25, 'सव्वा': 1.25, 'सवा': 1.25,
+        'saade': 0.5, 'sadhe': 0.5,
         'ek': 1, 'do': 2, 'teen': 3, 'char': 4, 'paanch': 5, 'panch': 5, 'don': 2,
         'एक': 1, 'दोन': 2, 'तीन': 3, 'चार': 4, 'पाच': 5, 'सहा': 6, 'सात': 7, 'आठ': 8, 'नऊ': 9, 'दहा': 10
     }
@@ -907,6 +911,10 @@ def fallback_heuristic_order_parser(raw_text, all_products):
             elif is_premium:
                 active_vars.sort(key=lambda x: (x.clearance_price if x.is_clearance and x.clearance_price else x.selling_price), reverse=True)
                 matched_variant = active_vars[0]
+            elif matched_prod.is_loose and base_1kg_var and 1.0 <= qty < 25.0 and abs(qty - round(qty)) < 0.01:
+                # Loose mandi items ordered in whole kg (e.g. 5kg atta, 2kg sugar): use base 1kg with count = qty
+                matched_variant = base_1kg_var
+                qty = float(round(qty))
             elif exact_size_var:
                 matched_variant = exact_size_var
                 qty = 1.0  # matched exact pack
@@ -2139,9 +2147,9 @@ def create_app():
                     v_1kg = next((v for v in active_vars if '1kg' in v.unit_size.lower().replace(" ", "")), None)
                     v_500g = next((v for v in active_vars if '500g' in v.unit_size.lower().replace(" ", "")), None)
 
-                    if db_prod.is_loose and v_1kg and total_kg in (2.0, 3.0, 4.0):
-                        # Loose staples (sugar, atta, dals, rice) ordered in 2-4kg: use base 1kg variant
-                        # with qty = total_kg so counter stepper displays '2' for 2kg, '3' for 3kg, '4' for 4kg!
+                    if db_prod.is_loose and v_1kg and 1.0 <= total_kg < 25.0 and abs(total_kg - round(total_kg)) < 0.01:
+                        # Loose staples (sugar, atta, dals, rice) ordered in whole kilograms (1-20kg): use base 1kg variant
+                        # with qty = total_kg so counter stepper displays exact kilograms ('2' for 2kg, '5' for 5kg, etc.)!
                         db_var = v_1kg
                         v_id = v_1kg.id
                         qty = float(round(total_kg))
