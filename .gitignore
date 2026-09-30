@@ -9,4 +9,8 @@ backups/
 backend/backups/
 *.db-wal
 *.db-shm
+Products.images/
+backend/benchmark_results.json
+komal_mart_master_catalog_draft.md
+
 
