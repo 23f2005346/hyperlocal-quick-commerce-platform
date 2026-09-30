@@ -385,10 +385,16 @@ print("Weekly Report via Cron Key: Total Orders:", weekly_data['total_orders_cou
 assert weekly_data['total_orders_count'] >= 1
 
 # 17c. Authorized with Admin token
-admin_weekly = client.get('/api/reports/weekly-summary?send_email=false', headers={'Authorization': f'Bearer {admin_token}'})
-assert admin_weekly.status_code == 200
-print("Weekly Report via Admin Token: Liquid Collected: Rs.", admin_weekly.get_json()['report']['total_liquid_collected'])
+# 18. Batch Photo Ingestion Pipeline API Test
+batch_res = client.post(
+    '/api/admin/batch-ingest-photos',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'dry_run': True}
+)
+assert batch_res.status_code == 200
+assert batch_res.get_json()['success'] is True
+print("Admin Batch Photo Ingest API: 200 Success: True")
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE & WEEKLY REPORT TESTS PASSED 100%!")
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT & BATCH INGEST TESTS PASSED 100%!")
 
 

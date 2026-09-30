@@ -3961,6 +3961,26 @@ def create_app():
             'details': msg
         })
 
+    @app.route('/api/admin/batch-ingest-photos', methods=['POST'])
+    @admin_required
+    def trigger_batch_photo_ingest():
+        """
+        Scans backend/batch_photos directory, extracts product name, price, and units,
+        copies image assets to frontend/public/products, and upserts them into DB.
+        Accepts JSON: { dry_run: bool, dir: string }
+        """
+        from batch_ingest_images import ingest_batch_photos
+        data = request.get_json(silent=True) or {}
+        dry_run = bool(data.get('dry_run', False))
+        custom_dir = data.get('dir', 'backend/batch_photos')
+
+        try:
+            result = ingest_batch_photos(batch_dir=custom_dir, dry_run=dry_run, verbose=False, app_instance=app)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
     # --- STATIC FILE SERVING FOR PRODUCTION / SINGLE-PORT RUN ---
     frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')

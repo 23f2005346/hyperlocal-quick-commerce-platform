@@ -662,10 +662,17 @@
           </div>
           <div class="admin-header-actions">
             <button
-              @click="showAddProductModal = true"
+              @click="showAddProductModal = true; addProductMode = 'quick';"
               class="admin-action-chip admin-chip-primary"
             >
               ➕ {{ t('admin_add_product') }}
+            </button>
+            <button
+              @click="showBatchIngestModal = true"
+              class="admin-action-chip admin-chip-amber"
+              title="Zero-token automated inventory import from camera/phone photos"
+            >
+              ⚡ {{ currentLang === 'en' ? 'Batch Photos' : (currentLang === 'mr' ? 'बॅच फोटो आयात' : 'बैच फोटो आयात') }}
             </button>
             <button
               @click="downloadDatabaseBackup"
@@ -964,6 +971,14 @@
                           class="admin-inline-input"
                           style="width: 65px;"
                         />
+                        <button
+                          type="button"
+                          class="admin-quick-add-pill"
+                          @click="quickRestockVariant(v, 10)"
+                          title="1-Tap +10 Restock"
+                        >
+                          +10
+                        </button>
                         <span v-if="v.stock_quantity <= 5" class="low-stock-alert" :title="t('low_stock_pill')">
                           ⚠️ {{ t('low_stock_pill') }} ({{ v.stock_quantity }})
                         </span>
@@ -1111,6 +1126,25 @@
                         <input type="number" v-model.number="v.stock_quantity" class="admin-mob-inline-input" style="width: 48px;" />
                       </div>
                     </div>
+                    <!-- 1-Tap Quick Restock Chips (+10, +50) -->
+                    <div class="admin-mob-quick-restock-group">
+                      <button
+                        type="button"
+                        class="admin-mob-quick-add-qty-btn"
+                        @click="quickRestockVariant(v, 10)"
+                        title="Add +10 stock"
+                      >
+                        +10
+                      </button>
+                      <button
+                        type="button"
+                        class="admin-mob-quick-add-qty-btn"
+                        @click="quickRestockVariant(v, 50)"
+                        title="Add +50 stock"
+                      >
+                        +50
+                      </button>
+                    </div>
                     <button
                       class="admin-mob-save-btn"
                       @click="saveVariantPrice(v)"
@@ -1127,6 +1161,17 @@
               </div>
             </div>
           </div>
+
+          <!-- Dukandar Mobile Floating Action Button (1-Tap Add Item) -->
+          <button
+            type="button"
+            class="admin-mobile-fab"
+            @click="showAddProductModal = true; addProductMode = 'quick';"
+            title="सामान जोडा"
+          >
+            <span class="admin-fab-icon">➕</span>
+            <span class="admin-fab-text">{{ currentLang === 'mr' ? 'सामान जोडा' : (currentLang === 'hi' ? 'सामान जोड़ें' : 'Add Item') }}</span>
+          </button>
         </div>
 
         <!-- TAB 2: COUNTER BILLING (POS & PHONE ORDER CREATOR) -->
@@ -4518,15 +4563,215 @@
     <!-- ADD PRODUCT MODAL (ADMIN FEATURE)                        -->
     <!-- ======================================================== -->
     <div class="modal-overlay" v-if="showAddProductModal" @click.self="showAddProductModal = false">
-      <div class="modal-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b;">
-            ➕ नया किराना सामान जोड़ें (Add Product)
+      <div class="modal-card" style="max-width: 620px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>➕</span> {{ currentLang === 'mr' ? 'नवीन सामान जोडा (Add Product)' : (currentLang === 'hi' ? 'नया किराना सामान जोड़ें (Add Product)' : 'Add New Kirana Product') }}
           </h3>
           <button class="close-btn" @click="showAddProductModal = false">✕</button>
         </div>
 
-        <form @submit.prevent="submitNewProduct">
+        <!-- Mode Toggle: In-Shop Quick Add vs Full Detailed Form -->
+        <div class="admin-modal-mode-switch">
+          <button
+            type="button"
+            class="mode-switch-btn"
+            :class="{ active: addProductMode === 'quick' }"
+            @click="addProductMode = 'quick'"
+          >
+            ⚡ {{ currentLang === 'mr' ? 'झटपट इन-शॉप जोडा (Quick Add)' : (currentLang === 'hi' ? 'झटपट दुकान में जोड़ें (Quick Add)' : '⚡ Quick In-Shop Add') }}
+          </button>
+          <button
+            type="button"
+            class="mode-switch-btn"
+            :class="{ active: addProductMode === 'full' }"
+            @click="addProductMode = 'full'"
+          >
+            ⚙️ {{ currentLang === 'mr' ? 'सविस्तर फॉर्म (Full Form)' : (currentLang === 'hi' ? 'विस्तृत फॉर्म (Full Form)' : '⚙️ Full Detailed Form') }}
+          </button>
+        </div>
+
+        <!-- QUICK IN-SHOP ADD VIEW -->
+        <div v-if="addProductMode === 'quick'" class="quick-add-container">
+          <!-- 1. Big Mandi Loose vs Packaged Tiles -->
+          <div class="quick-type-selector">
+            <button
+              type="button"
+              class="quick-type-tile"
+              :class="{ selected: newProductForm.is_loose }"
+              @click="newProductForm.is_loose = true"
+            >
+              <span class="quick-tile-icon">🌾</span>
+              <div class="quick-tile-text">
+                <strong>{{ currentLang === 'mr' ? 'सुट्टे किराणा (Loose Mandi)' : (currentLang === 'hi' ? 'खुला राशन (Loose Mandi)' : 'Loose Mandi') }}</strong>
+                <small>{{ currentLang === 'mr' ? 'डाळी, तांदूळ, गहू, साखर' : 'दालें, चावल, आटा, चीनी' }}</small>
+              </div>
+            </button>
+            <button
+              type="button"
+              class="quick-type-tile"
+              :class="{ selected: !newProductForm.is_loose }"
+              @click="newProductForm.is_loose = false"
+            >
+              <span class="quick-tile-icon">📦</span>
+              <div class="quick-tile-text">
+                <strong>{{ currentLang === 'mr' ? 'पाकीटबंद (Packaged)' : (currentLang === 'hi' ? 'पैकेटबंद (Packaged)' : 'Packaged FMCG') }}</strong>
+                <small>{{ currentLang === 'mr' ? 'तेल, साबण, बिस्कीट, मीठ' : 'तेल, साबुन, बिस्किट, नमक' }}</small>
+              </div>
+            </button>
+          </div>
+
+          <!-- 2. Fast Camera Shutter Box + Thumbnail -->
+          <div class="quick-camera-strip">
+            <div class="quick-camera-box">
+              <label class="quick-camera-btn">
+                <span style="font-size: 1.4rem;">📷</span>
+                <span>{{ currentLang === 'mr' ? 'कॅमेरा फोटो काढा' : (currentLang === 'hi' ? 'कैमरा फोटो खींचें' : 'Take Camera Photo') }}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style="display: none;"
+                  @change="handleFileUpload($event, 'new', 'front')"
+                />
+              </label>
+              <label class="quick-gallery-btn">
+                <span>📁 गॅलरी/फाइल</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style="display: none;"
+                  @change="handleFileUpload($event, 'new', 'front')"
+                />
+              </label>
+            </div>
+            <div class="quick-photo-preview" v-if="newProductForm.image_front">
+              <img :src="newProductForm.image_front" alt="Preview" @error="handleImageFallback($event)" />
+            </div>
+          </div>
+
+          <!-- 3. Quick Commodity 1-Tap Autofill Chips -->
+          <div class="quick-chips-section">
+            <span class="quick-section-sub">⚡ {{ currentLang === 'mr' ? '१-टॅप किराणा निवडा (Quick Autofill):' : (currentLang === 'hi' ? '१-टैप किराना चुनें (Quick Autofill):' : '1-Tap Fast Presets:') }}</span>
+            <div class="quick-chips-scroll">
+              <button
+                v-for="(qc, qcIdx) in quickCommodities"
+                :key="'qc-' + qcIdx"
+                type="button"
+                class="quick-item-chip"
+                @click="selectQuickCommodity(qc)"
+              >
+                {{ qc.name_hi }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. Category Selector Chips -->
+          <div class="quick-cat-section">
+            <label class="quick-field-label">{{ currentLang === 'mr' ? 'सामान श्रेणी (Category):' : 'कैटेगरी:' }}</label>
+            <div class="quick-cat-chips">
+              <button
+                v-for="cat in categories"
+                :key="'qcat-' + cat.id"
+                type="button"
+                class="quick-cat-btn"
+                :class="{ active: newProductForm.category_id === cat.id && !newProductForm.is_new_category }"
+                @click="newProductForm.category_id = cat.id; newProductForm.is_new_category = false;"
+              >
+                {{ currentLang === 'mr' ? (cat.name_hi || cat.name) : cat.name }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. Name Inputs (Marathi/Hindi + English) -->
+          <div class="quick-inputs-grid">
+            <div>
+              <label class="quick-field-label">{{ currentLang === 'mr' ? 'सामान नाव (मराठी/हिंदी) *' : (currentLang === 'hi' ? 'सामान का नाम (हिंदी) *' : 'Local / Hindi Name *') }}</label>
+              <input
+                type="text"
+                v-model="newProductForm.name_hi"
+                required
+                class="form-input quick-input-lg"
+                :placeholder="currentLang === 'mr' ? 'उदा. तूर डाळ' : 'उदा. तूर दाल'"
+                @input="syncQuickName"
+              />
+            </div>
+            <div>
+              <label class="quick-field-label">{{ currentLang === 'mr' ? 'इंग्रजी नाव (English) *' : 'अंग्रेजी नाम (English) *' }}</label>
+              <input
+                type="text"
+                v-model="newProductForm.name"
+                required
+                class="form-input quick-input-lg"
+                placeholder="e.g. Toor Dal Gavran"
+              />
+            </div>
+          </div>
+
+          <!-- 6. Unit Size Pills & Rate Input -->
+          <div class="quick-pricing-card">
+            <div>
+              <label class="quick-field-label">{{ currentLang === 'mr' ? 'वजन / पॅक साइज:' : (currentLang === 'hi' ? 'वजन / पैक साइज:' : 'Unit Size:') }}</label>
+              <div class="quick-unit-pills">
+                <button
+                  v-for="u in ['500g', '1kg', '2kg', '5kg', '1L', '500ml', '250g', '100g']"
+                  :key="'u-' + u"
+                  type="button"
+                  class="quick-unit-pill"
+                  :class="{ active: newProductForm.unit_size === u }"
+                  @click="newProductForm.unit_size = u"
+                >
+                  {{ u }}
+                </button>
+              </div>
+            </div>
+
+            <div class="quick-rate-row">
+              <div style="flex: 1;">
+                <label class="quick-field-label" style="color: #047857; font-weight: 900;">
+                  💰 {{ currentLang === 'mr' ? 'दुकान विक्री दर (₹):' : (currentLang === 'hi' ? 'दुकान बिक्री दर (₹):' : 'Selling Rate (₹):') }}
+                </label>
+                <div class="quick-rate-input-wrap">
+                  <span class="quick-currency">₹</span>
+                  <input
+                    type="number"
+                    v-model.number="newProductForm.selling_price"
+                    class="quick-rate-input"
+                    placeholder="190"
+                    @input="syncQuickPrice"
+                  />
+                </div>
+              </div>
+              <div style="flex: 1;">
+                <label class="quick-field-label" style="color: var(--text-muted);">
+                  MRP (₹) <small>({{ currentLang === 'mr' ? 'ऑटो-सिंक' : 'ऑटो-सिंक' }})</small>:
+                </label>
+                <div class="quick-rate-input-wrap mrp-wrap">
+                  <span class="quick-currency">₹</span>
+                  <input
+                    type="number"
+                    v-model.number="newProductForm.mrp"
+                    class="quick-rate-input"
+                    placeholder="190"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7. Big 1-Tap Save Button -->
+          <button
+            type="button"
+            class="quick-submit-btn"
+            @click="submitNewProduct"
+            :disabled="!newProductForm.name || !newProductForm.selling_price"
+          >
+            ✅ {{ currentLang === 'mr' ? 'दुकानात सामान जोडा (Save to Store)' : (currentLang === 'hi' ? 'दुकान में सामान जोड़ें (Save to Store)' : 'Save Product to Kirana Store') }}
+          </button>
+        </div>
+
+        <!-- FULL DETAILED FORM VIEW (PRESERVES ALL ADVANCED OPTIONS) -->
+        <form v-else @submit.prevent="submitNewProduct">
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label" style="margin-bottom: 0;">{{ currentLang === 'en' ? 'Category *' : (currentLang === 'mr' ? 'सामान श्रेणी (Category) *' : 'कैटेगरी (Category) *') }}</label>
@@ -4834,6 +5079,99 @@
             ✅ स्टोर में नया सामान जोड़ें
           </button>
         </form>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- BATCH PHOTO INGESTION PIPELINE MODAL                     -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showBatchIngestModal" @click.self="showBatchIngestModal = false">
+      <div class="modal-card" style="max-width: 680px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>⚡</span> {{ currentLang === 'mr' ? 'बॅच फोटो व किंमत आयात (Batch Ingest)' : (currentLang === 'hi' ? 'बैच फोटो और दाम आयात (Batch Ingest)' : 'Batch Photo & Price Ingestion') }}
+          </h3>
+          <button class="close-btn" @click="showBatchIngestModal = false">✕</button>
+        </div>
+
+        <div class="batch-ingest-guide">
+          <div class="batch-guide-icon">📸</div>
+          <div class="batch-guide-content">
+            <strong>{{ currentLang === 'mr' ? 'झिरो-टोकन ऑफलाइन फोटो आयात:' : 'जीरो-टोकन ऑफलाइन फोटो आयात:' }}</strong>
+            <p style="margin: 4px 0 0; font-size: 0.82rem; color: #4b5563;">
+              {{ currentLang === 'mr' ? 'मोबाईलने काढलेले फोटो backend/batch_photos मध्ये टाका. फोटोच्या नावात दर आणि वजन लिहा (उदा. toor-daal-190-per-kg.jpg).' : 'मोबाइल से खींचे फोटो backend/batch_photos में रखें। नाम में दाम और वजन लिखें (जैसे toor-daal-190-per-kg.jpg)।' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div style="display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="admin-action-chip admin-chip-blue"
+            @click="runBatchPhotoIngest(true)"
+            :disabled="batchIngestStatus === 'loading'"
+          >
+            🔍 {{ currentLang === 'mr' ? '१. आधी तपासा (Dry Run Preview)' : '१. पहले जांचें (Dry Run Preview)' }}
+          </button>
+          <button
+            type="button"
+            class="admin-action-chip admin-chip-primary"
+            @click="runBatchPhotoIngest(false)"
+            :disabled="batchIngestStatus === 'loading'"
+          >
+            ⚡ {{ currentLang === 'mr' ? '२. थेट दुकानात आयात करा (Start Import)' : '२. दुकान में सीधे आयात करें (Start Import)' }}
+          </button>
+        </div>
+
+        <!-- Status & Results -->
+        <div v-if="batchIngestStatus === 'loading'" style="text-align: center; padding: 24px; color: #059669; font-weight: 800;">
+          ⏳ {{ currentLang === 'mr' ? 'फोटो स्कॅन व डेटाबेस अपडेट होत आहे...' : 'फोटो स्कैन और डेटाबेस अपडेट हो रहा है...' }}
+        </div>
+
+        <div v-else-if="batchIngestStatus === 'error'" style="background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 12px; border-radius: 8px; font-weight: 700;">
+          ❌ {{ batchIngestError }}
+        </div>
+
+        <div v-else-if="batchIngestStatus === 'complete' || batchIngestStatus === 'preview'">
+          <div class="batch-stats-summary">
+            <span class="badge-blue">📋 {{ currentLang === 'mr' ? 'स्कॅन फोटो' : 'स्कैन फोटो' }}: {{ batchIngestStats.processed }}</span>
+            <span class="badge-green">✨ {{ currentLang === 'mr' ? 'नवीन जोडले' : 'नए जोड़े' }}: {{ batchIngestStats.created }}</span>
+            <span class="badge-amber">🔄 {{ currentLang === 'mr' ? 'अपडेट झाले' : 'अपडेट हुए' }}: {{ batchIngestStats.updated }}</span>
+          </div>
+
+          <div class="batch-items-preview-table-wrap" v-if="batchIngestItems.length > 0">
+            <table class="batch-preview-table">
+              <thead>
+                <tr>
+                  <th>{{ currentLang === 'mr' ? 'फाइल नाव' : 'फ़ाइल नाम' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'सामान' : 'सामान' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'श्रेणी' : 'कैटेगरी' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'वजन' : 'वजन' }}</th>
+                  <th>{{ currentLang === 'mr' ? 'दर (₹)' : 'दर (₹)' }}</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(it, itIdx) in batchIngestItems" :key="'batch-it-' + itIdx">
+                  <td style="font-family: monospace; font-size: 0.78rem;">{{ it.file }}</td>
+                  <td><strong>{{ it.name }}</strong></td>
+                  <td><span class="batch-cat-tag">{{ it.category }}</span></td>
+                  <td>{{ it.unit_size }}</td>
+                  <td style="color: #059669; font-weight: 800;">₹{{ it.price }}</td>
+                  <td>
+                    <span :class="it.status === 'Created' ? 'status-pill-green' : (it.status === 'Updated' ? 'status-pill-amber' : 'status-pill-blue')">
+                      {{ it.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.88rem;">
+            ℹ️ {{ currentLang === 'mr' ? 'कोणतेही फोटो सापडले नाहीत. backend/batch_photos फोल्डरमध्ये फोटो टाका.' : 'कोई फोटो नहीं मिले। backend/batch_photos में फोटो रखें।' }}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -6371,6 +6709,91 @@ const selectedAdminOrderIds = ref([]);
 const selectedAdminProductIds = ref([]);
 const showBatchPrintModal = ref(false);
 const batchPrintLayout = ref('auto'); // 'auto' | 'two' | 'four'
+
+// Admin Batch Ingestion & Quick-Add State
+const showBatchIngestModal = ref(false);
+const batchIngestStatus = ref('idle'); // 'idle' | 'loading' | 'preview' | 'complete' | 'error'
+const batchIngestItems = ref([]);
+const batchIngestStats = ref({ processed: 0, created: 0, updated: 0 });
+const batchIngestError = ref('');
+
+const addProductMode = ref('quick'); // 'quick' | 'full'
+
+const quickCommodities = [
+  { name: 'Toor Dal / Arhar Dal (Gavran Loose)', name_hi: 'तूर डाळ (गावरान मोकळी)', catSlug: 'dals-pulses', is_loose: true, unit: '1kg', rate: 190, front: '/products/toor-dal.jpg' },
+  { name: 'Chana Dal (Bengal Gram Loose)', name_hi: 'चना डाळ (हरभरा मोकळी)', catSlug: 'dals-pulses', is_loose: true, unit: '1kg', rate: 95, front: '/products/chana-dal.jpg' },
+  { name: 'Moong Dal Dhuli (Yellow Split Loose)', name_hi: 'पिवळी मूग डाळ (मोकळी)', catSlug: 'dals-pulses', is_loose: true, unit: '1kg', rate: 120, front: '/products/chana-dal.jpg' },
+  { name: 'Chakki Fresh Whole Wheat Atta', name_hi: 'चक्की ताजे गव्हाचे पीठ', catSlug: 'atta-flours', is_loose: true, unit: '1kg', rate: 38, front: '/products/chakki-atta.jpg' },
+  { name: 'Sharbati Whole Wheat Grain', name_hi: 'शरबती अख्खा गहू दाना', catSlug: 'atta-flours', is_loose: true, unit: '1kg', rate: 35, front: '/products/chakki-atta.jpg' },
+  { name: 'Wada Kolam Rice (Mandi Fresh)', name_hi: 'वाडा कोलम तांदूळ (मोकळा)', catSlug: 'rice-grains', is_loose: true, unit: '1kg', rate: 65, front: '/products/basmati-rice.jpg' },
+  { name: 'Madhur Pure Sugar', name_hi: 'मधुर शुद्ध पांढरी साखर', catSlug: 'rice-grains', is_loose: true, unit: '1kg', rate: 42, front: '/products/basmati-rice.jpg' },
+  { name: 'Singdana / Peanuts (Raw Groundnuts)', name_hi: 'कच्चे शेंगदाणे (गावरान)', catSlug: 'dals-pulses', is_loose: true, unit: '1kg', rate: 140, front: '/products/chana-dal.jpg' },
+  { name: 'Suji / Rava (Fine Semolina)', name_hi: 'बारीक सुजी रवा', catSlug: 'atta-flours', is_loose: true, unit: '1kg', rate: 45, front: '/products/chakki-atta.jpg' },
+  { name: 'Tata Salt Vacuum Evaporated', name_hi: 'टाटा मीठ (आयोडीनयुक्त)', catSlug: 'spices-salt', is_loose: false, unit: '1kg', rate: 28, front: '/products/tata-salt.jpg' },
+  { name: 'Fortune Refined Sunflower Oil', name_hi: 'फॉर्च्युन सूर्यफूल तेल', catSlug: 'oils-ghee', is_loose: false, unit: '1L', rate: 145, front: '/products/fortune-mustard-oil.jpg' },
+  { name: 'Surf Excel Quick Wash Powder', name_hi: 'सर्फ एक्सेल डिटर्जंट पावडर', catSlug: 'cleaning-household', is_loose: false, unit: '1kg', rate: 140, front: '/products/surf-excel.jpg' }
+];
+
+function selectQuickCommodity(item) {
+  newProductForm.value.name = item.name;
+  newProductForm.value.name_hi = item.name_hi;
+  newProductForm.value.is_loose = item.is_loose;
+  newProductForm.value.unit_size = item.unit;
+  newProductForm.value.selling_price = item.rate;
+  newProductForm.value.mrp = item.rate;
+  if (item.front) newProductForm.value.image_front = item.front;
+
+  const foundCat = categories.value.find(c => c.slug === item.catSlug || (c.name && c.name.toLowerCase().includes(item.catSlug)));
+  if (foundCat) {
+    newProductForm.value.category_id = foundCat.id;
+    newProductForm.value.is_new_category = false;
+  }
+}
+
+function syncQuickName() {
+  if (!newProductForm.value.name) {
+    newProductForm.value.name = newProductForm.value.name_hi;
+  }
+}
+
+function syncQuickPrice() {
+  newProductForm.value.mrp = newProductForm.value.selling_price;
+}
+
+async function runBatchPhotoIngest(dryRun = false) {
+  batchIngestStatus.value = 'loading';
+  batchIngestError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/admin/batch-ingest-photos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({ dry_run: dryRun })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      batchIngestItems.value = data.items || [];
+      batchIngestStats.value = {
+        processed: data.processed || 0,
+        created: data.created || 0,
+        updated: data.updated || 0
+      };
+      batchIngestStatus.value = dryRun ? 'preview' : 'complete';
+      if (!dryRun) {
+        showToast(currentLang.value === 'mr' ? `✅ ${data.created} सामान नवीन जोडले, ${data.updated} अपडेट झाले!` : `✅ ${data.created} new items created, ${data.updated} updated!`);
+        await fetchProducts();
+      }
+    } else {
+      batchIngestStatus.value = 'error';
+      batchIngestError.value = data.error || 'Failed to ingest batch photos';
+    }
+  } catch (err) {
+    batchIngestStatus.value = 'error';
+    batchIngestError.value = err.message;
+  }
+}
 
 // Admin Clearance Master Visibility Switch (Default false: preserves kirana store trust)
 const adminAllowClearancePublic = ref(localStorage.getItem('komal_allow_clearance_public') === 'true');
@@ -9222,6 +9645,14 @@ async function toggleVariantStock(variant) {
     variant.is_available = currentActive;
     showToast('❌ नेटवर्क त्रुटी.');
   }
+}
+
+async function quickRestockVariant(variant, amount = 10) {
+  const oldQty = variant.stock_quantity || 0;
+  variant.stock_quantity = oldQty + amount;
+  variant.is_in_stock = true;
+  variant.is_available = true;
+  await saveVariantPrice(variant);
 }
 
 // --- ADMIN POS COUNTER BILLING METHODS ---
