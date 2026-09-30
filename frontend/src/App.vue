@@ -316,14 +316,14 @@
             </div>
             <div class="hero-showcase-imgs">
               <div class="hero-showcase-item">
-                <img src="/products/chakki-atta.jpg" alt="Chakki Atta" class="hero-showcase-thumb" />
+                <img src="/products/chakki-atta-loose.jpg" alt="Chakki Atta" class="hero-showcase-thumb" />
                 <span class="hero-showcase-title">{{ currentLang === 'mr' ? 'चक्कीचे गव्हाचे पीठ' : (currentLang === 'hi' ? 'चक्की का ताज़ा आटा' : 'Fresh Chakki Atta') }}</span>
-                <span class="hero-showcase-rate">₹32/kg</span>
+                <span class="hero-showcase-rate">₹38/kg</span>
               </div>
               <div class="hero-showcase-item">
-                <img src="/products/toor-dal.jpg" alt="Toor Dal" class="hero-showcase-thumb" />
-                <span class="hero-showcase-title">{{ currentLang === 'mr' ? 'गावरान तूर डाळ' : (currentLang === 'hi' ? 'देसी अरहर / तूर दाल' : 'Desi Toor Dal') }}</span>
-                <span class="hero-showcase-rate">₹148/kg</span>
+                <img src="/products/toor-daal-gavran.jpg" alt="Toor Dal" class="hero-showcase-thumb" />
+                <span class="hero-showcase-title">{{ currentLang === 'mr' ? 'गावरान तूर डाळ' : (currentLang === 'hi' ? 'गावरान अरहर / तूर दाल' : 'Gavran Toor Dal') }}</span>
+                <span class="hero-showcase-rate">₹190/kg</span>
               </div>
             </div>
             <div class="hero-showcase-badge-bar">
@@ -8013,22 +8013,44 @@ function closeKomalAiModal() {
   showKomalAiModal.value = false;
 }
 
+function buildLocalizedSummary(result, targetLang) {
+  if (!result) return '';
+  if (targetLang === 'mr' && result.summary_text_mr) return result.summary_text_mr;
+  if (targetLang === 'hi' && result.summary_text_hi) return result.summary_text_hi;
+  if (targetLang === 'en' && result.summary_text_en) return result.summary_text_en;
+
+  // Synthesize dynamically from items if the backend didn't supply that language key
+  const matched = (result.items || []).filter(it => it.match_status === 'matched');
+  if (matched.length === 0) {
+    if (targetLang === 'mr') return 'सामान ड्राफ्ट बिलमध्ये जोडले आहे.';
+    if (targetLang === 'hi') return 'सामान ड्राफ्ट बिल में जोड़ दिया गया है।';
+    return 'Your grocery items have been added to your draft bill.';
+  }
+
+  const itemsList = matched.map(it => {
+    const q = it.quantity || 1;
+    const u = it.unit_size || 'kg';
+    const n = (targetLang === 'mr' || targetLang === 'hi') ? (it.product_name_hi || it.product_name) : it.product_name;
+    return `${q} ${u} ${n}`;
+  }).join(', ');
+
+  if (targetLang === 'mr') {
+    return `कोमल मार्टने तुमची ${itemsList} ऑर्डर नोंदवली आहे.`;
+  } else if (targetLang === 'hi') {
+    return `कोमल मार्ट में आपकी ${itemsList} ऑर्डर जोड़ दी गई है।`;
+  } else {
+    return `Successfully added ${itemsList} to your Komal Mart order.`;
+  }
+}
+
 function setAiLanguage(lang) {
   aiLanguage.value = lang;
   cachedAiAudio.value = null; // Invalidate cached audio so speech matches the newly chosen language!
 
   // Instant response translation & speech: If an order summary already exists, switch to selected language
   if (aiResult.value) {
-    if (lang === 'mr') {
-      aiResult.value.summary_text = aiResult.value.summary_text_mr || aiResult.value.summary_text;
-    } else if (lang === 'hi') {
-      aiResult.value.summary_text = aiResult.value.summary_text_hi || aiResult.value.summary_text;
-    } else {
-      aiResult.value.summary_text = aiResult.value.summary_text_en || aiResult.value.summary_text;
-    }
-    if (aiResult.value.summary_text) {
-      speakAiSummary(aiResult.value.summary_text, true);
-    }
+    aiResult.value.summary_text = buildLocalizedSummary(aiResult.value, lang);
+    speakAiSummary(aiResult.value.summary_text, true);
   }
 
   isUserExplicitStop = true;
@@ -8074,27 +8096,68 @@ function playNaturalAiAudio(audioB64, mime = 'audio/wav') {
   }
 }
 
+let activeUtterance = null;
+
 async function speakAiSummary(text, forceApi = false) {
+  if (!text) return;
   const lang = aiLanguage.value || currentLang.value || 'mr';
 
-  // Stop any currently playing audio element
+  // Stop any currently playing HTML5 audio
   if (currentAiAudioPlayer) {
     try { currentAiAudioPlayer.pause(); } catch (e) {}
     currentAiAudioPlayer = null;
   }
-  // Stop browser speech synthesis if running
-  if ('speechSynthesis' in window) {
-    try { window.speechSynthesis.cancel(); } catch (e) {}
-  }
 
-  // If we already have cached audio for this exact language, play it
+  // If we already have cached audio for this exact language, play it immediately!
   if (cachedAiAudio.value && !forceApi && cachedAiAudio.value.lang === lang) {
     playNaturalAiAudio(cachedAiAudio.value.b64, cachedAiAudio.value.mime);
     return;
   }
 
-  // Fetch natural studio voice from Gemini 3.8 Flash-Lite TTS endpoint
+  // Local helper for guaranteed browser speech synthesis
+  const speakBrowserNative = () => {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      activeUtterance = utterance;
+
+      const targetTag = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+      utterance.lang = targetTag;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices() || [];
+      let chosenVoice = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(targetTag.toLowerCase()));
+      // If Windows/Browser has no native Marathi voice, use Hindi voice to pronounce Devanagari text clearly
+      if (!chosenVoice && lang === 'mr') {
+        chosenVoice = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith('hi-in') || v.lang.toLowerCase().startsWith('hi'));
+      }
+      if (!chosenVoice && lang === 'en') {
+        chosenVoice = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith('en-in') || v.lang.toLowerCase().startsWith('en'));
+      }
+      if (chosenVoice) {
+        utterance.voice = chosenVoice;
+      }
+
+      utterance.onend = () => { activeUtterance = null; };
+      utterance.onerror = (e) => {
+        console.warn('Utterance status:', e);
+        activeUtterance = null;
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis error:', err);
+    }
+  };
+
+  // If Gemini API is available, try cloud synthesis with 2-second timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${API_BASE}/ai/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -8102,8 +8165,10 @@ async function speakAiSummary(text, forceApi = false) {
         text: text,
         language: lang,
         voice: 'Kore'
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     const data = await res.json();
     if (res.ok && data.success && data.audio_base64) {
       cachedAiAudio.value = { b64: data.audio_base64, mime: data.mime_type || 'audio/wav', lang: lang };
@@ -8111,27 +8176,11 @@ async function speakAiSummary(text, forceApi = false) {
       return;
     }
   } catch (e) {
-    console.warn('Gemini TTS network warning, falling back to browser speech:', e);
+    // Cloud TTS unavailable / rate-limited / timed out
   }
 
-  // Fallback to browser speechSynthesis in the exact chosen language
-  if (!('speechSynthesis' in window) || !text) return;
-  try {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    const voices = window.speechSynthesis.getVoices();
-    const voiceMatch = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(utterance.lang.toLowerCase()) || v.lang.toLowerCase().startsWith(lang));
-    if (voiceMatch) {
-      utterance.voice = voiceMatch;
-    }
-
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn('Speech synthesis warning:', e);
-  }
+  // Fallback to browser native speech
+  speakBrowserNative();
 }
 
 function startAudioMediaRecorder() {
@@ -8388,13 +8437,7 @@ async function handleProcessAiOrder() {
       }
 
       // Ensure displayed summary text strictly matches the active language
-      if (aiLanguage.value === 'mr' && data.summary_text_mr) {
-        aiResult.value.summary_text = data.summary_text_mr;
-      } else if (aiLanguage.value === 'hi' && data.summary_text_hi) {
-        aiResult.value.summary_text = data.summary_text_hi;
-      } else if (aiLanguage.value === 'en' && data.summary_text_en) {
-        aiResult.value.summary_text = data.summary_text_en;
-      }
+      aiResult.value.summary_text = buildLocalizedSummary(data, aiLanguage.value);
 
       if (data.raw_text && !aiInputText.value.trim()) {
         aiInputText.value = data.raw_text;
