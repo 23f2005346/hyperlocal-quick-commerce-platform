@@ -284,6 +284,37 @@ a {
   background: rgba(220, 38, 38, 0.08);
 }
 
+.search-mic-ai-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.search-mic-ai-btn:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+.search-bar-wrap:has(.search-clear-btn) .search-mic-ai-btn {
+  right: 38px;
+}
+
 /* Header Actions */
 .header-actions {
   display: flex;
@@ -6519,7 +6550,7 @@ a {
    KOMAL AI (कोमल AI) — FLOATING VOICE ASSISTANT & SMART DRAFT BILL
    ========================================================================== */
 
-/* Floating Launcher Button */
+/* Floating Launcher Button - Smart FAB on Desktop (Non-intrusive), Expanding on Hover */
 .floating-komal-ai-btn {
   position: fixed;
   bottom: 26px;
@@ -6538,14 +6569,38 @@ a {
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 10px 25px -3px rgba(6, 78, 59, 0.4), 0 4px 6px -2px rgba(6, 78, 59, 0.2);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   backdrop-filter: blur(8px);
 }
 
-.floating-komal-ai-btn:hover {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 16px 32px -4px rgba(6, 78, 59, 0.5);
-  background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+@media (min-width: 769px) {
+  /* On desktop: compact FAB by default (52px width) so it NEVER covers the 4th card's Add to Cart button! */
+  .floating-komal-ai-btn {
+    padding: 10px 14px;
+    max-width: 52px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .floating-komal-ai-btn .ai-floating-label,
+  .floating-komal-ai-btn .ai-live-badge {
+    opacity: 0;
+    transform: translateX(10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+  }
+  .floating-komal-ai-btn:hover {
+    max-width: 280px;
+    padding: 12px 20px;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 16px 32px -4px rgba(6, 78, 59, 0.5);
+    background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+  }
+  .floating-komal-ai-btn:hover .ai-floating-label,
+  .floating-komal-ai-btn:hover .ai-live-badge {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
 }
 
 .floating-komal-ai-btn:active {

@@ -95,6 +95,14 @@ patch_as_admin = client.patch(
 print("Admin Authorized Price Update:", patch_as_admin.status_code, patch_as_admin.get_json().get('variant', {}).get('selling_price'))
 assert patch_as_admin.status_code == 200
 
+# Revert variant 1 back to standard authentic retail MRP to prevent test mutation
+revert_patch = client.patch(
+    '/api/variants/1',
+    headers={'Authorization': f'Bearer {admin_token}'},
+    json={'selling_price': 95.0}
+)
+assert revert_patch.status_code == 200
+
 # 7. On-The-Fly Custom Category Creation & Product Assignment
 new_prod_res = client.post(
     '/api/products',

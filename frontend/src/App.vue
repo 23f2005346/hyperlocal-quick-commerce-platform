@@ -146,6 +146,15 @@
           >
             ✕
           </button>
+          <!-- 1-Tap Mic Voice Order Trigger in Search Bar -->
+          <button
+            type="button"
+            class="search-mic-ai-btn"
+            @click="openKomalAiModal"
+            :title="tAi('ai_modal_title') + ' (बोलून सामान मागवा)'"
+          >
+            🎙️
+          </button>
         </div>
 
         <!-- Header Actions: User Profile / Login & Cart -->
