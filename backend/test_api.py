@@ -126,6 +126,13 @@ created_prod = new_prod_res.get_json()['product']
 print(f"Created Product in Category: {created_prod['category_name']}, Variants: {len(created_prod['variants'])}")
 assert created_prod['category_name'] == 'Dry Fruits & Nuts'
 
+# Clean up dynamically created test product so it doesn't pollute live catalog
+del_test_prod = client.delete(
+    f"/api/products/{created_prod['id']}",
+    headers={'Authorization': f'Bearer {admin_token}'}
+)
+assert del_test_prod.status_code == 200
+
 # 8. Password Reset via 2-Step Email OTP Flow
 # 8a. Step 1: Request OTP via Phone or Email
 step1_res = client.post('/api/auth/forgot-password', json={
