@@ -1175,13 +1175,34 @@ def create_app():
     # Enable CORS for frontend development
     CORS(app)
 
-    # Database setup: Support external PostgreSQL / Supabase, persistent DB_PATH, or local SQLite WAL
+    # Database setup: Support Turso libSQL cloud, external PostgreSQL, persistent DB_PATH, or local SQLite WAL
+    turso_url = os.environ.get('TURSO_DATABASE_URL')
+    turso_token = os.environ.get('TURSO_AUTH_TOKEN')
     db_url = os.environ.get('DATABASE_URL')
-    if db_url:
+
+    turso_enabled = False
+    if turso_url and turso_token:
+        try:
+            import sqlalchemy_libsql
+            turso_enabled = True
+        except ImportError:
+            print("[DATABASE NOTICE] sqlalchemy-libsql not installed in current environment; falling back to local SQLite.")
+            turso_enabled = False
+
+    if turso_enabled:
+        host = turso_url.replace("libsql://", "").replace("https://", "").strip("/")
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+libsql://{host}?secure=true"
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'connect_args': {'auth_token': turso_token}
+        }
+        is_sqlite = False
+        print(f"[DATABASE] Connected to Turso libSQL Cloud ({host})")
+    elif db_url:
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url
         is_sqlite = False
+        print("[DATABASE] Connected to external PostgreSQL database")
     else:
         db_path = os.environ.get('DB_PATH') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kirana.db')
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
@@ -1190,6 +1211,7 @@ def create_app():
             'connect_args': {'timeout': 15}
         }
         is_sqlite = True
+        print(f"[DATABASE] Connected to local SQLite WAL database ({db_path})")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
