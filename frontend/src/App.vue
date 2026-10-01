@@ -653,10 +653,10 @@
         <div id="admin-tab-content-anchor"></div>
         <div class="admin-top-bar">
           <div class="admin-title-wrap">
-            <h2 style="font-size: 1.45rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px; margin: 0;">
+            <h2 style="font-size: 1.35rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px; margin: 0;">
               🏪 {{ t('admin_panel_title') }}
             </h2>
-            <p style="color: var(--text-muted); font-size: 0.86rem; margin: 4px 0 0;">
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin: 2px 0 0;" class="desktop-only">
               {{ t('admin_panel_desc') }}
             </p>
           </div>
@@ -672,7 +672,7 @@
               class="admin-action-chip admin-chip-amber"
               title="Zero-token automated inventory import from camera/phone photos"
             >
-              ⚡ {{ currentLang === 'en' ? 'Batch Photos' : (currentLang === 'mr' ? 'बॅच फोटो आयात' : 'बैच फोटो आयात') }}
+              ⚡ {{ currentLang === 'en' ? 'Batch Photos' : (currentLang === 'mr' ? 'बॅच फोटो' : 'बैच फोटो') }}
             </button>
             <button
               @click="downloadDatabaseBackup"
@@ -683,7 +683,7 @@
             </button>
             <button
               @click="confirmResetSeed"
-              class="admin-action-chip admin-chip-red"
+              class="admin-action-chip admin-chip-red desktop-only"
               title="Reset to default authentic Indian Kirana catalog"
             >
               🔄 {{ currentLang === 'en' ? 'Reset' : (currentLang === 'mr' ? 'रीसेट' : 'रीसेट') }}
@@ -691,8 +691,48 @@
           </div>
         </div>
 
-        <!-- Store Overview KPI Cards -->
-        <div class="admin-stats-grid">
+        <!-- COMPACT MOBILE KPI METRIC STRIP (Height: 38px instead of 180px!) -->
+        <div class="admin-mobile-kpi-bar">
+          <div class="kpi-mini-pill" @click="switchAdminTab('inventory')">
+            <span class="kpi-mini-icon">📦</span>
+            <div class="kpi-mini-data">
+              <span class="kpi-mini-val">{{ products.length }}</span>
+              <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'सामान' : 'Items' }}</span>
+            </div>
+          </div>
+          <div class="kpi-mini-pill" @click="switchAdminTab('orders')">
+            <span class="kpi-mini-icon">🧾</span>
+            <div class="kpi-mini-data">
+              <span class="kpi-mini-val">{{ adminOrders.length }}</span>
+              <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'ऑर्डर्स' : 'Orders' }}</span>
+            </div>
+          </div>
+          <div class="kpi-mini-pill kpi-mini-danger" @click="switchAdminTab('khata')">
+            <span class="kpi-mini-icon">🔴</span>
+            <div class="kpi-mini-data">
+              <span class="kpi-mini-val">{{ unpaidAdminOrders.length }}</span>
+              <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'बाकी' : 'Khata' }}</span>
+            </div>
+          </div>
+          <div class="kpi-mini-pill kpi-mini-success" @click="switchAdminTab('orders')">
+            <span class="kpi-mini-icon">🟢</span>
+            <div class="kpi-mini-data">
+              <span class="kpi-mini-val">{{ paidAdminOrders.length }}</span>
+              <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'चुकता' : 'Paid' }}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="kpi-mini-expand-btn"
+            @click="showMobileExpandedStats = !showMobileExpandedStats"
+            :title="showMobileExpandedStats ? 'Hide full stats' : 'Show full stats'"
+          >
+            {{ showMobileExpandedStats ? '▲' : '▼' }}
+          </button>
+        </div>
+
+        <!-- Store Overview KPI Cards (Desktop always, Mobile when expanded) -->
+        <div class="admin-stats-grid" :class="{ 'mobile-stats-hidden': !showMobileExpandedStats }">
           <div class="stat-card">
             <div class="stat-icon">📦</div>
             <div class="stat-content">
@@ -800,46 +840,57 @@
 
         <!-- TAB 1: INVENTORY & QUICK PRICE CHANGER -->
         <div v-if="adminActiveTab === 'inventory'">
-          <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1;">
+          <!-- MODERN RESPONSIVE INVENTORY TOOLBAR -->
+          <div class="admin-inv-toolbar">
+            <div class="admin-inv-search-box">
+              <span class="admin-inv-search-icon">🔍</span>
               <input
                 type="text"
                 v-model="adminSearch"
-                :placeholder="currentLang === 'en' ? 'Filter items...' : (currentLang === 'mr' ? 'सामान शोधा...' : 'सामान खोजें...')"
-                style="padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; min-width: 240px; flex: 1;"
+                :placeholder="currentLang === 'en' ? 'Search & filter items...' : (currentLang === 'mr' ? 'सामान शोधा / फिल्टर...' : 'सामान खोजें / फिल्टर...')"
+                class="admin-inv-search-input"
               />
+              <button
+                v-if="adminSearch"
+                type="button"
+                class="admin-inv-search-clear"
+                @click="adminSearch = ''"
+                title="Clear search"
+              >✕</button>
+            </div>
+
+            <div class="admin-inv-actions-cluster">
               <button
                 v-if="selectedAdminProductIds.length > 0"
                 @click="bulkDeleteSelectedProducts"
                 class="admin-bulk-delete-btn"
-                style="background: #dc2626; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220,38,38,0.3);"
+                title="Delete selected products"
               >
-                🗑️ {{ currentLang === 'en' ? `Delete Selected (${selectedAdminProductIds.length})` : (currentLang === 'mr' ? `निवडलेले सामान हटवा (${selectedAdminProductIds.length})` : `चुने हुए हटाएं (${selectedAdminProductIds.length})`) }}
+                🗑️ {{ selectedAdminProductIds.length }}
               </button>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <!-- Admin Master Clearance Toggle Switch -->
-              <label style="display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 800; background: #fff1f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 6px 12px; border-radius: 8px; cursor: pointer; user-select: none;" title="Toggle whether customers see clearance deals on the storefront">
+
+              <!-- Master Clearance Public Toggle Pill -->
+              <label class="admin-inv-pill-toggle admin-pill-sale" title="Toggle whether customers see clearance deals on the storefront">
                 <input
                   type="checkbox"
                   :checked="adminAllowClearancePublic"
                   @change="e => togglePublicClearance(e.target.checked)"
-                  style="width: 16px; height: 16px; accent-color: #dc2626;"
                 />
-                <span>👁️ {{ currentLang === 'en' ? 'Show Clearance to Public' : (currentLang === 'mr' ? 'ग्राहकांना सेल दाखवा' : 'ग्राहकों को सेल दिखाएं') }}</span>
+                <span>🏷️ {{ currentLang === 'en' ? 'Public Sale' : (currentLang === 'mr' ? 'ग्राहकांना सेल' : 'ग्राहकों को सेल') }}</span>
               </label>
 
-              <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 700; color: #475569; cursor: pointer; user-select: none;">
+              <!-- Select All Toggle Pill -->
+              <label class="admin-inv-pill-toggle admin-pill-select-all" title="Select / Deselect all products">
                 <input
                   type="checkbox"
                   :checked="filteredAdminProducts.length > 0 && selectedAdminProductIds.length === filteredAdminProducts.length"
                   @change="toggleSelectAllProducts"
-                  style="width: 16px; height: 16px; accent-color: #ef4444;"
                 />
-                <span>{{ currentLang === 'en' ? 'Select All' : (currentLang === 'mr' ? 'सर्व निवडा' : 'सभी चुनें') }}</span>
+                <span>{{ currentLang === 'en' ? 'All' : (currentLang === 'mr' ? 'सर्व' : 'सभी') }}</span>
               </label>
-              <span style="font-size: 0.88rem; color: var(--text-muted);">
-                {{ currentLang === 'en' ? 'Total Items:' : (currentLang === 'mr' ? 'एकूण सामान:' : 'कुल सामान:') }} <strong>{{ filteredAdminProducts.length }}</strong>
+
+              <span class="admin-inv-count-badge">
+                <strong>{{ filteredAdminProducts.length }}</strong>
               </span>
             </div>
           </div>
@@ -1079,83 +1130,89 @@
                 </div>
               </div>
 
-              <!-- Product Variants on Mobile -->
+              <!-- Product Variants on Mobile (Ultra-Compact Dukandar Card) -->
               <div class="admin-mob-variant-list">
-                <div v-for="v in prod.variants" :key="'mob-v-' + v.id" class="admin-mob-variant-row">
-                  <div class="admin-mob-variant-top">
-                    <span class="admin-mob-unit">{{ v.unit_size }}</span>
-                    <button
-                      type="button"
-                      class="stock-toggle-pill"
-                      :class="(v.is_in_stock !== false && v.is_available) ? 'stock-in' : 'stock-out'"
-                      @click="toggleVariantStock(v)"
-                    >
-                      <span class="stock-dot"></span>
-                      {{ (v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn') }}
-                    </button>
-                  </div>
-
-                  <div class="admin-mob-variant-inputs">
-                    <div class="admin-mob-field">
-                      <span class="admin-mob-field-label">MRP</span>
-                      <div class="admin-mob-input-wrap">
-                        <span class="currency">₹</span>
-                        <input type="number" v-model.number="v.mrp" class="admin-mob-inline-input" />
-                      </div>
-                    </div>
-                    <div class="admin-mob-field">
-                      <span class="admin-mob-field-label" style="color: #047857;">Rate</span>
-                      <div class="admin-mob-input-wrap rate-wrap">
-                        <span class="currency">₹</span>
-                        <input type="number" v-model.number="v.selling_price" class="admin-mob-inline-input rate" />
-                      </div>
-                    </div>
-                    <div class="admin-mob-field" style="border: 1px dashed #fca5a5; background: #fff5f5; border-radius: 6px; padding: 2px 4px;">
-                      <label style="display: flex; align-items: center; gap: 3px; font-size: 0.68rem; font-weight: 800; color: #dc2626; cursor: pointer;">
-                        <input type="checkbox" v-model="v.is_clearance" style="accent-color: #dc2626;" />
-                        <span>सेल</span>
-                      </label>
-                      <div v-if="v.is_clearance" class="admin-mob-input-wrap" style="margin-top: 2px;">
-                        <span class="currency" style="color: #dc2626;">₹</span>
-                        <input type="number" v-model.number="v.clearance_price" placeholder="दर" class="admin-mob-inline-input" style="width: 44px; color: #dc2626; font-weight: 800;" />
-                      </div>
-                    </div>
-                    <div class="admin-mob-field">
-                      <span class="admin-mob-field-label">Stock</span>
-                      <div class="admin-mob-input-wrap">
-                        <input type="number" v-model.number="v.stock_quantity" class="admin-mob-inline-input" style="width: 48px;" />
-                      </div>
-                    </div>
-                    <!-- 1-Tap Quick Restock Chips (+10, +50) -->
-                    <div class="admin-mob-quick-restock-group">
+                <div v-for="v in prod.variants" :key="'mob-v-' + v.id" class="admin-mob-variant-compact">
+                  <!-- Row 1: Unit Size, Stock Pill, Low Stock, Restock Chips & Clearance -->
+                  <div class="mob-v-top-row">
+                    <div class="mob-v-badge-group">
+                      <span class="mob-v-unit-badge">{{ v.unit_size }}</span>
                       <button
                         type="button"
-                        class="admin-mob-quick-add-qty-btn"
+                        class="stock-toggle-pill-compact"
+                        :class="(v.is_in_stock !== false && v.is_available) ? 'stock-in' : 'stock-out'"
+                        @click="toggleVariantStock(v)"
+                        :title="(v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn')"
+                      >
+                        <span class="stock-dot"></span>
+                        {{ (v.is_in_stock !== false && v.is_available) ? t('in_stock_btn') : t('out_of_stock_btn') }}
+                      </button>
+                      <span v-if="v.stock_quantity <= 5" class="mob-v-low-stock-badge" :title="t('low_stock_pill')">
+                        ⚠️ {{ v.stock_quantity }}
+                      </span>
+                    </div>
+
+                    <div class="mob-v-meta-actions">
+                      <label class="mob-v-sale-toggle" :class="{ active: v.is_clearance }" title="Toggle clearance discount">
+                        <input type="checkbox" v-model="v.is_clearance" />
+                        <span>🏷️ सेल</span>
+                      </label>
+                      <button
+                        type="button"
+                        class="mob-restock-btn"
                         @click="quickRestockVariant(v, 10)"
                         title="Add +10 stock"
-                      >
-                        +10
-                      </button>
+                      >+10</button>
                       <button
                         type="button"
-                        class="admin-mob-quick-add-qty-btn"
+                        class="mob-restock-btn"
                         @click="quickRestockVariant(v, 50)"
                         title="Add +50 stock"
-                      >
-                        +50
-                      </button>
+                      >+50</button>
                     </div>
+                  </div>
+
+                  <!-- Row 2: MRP, Rate (Emerald), Stock, Sale Price (if active), 1-Tap Save -->
+                  <div class="mob-v-inputs-strip">
+                    <div class="mob-input-col">
+                      <label class="mob-input-lbl">MRP</label>
+                      <div class="mob-input-field">
+                        <span class="currency">₹</span>
+                        <input type="number" v-model.number="v.mrp" class="mob-raw-input" />
+                      </div>
+                    </div>
+
+                    <div class="mob-input-col rate-col">
+                      <label class="mob-input-lbl rate-lbl">Rate</label>
+                      <div class="mob-input-field rate-field">
+                        <span class="currency">₹</span>
+                        <input type="number" v-model.number="v.selling_price" class="mob-raw-input rate-input" />
+                      </div>
+                    </div>
+
+                    <div class="mob-input-col">
+                      <label class="mob-input-lbl">Stock</label>
+                      <div class="mob-input-field">
+                        <input type="number" v-model.number="v.stock_quantity" class="mob-raw-input" />
+                      </div>
+                    </div>
+
+                    <div v-if="v.is_clearance" class="mob-input-col sale-col">
+                      <label class="mob-input-lbl sale-lbl">सेल दर</label>
+                      <div class="mob-input-field sale-field">
+                        <span class="currency">₹</span>
+                        <input type="number" v-model.number="v.clearance_price" placeholder="दर" class="mob-raw-input sale-input" />
+                      </div>
+                    </div>
+
                     <button
-                      class="admin-mob-save-btn"
+                      type="button"
+                      class="mob-save-action-btn"
                       @click="saveVariantPrice(v)"
                       title="Save price to database"
                     >
                       💾
                     </button>
-                  </div>
-
-                  <div v-if="v.stock_quantity <= 5" class="low-stock-alert" style="margin-top: 6px;">
-                    ⚠️ {{ t('low_stock_pill') }} ({{ v.stock_quantity }})
                   </div>
                 </div>
               </div>
@@ -5984,21 +6041,21 @@
       </button>
     </nav>
 
-    <!-- Mobile Bottom Navigation Bar (Store Owner / Admin ERP View) -->
+    <!-- Mobile Bottom Navigation Bar (Store Owner / Admin ERP View - Sleek Handheld POS Dock) -->
     <nav v-else class="mobile-bottom-nav admin-bottom-nav">
       <button
         class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'inventory' }"
-        @click="switchAdminTab('inventory')"
+        :class="{ active: adminActiveTab === 'inventory' && !showAdminMoreSheet }"
+        @click="switchAdminTab('inventory'); showAdminMoreSheet = false;"
       >
-        <span class="bottom-nav-icon">📋</span>
-        <span class="bottom-nav-label">{{ t('admin_tab_inventory') }}</span>
+        <span class="bottom-nav-icon">📦</span>
+        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'स्टॉक' : (currentLang === 'hi' ? 'स्टॉक' : 'Stock') }}</span>
       </button>
 
       <button
         class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'pos' }"
-        @click="switchAdminTab('pos')"
+        :class="{ active: adminActiveTab === 'pos' && !showAdminMoreSheet }"
+        @click="switchAdminTab('pos'); showAdminMoreSheet = false;"
       >
         <span class="bottom-nav-icon">⚡</span>
         <span class="bottom-nav-label">POS</span>
@@ -6006,8 +6063,8 @@
 
       <button
         class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'orders' }"
-        @click="switchAdminTab('orders')"
+        :class="{ active: adminActiveTab === 'orders' && !showAdminMoreSheet }"
+        @click="switchAdminTab('orders'); showAdminMoreSheet = false;"
       >
         <div class="bottom-nav-cart-icon-wrapper">
           <span class="bottom-nav-icon">🧾</span>
@@ -6018,27 +6075,13 @@
             {{ unpaidAdminOrders.length }}
           </span>
         </div>
-        <span class="bottom-nav-label">{{ t('admin_tab_orders') }}</span>
+        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'ऑर्डर्स' : (currentLang === 'hi' ? 'ऑर्डर्स' : 'Orders') }}</span>
       </button>
 
       <button
         class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'customers' }"
-        @click="switchAdminTab('customers')"
-      >
-        <div class="bottom-nav-cart-icon-wrapper">
-          <span class="bottom-nav-icon">👥</span>
-          <span v-if="khataCustomersCount > 0" class="bottom-nav-cart-badge" style="background: #dc2626;">
-            {{ khataCustomersCount }}
-          </span>
-        </div>
-        <span class="bottom-nav-label">{{ t('admin_tab_customers') }}</span>
-      </button>
-
-      <button
-        class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'khata' }"
-        @click="switchAdminTab('khata')"
+        :class="{ active: adminActiveTab === 'khata' && !showAdminMoreSheet }"
+        @click="switchAdminTab('khata'); showAdminMoreSheet = false;"
       >
         <div class="bottom-nav-cart-icon-wrapper">
           <span class="bottom-nav-icon">📒</span>
@@ -6046,9 +6089,133 @@
             ₹
           </span>
         </div>
-        <span class="bottom-nav-label">{{ t('admin_tab_khata') }}</span>
+        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'खाता' : (currentLang === 'hi' ? 'खाता' : 'Khata') }}</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
+        :class="{ active: ['customers', 'zreport', 'restock', 'support'].includes(adminActiveTab) || showAdminMoreSheet }"
+        @click="showAdminMoreSheet = !showAdminMoreSheet"
+      >
+        <div class="bottom-nav-cart-icon-wrapper">
+          <span class="bottom-nav-icon">☰</span>
+          <span v-if="pendingRestockCount > 0 || adminOpenComplaintsCount > 0" class="bottom-nav-cart-badge" style="background: #ef4444;">
+            {{ pendingRestockCount + adminOpenComplaintsCount }}
+          </span>
+        </div>
+        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'अधिक' : (currentLang === 'hi' ? 'अन्य' : 'More') }}</span>
       </button>
     </nav>
+
+    <!-- Store Admin "More" Hub Bottom Sheet Drawer -->
+    <div class="modal-overlay" v-if="showAdminMoreSheet" @click.self="showAdminMoreSheet = false">
+      <div class="admin-more-sheet">
+        <div class="admin-more-sheet-handle"></div>
+        <div class="admin-more-sheet-head">
+          <div class="admin-more-sheet-title">
+            <span style="font-size: 1.35rem;">🏪</span>
+            <div>
+              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">Store ERP Management</h3>
+              <p style="margin: 2px 0 0; font-size: 0.74rem; color: #64748b;">All secondary tools & daily audit functions</p>
+            </div>
+          </div>
+          <button class="admin-more-sheet-close" @click="showAdminMoreSheet = false">✕</button>
+        </div>
+
+        <div class="admin-more-sheet-grid">
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'customers' }"
+            @click="switchAdminTab('customers'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #eff6ff; color: #2563eb;">👥</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ t('admin_tab_customers') }}</span>
+              <span class="admin-more-desc">Ledgers, Past Bills & Udhaar</span>
+            </div>
+            <span v-if="khataCustomersCount > 0" class="admin-more-badge badge-blue">{{ khataCustomersCount }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'zreport' }"
+            @click="switchAdminTab('zreport'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #f0fdf4; color: #16a34a;">📊</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ t('admin_tab_zreport') }}</span>
+              <span class="admin-more-desc">Cash & UPI Audit & Print</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'restock' }"
+            @click="switchAdminTab('restock'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #fffbeb; color: #d97706;">⚠️</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ t('admin_tab_restock') }}</span>
+              <span class="admin-more-desc">Low inventory alerts</span>
+            </div>
+            <span v-if="pendingRestockCount > 0" class="admin-more-badge badge-amber">{{ pendingRestockCount }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'support' }"
+            @click="switchAdminTab('support'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #fef2f2; color: #dc2626;">💬</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ t('admin_tab_support') }}</span>
+              <span class="admin-more-desc">Customer Grievances & Tickets</span>
+            </div>
+            <span v-if="adminOpenComplaintsCount > 0" class="admin-more-badge badge-red">{{ adminOpenComplaintsCount }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            @click="showBatchIngestModal = true; showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #fdf4ff; color: #9333ea;">⚡</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">Batch Photos Ingest</span>
+              <span class="admin-more-desc">Zero-Token Offline Photo OCR</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            @click="downloadDatabaseBackup(); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #f0f9ff; color: #0284c7;">💾</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">Download SQLite DB</span>
+              <span class="admin-more-desc">Full store snapshot backup</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card reset-card"
+            @click="confirmResetSeed(); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #fee2e2; color: #b91c1c;">🔄</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name" style="color: #b91c1c;">Reset Default Catalog</span>
+              <span class="admin-more-desc">Reload seed items</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Mobile Category Bottom Sheet Modal -->
     <div class="modal-overlay" v-if="showMobileCategorySheet" @click.self="showMobileCategorySheet = false">
@@ -6718,6 +6885,8 @@ const batchIngestStats = ref({ processed: 0, created: 0, updated: 0 });
 const batchIngestError = ref('');
 
 const addProductMode = ref('quick'); // 'quick' | 'full'
+const showMobileExpandedStats = ref(false);
+const showAdminMoreSheet = ref(false);
 
 const quickCommodities = [
   { name: 'Toor Dal / Arhar Dal (Gavran Loose)', name_hi: 'तूर डाळ (गावरान मोकळी)', catSlug: 'dals-pulses', is_loose: true, unit: '1kg', rate: 190, front: '/products/toor-dal.jpg' },

@@ -5023,11 +5023,11 @@ a {
    ADMIN PORTAL RESPONSIVE ERP SYSTEM (BASE / DESKTOP)
    ========================================================================== */
 .admin-dashboard-card {
-  background: white;
-  border: 1.5px solid var(--border);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
   margin-bottom: 24px;
 }
 
@@ -5037,8 +5037,121 @@ a {
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  border-bottom: 1.5px solid var(--border);
+  border-bottom: 1.5px solid #f1f5f9;
   padding-bottom: 18px;
+}
+
+/* ==========================================================================
+   ADMIN INVENTORY RESPONSIVE TOOLBAR & COMPACT METRICS
+   ========================================================================== */
+.admin-mobile-kpi-bar {
+  display: none; /* Hidden on desktop; desktop uses .admin-stats-grid */
+}
+
+.admin-inv-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.admin-inv-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 42px;
+  flex: 1;
+  min-width: 240px;
+  transition: all 0.15s ease;
+}
+
+.admin-inv-search-box:focus-within {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+}
+
+.admin-inv-search-icon {
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
+
+.admin-inv-search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.9rem;
+  width: 100%;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.admin-inv-search-clear {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.admin-inv-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-inv-pill-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.admin-inv-pill-toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.admin-inv-pill-toggle.admin-pill-sale {
+  background: #fff1f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.admin-inv-pill-toggle.admin-pill-sale input[type="checkbox"] {
+  accent-color: #dc2626;
+}
+
+.admin-inv-pill-toggle.admin-pill-select-all input[type="checkbox"] {
+  accent-color: #059669;
+}
+
+.admin-inv-count-badge {
+  font-size: 0.84rem;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .admin-action-chip {
@@ -5359,13 +5472,94 @@ a {
     justify-content: center !important;
   }
 
-  /* Admin Stats: Sleek 2x2 Grid on Mobile */
+  /* Admin Mobile 1-Line KPI Metrics Ticker (Height: 38px) */
+  .admin-mobile-kpi-bar {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 5px 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-mobile-kpi-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .kpi-mini-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    cursor: pointer;
+    flex: 1 0 auto;
+    transition: all 0.12s ease;
+  }
+  .kpi-mini-pill:active {
+    transform: scale(0.96);
+    background: #f1f5f9;
+  }
+  .kpi-mini-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+  .kpi-mini-data {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .kpi-mini-val {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-mini-lbl {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #64748b;
+  }
+  .kpi-mini-danger .kpi-mini-val {
+    color: #dc2626;
+  }
+  .kpi-mini-success .kpi-mini-val {
+    color: #059669;
+  }
+
+  .kpi-mini-expand-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 0.68rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Admin Stats: Sleek 2x2 Grid on Mobile (Hidden unless dukandar expands) */
   .admin-stats-grid {
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
     margin-top: 10px !important;
     margin-bottom: 12px !important;
   }
+  .admin-stats-grid.mobile-stats-hidden {
+    display: none !important;
+  }
+
   .stat-card {
     padding: 10px 8px !important;
     gap: 8px !important;
@@ -5381,24 +5575,32 @@ a {
     font-size: 1.1rem !important;
   }
 
-  /* Admin Sub-Nav Tabs */
+  /* Admin Sub-Nav Tabs: HIDDEN ON MOBILE TO PREVENT DUAL NAVIGATION CONFLICT */
   .admin-nav-tabs {
-    gap: 6px !important;
-    padding: 4px !important;
-    margin-top: 8px !important;
-    margin-bottom: 12px !important;
-    border-radius: 10px !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    display: none !important;
   }
-  .admin-nav-tabs::-webkit-scrollbar {
-    display: none;
+  .desktop-only {
+    display: none !important;
   }
-  .admin-nav-tab-btn {
-    padding: 6px 12px !important;
-    font-size: 0.78rem !important;
-    border-radius: 6px !important;
-    gap: 4px !important;
+
+  /* Admin Inventory Toolbar on Mobile */
+  .admin-inv-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .admin-inv-search-box {
+    min-width: 100%;
+    height: 38px;
+  }
+  .admin-inv-actions-cluster {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .admin-inv-pill-toggle {
+    padding: 5px 8px;
+    font-size: 0.72rem;
   }
 
   /* Switch Inventory Table to Native Mobile Cards */
@@ -5483,123 +5685,224 @@ a {
     flex-direction: column;
     gap: 8px;
   }
-  .admin-mob-variant-row {
+  /* Ultra-Compact Variant Card (Height: ~52px instead of 130px) */
+  .admin-mob-variant-compact {
     background: #f8fafc;
-    border: 1px solid #f1f5f9;
-    border-radius: 8px;
-    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.15s ease;
   }
-  .admin-mob-variant-top {
+  .admin-mob-variant-compact:focus-within {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  }
+
+  .mob-v-top-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-  }
-  .admin-mob-unit {
-    font-weight: 800;
-    font-size: 0.85rem;
-    color: #1e293b;
-  }
-  .admin-mob-variant-inputs {
-    display: flex;
-    align-items: flex-end;
     gap: 6px;
-    flex-wrap: wrap;
   }
-  .admin-mob-field {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 1;
-    min-width: 58px;
-  }
-  .admin-mob-field-label {
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-  }
-  .admin-mob-input-wrap {
+
+  .mob-v-badge-group {
     display: flex;
     align-items: center;
-    background: white;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 0 4px;
-    height: 38px;
-    transition: all 0.15s ease;
+    gap: 5px;
+    min-width: 0;
   }
-  .admin-mob-input-wrap:focus-within {
-    border-color: #059669;
-    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
-  }
-  .admin-mob-input-wrap.rate-wrap {
-    border-color: #a7f3d0;
-    background: #f0fdf4;
-  }
-  .admin-mob-input-wrap .currency {
-    font-size: 0.74rem;
+
+  .mob-v-unit-badge {
+    font-size: 0.8rem;
     font-weight: 800;
-    color: var(--text-muted);
+    color: #1e293b;
+    background: #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 5px;
+    letter-spacing: -0.01em;
   }
-  .admin-mob-inline-input {
+
+  .stock-toggle-pill-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .stock-toggle-pill-compact.stock-in {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  .stock-toggle-pill-compact.stock-out {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .mob-v-low-stock-badge {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #b45309;
+    background: #fef3c7;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .mob-v-meta-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mob-v-sale-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 2px 5px;
+    border-radius: 5px;
+    user-select: none;
+  }
+  .mob-v-sale-toggle input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+    accent-color: #dc2626;
+  }
+  .mob-v-sale-toggle.active {
+    background: #fff1f2;
+    border-color: #fecaca;
+    color: #dc2626;
+  }
+
+  .mob-restock-btn {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    line-height: 1.2;
+  }
+  .mob-restock-btn:active {
+    transform: scale(0.9);
+    background: #a7f3d0;
+  }
+
+  /* Row 2: Inputs Strip */
+  .mob-v-inputs-strip {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+  }
+
+  .mob-input-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mob-input-lbl {
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .mob-input-field {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0 4px;
+    height: 32px;
+    transition: all 0.12s ease;
+  }
+  .mob-input-field:focus-within {
+    border-color: #059669;
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.12);
+  }
+
+  .mob-input-field .currency {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+  }
+
+  .mob-raw-input {
     width: 100%;
     border: none;
-    background: transparent;
-    padding: 6px 2px;
-    font-size: 0.88rem;
-    font-weight: 800;
     outline: none;
+    background: transparent;
+    padding: 4px 1px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
   }
-  .admin-mob-inline-input.rate {
+
+  .mob-input-col.rate-col .rate-lbl {
+    color: #047857;
+  }
+  .mob-input-col.rate-col .rate-field {
+    background: #f0fdf4;
+    border-color: #86efac;
+  }
+  .mob-raw-input.rate-input {
     color: #047857;
     font-weight: 900;
   }
-  .admin-mob-quick-restock-group {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    align-self: flex-end;
+
+  .mob-input-col.sale-col .sale-lbl {
+    color: #dc2626;
   }
-  .admin-mob-quick-add-qty-btn {
-    background: #ecfdf5;
-    color: #047857;
-    border: 1.5px solid #a7f3d0;
-    padding: 0 8px;
-    border-radius: 8px;
-    font-size: 0.76rem;
+  .mob-input-col.sale-col .sale-field {
+    background: #fff5f5;
+    border-color: #fca5a5;
+  }
+  .mob-raw-input.sale-input {
+    color: #dc2626;
     font-weight: 800;
-    cursor: pointer;
-    height: 38px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.1s ease;
   }
-  .admin-mob-quick-add-qty-btn:active {
-    transform: scale(0.92);
-    background: #a7f3d0;
-  }
-  .admin-mob-save-btn {
+
+  .mob-save-action-btn {
     background: #059669;
-    color: white;
+    color: #ffffff;
     border: none;
-    padding: 0 12px;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 800;
-    cursor: pointer;
-    white-space: nowrap;
-    align-self: flex-end;
-    height: 38px;
-    display: inline-flex;
+    border-radius: 6px;
+    height: 32px;
+    width: 36px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3);
+    font-size: 0.95rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
     transition: all 0.12s ease;
   }
-  .admin-mob-save-btn:active {
-    transform: scale(0.92);
+  .mob-save-action-btn:active {
+    transform: scale(0.9);
+    background: #047857;
   }
 
   /* Admin Orders Ticket Mobile */
@@ -5666,20 +5969,169 @@ a {
     -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Admin Bottom Nav Bar Styling */
+  /* Admin Bottom Nav Bar (Modern Floating Handheld ERP Dock) */
   .admin-bottom-nav {
-    background: #064e3b !important;
-    border-top: 1.5px solid #047857 !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25) !important;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 8px)) !important;
   }
   .admin-bottom-nav .bottom-nav-item {
-    color: #a7f3d0 !important;
+    color: #94a3b8 !important;
+    padding: 5px 6px !important;
+    border-radius: 8px !important;
+    min-width: 50px !important;
+    transition: all 0.15s ease !important;
+  }
+  .admin-bottom-nav .bottom-nav-item .bottom-nav-icon {
+    font-size: 1.25rem !important;
+  }
+  .admin-bottom-nav .bottom-nav-item .bottom-nav-label {
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    margin-top: 2px !important;
+    letter-spacing: 0.01em !important;
   }
   .admin-bottom-nav .bottom-nav-item.active {
-    color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.14) !important;
-    border-radius: 8px;
+    color: #34d399 !important;
+    background: rgba(16, 185, 129, 0.16) !important;
   }
 }
+
+/* ==========================================================================
+   ADMIN "MORE" HUB BOTTOM SHEET MODAL (Global)
+   ========================================================================== */
+.admin-more-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 540px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 12px));
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.25);
+  z-index: 1050;
+  animation: slideUpMoreSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpMoreSheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.admin-more-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 4px;
+  margin: 0 auto 12px;
+}
+
+.admin-more-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px solid #f1f5f9;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-more-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-more-sheet-close {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-more-sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: 65vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-more-sheet-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+  width: 100%;
+}
+.admin-more-sheet-card:active {
+  transform: scale(0.98);
+  background: #f1f5f9;
+}
+.admin-more-sheet-card.active {
+  border-color: #059669;
+  background: #f0fdf4;
+}
+
+.admin-more-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.admin-more-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-more-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.admin-more-desc {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.admin-more-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
+.badge-amber { background: #fef3c7; color: #b45309; }
+.badge-red { background: #fee2e2; color: #b91c1c; }
 
 /* Floating Mobile POS Action Bar */
 .pos-mobile-floating-bar {
