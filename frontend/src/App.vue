@@ -6355,7 +6355,7 @@
       aria-label="Komal AI Smart Voice Order"
       title="Komal AI Voice Assistant"
     >
-      <span class="ai-sparkle-icon">✨</span>
+      <span class="ai-sparkle-icon">🎙️</span>
       <span class="ai-floating-label">{{ t('ai_btn_floating') }}</span>
       <span class="ai-live-badge">AI</span>
     </button>

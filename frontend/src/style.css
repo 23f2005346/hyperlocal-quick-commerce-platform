@@ -6636,13 +6636,33 @@ a {
   letter-spacing: 0.04em;
 }
 
-/* Mobile Placement to avoid Bottom Nav & Floating Cart */
+/* Mobile Placement: Sleek circular FAB (48px) so it never blocks product cards or Add to Cart buttons */
 @media (max-width: 768px) {
   .floating-komal-ai-btn {
     bottom: calc(64px + env(safe-area-inset-bottom, 8px) + 14px);
     right: 14px;
-    padding: 9px 15px;
-    font-size: 0.86rem;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+    box-shadow: 0 8px 24px -2px rgba(6, 78, 59, 0.45);
+  }
+
+  .floating-komal-ai-btn .ai-floating-label,
+  .floating-komal-ai-btn .ai-live-badge {
+    display: none !important;
+  }
+
+  .floating-komal-ai-btn .ai-sparkle-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
   }
 
   .floating-komal-ai-btn.has-floating-cart {
