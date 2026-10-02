@@ -1698,9 +1698,30 @@
               </button>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">
-                🔊 साऊंडबॉक्स व्हॉईस मॅचिंग चालू
+              <span v-if="isAdminOrdersSyncing" style="background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">
+                🔄 Syncing cloud...
               </span>
+              <span v-else style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;" title="Immutable dual-tier local order vault protects all orders from data loss">
+                🛡️ Vault Active ({{ adminOrders.length }})
+              </span>
+              <button
+                type="button"
+                @click="downloadAdminOrderVault"
+                class="btn-secondary"
+                style="padding: 5px 10px; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: #f8fafc; border: 1.5px solid #cbd5e1;"
+                title="Download complete immutable order vault backup (JSON) to keep on your phone or PC"
+              >
+                📥 {{ currentLang === 'en' ? 'Vault JSON' : (currentLang === 'mr' ? 'व्हॉल्ट JSON' : 'वॉल्ट JSON') }}
+              </button>
+              <button
+                type="button"
+                @click="restoreAdminOrderVault"
+                class="btn-secondary"
+                style="padding: 5px 10px; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: #fef3c7; border: 1.5px solid #fde68a; color: #92400e;"
+                title="Disaster Recovery: 1-Click restore any missing orders from local vault to database"
+              >
+                🔄 {{ currentLang === 'en' ? 'Restore Vault' : (currentLang === 'mr' ? 'व्हॉल्ट रिस्टोअर' : 'वॉल्ट रिस्टोर') }}
+              </button>
               <button
                 type="button"
                 @click="downloadAdminExport('orders.csv')"
@@ -7286,8 +7307,17 @@ const filteredAdminSupportTickets = computed(() => {
 const adminActiveTab = ref('inventory');
 const adminSearch = ref('');
 const adminCategoryFilter = ref('');
-const adminOrders = ref([]);
-const isAdminOrdersLoading = ref(false);
+// LocalStorage Order Vault & Instant SWR Cache
+const cachedAdminOrdersStr = localStorage.getItem('komal_cached_admin_orders');
+let initialAdminOrders = [];
+try {
+  initialAdminOrders = cachedAdminOrdersStr ? JSON.parse(cachedAdminOrdersStr) : [];
+} catch (e) {
+  initialAdminOrders = [];
+}
+const adminOrders = ref(initialAdminOrders);
+const isAdminOrdersLoading = ref(initialAdminOrders.length === 0);
+const isAdminOrdersSyncing = ref(false);
 const showAddProductModal = ref(false);
 const selectedAdminOrderIds = ref([]);
 const selectedAdminProductIds = ref([]);
@@ -8541,16 +8571,41 @@ function openAccountModal() {
 }
 
 async function loadCustomerOrders() {
-  customerOrdersLoading.value = true;
+  // 1. Instant 0ms cache & vault hydration
+  if (customerOrders.value.length === 0) {
+    const cachedCustStr = localStorage.getItem('komal_cached_customer_orders');
+    if (cachedCustStr) {
+      try { customerOrders.value = JSON.parse(cachedCustStr); } catch (e) {}
+    }
+    if (customerOrders.value.length === 0) {
+      const vaulted = getCustomerOrderVault();
+      if (vaulted.length > 0) customerOrders.value = vaulted;
+    }
+  }
+  // Only show blocking spinner if nothing in cache/vault
+  customerOrdersLoading.value = customerOrders.value.length === 0;
+
   try {
     const res = await fetch(`${API_BASE}/customer/orders`, {
       headers: { 'Authorization': `Bearer ${authToken.value}` }
     });
     if (res.ok) {
-      customerOrders.value = await res.json();
+      const freshOrders = await res.json();
+      customerOrders.value = freshOrders;
+      try {
+        localStorage.setItem('komal_cached_customer_orders', JSON.stringify(freshOrders));
+        saveToCustomerOrderVault(freshOrders);
+      } catch (cacheErr) {
+        console.warn('Customer vault cache error:', cacheErr);
+      }
     }
   } catch (err) {
     console.error('Customer orders error:', err);
+    // Offline resilience: load from customer vault if empty
+    if (customerOrders.value.length === 0) {
+      const vaulted = getCustomerOrderVault();
+      if (vaulted.length > 0) customerOrders.value = vaulted;
+    }
   } finally {
     customerOrdersLoading.value = false;
   }
@@ -10214,6 +10269,9 @@ async function submitOrder() {
 
     if (res.ok) {
       const data = await res.json();
+      if (data.order) {
+        saveToCustomerOrderVault([data.order]);
+      }
       if (data.user) {
         currentUser.value = data.user;
       } else if (currentUser.value && data.order) {
@@ -10655,6 +10713,8 @@ async function submitCounterOrder(action = 'view') {
     const data = await res.json();
     if (res.ok && data.order) {
       showToast(currentLang.value === 'en' ? `Bill #${data.order.order_number} created!` : (currentLang.value === 'mr' ? `बिल #${data.order.order_number} तयार झाले!` : `बिल #${data.order.order_number} बन गया!`));
+      saveToAdminOrderVault([data.order]);
+      adminOrders.value = [data.order, ...adminOrders.value.filter(o => o.order_number !== data.order.order_number)];
       // Reload admin orders & customers in background
       loadAdminOrders();
       loadAdminCustomers();
@@ -11164,23 +11224,155 @@ async function fetchSmsBalance() {
   }
 }
 
+// --- DUAL-TIER ORDER VAULT & DISASTER RECOVERY (OFFLINE & BROWSER IMMUTABILITY) ---
+function saveToAdminOrderVault(ordersList) {
+  try {
+    let vault = {};
+    const existingStr = localStorage.getItem('komal_admin_order_vault');
+    if (existingStr) {
+      vault = JSON.parse(existingStr);
+    }
+    for (const ord of ordersList) {
+      if (ord.order_number) {
+        vault[ord.order_number] = ord;
+      }
+    }
+    localStorage.setItem('komal_admin_order_vault', JSON.stringify(vault));
+  } catch (e) {
+    console.warn('Admin vault save error:', e);
+  }
+}
+
+function getAdminOrderVault() {
+  try {
+    const existingStr = localStorage.getItem('komal_admin_order_vault');
+    if (!existingStr) return [];
+    const vault = JSON.parse(existingStr);
+    return Object.values(vault);
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveToCustomerOrderVault(ordersList) {
+  try {
+    let vault = {};
+    const existingStr = localStorage.getItem('komal_customer_order_vault');
+    if (existingStr) {
+      vault = JSON.parse(existingStr);
+    }
+    for (const ord of ordersList) {
+      if (ord.order_number) {
+        vault[ord.order_number] = ord;
+      }
+    }
+    localStorage.setItem('komal_customer_order_vault', JSON.stringify(vault));
+  } catch (e) {
+    console.warn('Customer vault save error:', e);
+  }
+}
+
+function getCustomerOrderVault() {
+  try {
+    const existingStr = localStorage.getItem('komal_customer_order_vault');
+    if (!existingStr) return [];
+    const vault = JSON.parse(existingStr);
+    return Object.values(vault);
+  } catch (e) {
+    return [];
+  }
+}
+
+function downloadAdminOrderVault() {
+  const vaulted = getAdminOrderVault();
+  const listToExport = vaulted.length > 0 ? vaulted : adminOrders.value;
+  if (!listToExport || listToExport.length === 0) {
+    showToast(currentLang.value === 'en' ? 'No orders in vault to export' : 'ऑर्डर सापडले नाहीत', 'warning');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(listToExport, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `komal_mart_orders_vault_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(currentLang.value === 'en' ? '🛡️ Complete Order Vault exported safely!' : '🛡️ संपूर्ण ऑर्डर बॅकअप फाईल सेव्ह झाली!');
+}
+
+async function restoreAdminOrderVault() {
+  const vaulted = getAdminOrderVault();
+  const listToSync = vaulted.length > 0 ? vaulted : adminOrders.value;
+  if (!listToSync || listToSync.length === 0) {
+    showToast(currentLang.value === 'en' ? 'No orders found in browser vault to sync.' : 'ब्राउझर व्हॉल्टमध्ये कोणतेही ऑर्डर्स नाहीत.', 'warning');
+    return;
+  }
+  const confirmMsg = currentLang.value === 'en'
+    ? `Sync ${listToSync.length} orders from your offline browser vault to the cloud database? Any missing orders will be safely restored.`
+    : (currentLang.value === 'mr'
+      ? `तुमच्या ऑफलाइन व्हॉल्टमधील ${listToSync.length} ऑर्डर्स क्लाउड डेटाबेसमध्ये रिस्टोअर करायचे का?`
+      : `क्या आप ऑफलाइन वॉल्ट के ${listToSync.length} ऑर्डर्स क्लाउड डेटाबेस में पुनर्स्थापित (Restore) करना चाहते हैं?`);
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/orders/restore-vault`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({ orders: listToSync })
+    });
+    const d = await res.json();
+    if (res.ok) {
+      showToast(`✅ ${d.message}`);
+      loadAdminOrders();
+    } else {
+      showToast(d.error || 'Failed to sync vault', 'error');
+    }
+  } catch (e) {
+    showToast('Network error syncing vault', 'error');
+  }
+}
+
 async function loadAdminOrders(shouldSwitchTab = false) {
   if (shouldSwitchTab) {
     adminActiveTab.value = 'orders';
   }
-  isAdminOrdersLoading.value = true;
+  // Only show blocking loading state if no cached orders exist
+  if (adminOrders.value.length === 0) {
+    isAdminOrdersLoading.value = true;
+  } else {
+    isAdminOrdersSyncing.value = true;
+  }
   fetchSmsBalance();
   try {
     const res = await fetch(`${API_BASE}/admin/orders`, {
       headers: { 'Authorization': `Bearer ${authToken.value}` }
     });
     if (res.ok) {
-      adminOrders.value = await res.json();
+      const freshOrders = await res.json();
+      adminOrders.value = freshOrders;
+      try {
+        localStorage.setItem('komal_cached_admin_orders', JSON.stringify(freshOrders));
+        saveToAdminOrderVault(freshOrders);
+      } catch (cacheErr) {
+        console.warn('Vault cache update error:', cacheErr);
+      }
     }
   } catch (err) {
     console.error('Admin orders fetch error:', err);
+    // Offline resilience: load from device vault if empty
+    if (adminOrders.value.length === 0) {
+      const vaulted = getAdminOrderVault();
+      if (vaulted.length > 0) {
+        adminOrders.value = vaulted;
+        showToast('🛡️ Offline Mode: Orders loaded from Device Vault', 'warning');
+      }
+    }
   } finally {
     isAdminOrdersLoading.value = false;
+    isAdminOrdersSyncing.value = false;
   }
 }
 

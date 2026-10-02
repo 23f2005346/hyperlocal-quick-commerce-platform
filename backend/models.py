@@ -167,7 +167,7 @@ class Order(db.Model):
     tracking_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
-    items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
+    items = db.relationship('OrderItem', backref='order', lazy='selectin', cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

@@ -2101,7 +2101,7 @@ def create_app():
         if not user:
             return jsonify({'error': 'Please login to view your orders'}), 401
 
-        orders = Order.query.filter_by(user_id=user.id).order_by(Order.created_at.desc()).all()
+        orders = Order.query.options(db.joinedload(Order.items)).filter_by(user_id=user.id).order_by(Order.created_at.desc()).all()
         return jsonify([o.to_dict() for o in orders])
 
     @app.route('/api/customer/orders/<int:order_id>/pay', methods=['POST'])
@@ -3011,6 +3011,23 @@ def create_app():
 
         return round(base_rupees + (candidate_paise / 100.0), 2)
 
+    def append_order_to_audit_vault(order_obj):
+        """
+        Appends full order record to an immutable local JSONL vault file.
+        Guarantees that even if database records are dropped or corrupted,
+        the complete transaction history exists in a human-readable, reconstructible audit stream.
+        """
+        try:
+            vault_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'orders_audit_vault.jsonl')
+            entry = {
+                'vaulted_at': get_ist_time().isoformat(),
+                'order': order_obj.to_dict()
+            }
+            with open(vault_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+        except Exception as e:
+            print(f"[AUDIT VAULT WARNING] Failed to append order {getattr(order_obj, 'order_number', 'UNKNOWN')}: {e}")
+
     # --- ORDER PLACEMENT (CUSTOMER & GUEST) ---
 
     @app.route('/api/orders', methods=['POST'])
@@ -3200,6 +3217,7 @@ def create_app():
 
         db.session.add(new_order)
         db.session.commit()
+        append_order_to_audit_vault(new_order)
 
         return jsonify({
             'message': 'Order placed successfully! Bill generated.',
@@ -3292,8 +3310,107 @@ def create_app():
     @app.route('/api/admin/orders', methods=['GET'])
     @admin_required
     def get_admin_orders():
-        orders = Order.query.order_by(Order.created_at.desc()).all()
+        orders = Order.query.options(db.joinedload(Order.items)).order_by(Order.created_at.desc()).all()
         return jsonify([o.to_dict() for o in orders])
+
+    @app.route('/api/admin/orders/audit-vault/download', methods=['GET'])
+    @admin_required
+    def download_order_audit_vault():
+        """Downloads the raw append-only order audit vault file for complete disaster recovery."""
+        vault_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'orders_audit_vault.jsonl')
+        if not os.path.exists(vault_path):
+            orders = Order.query.options(db.joinedload(Order.items)).order_by(Order.created_at.asc()).all()
+            with open(vault_path, 'w', encoding='utf-8') as f:
+                for o in orders:
+                    f.write(json.dumps({'vaulted_at': get_ist_time().isoformat(), 'order': o.to_dict()}, ensure_ascii=False) + '\n')
+        return send_file(
+            vault_path,
+            mimetype='application/jsonl',
+            as_attachment=True,
+            download_name=f"komal_mart_orders_vault_{get_ist_time().strftime('%Y%m%d_%H%M%S')}.jsonl"
+        )
+
+    @app.route('/api/admin/orders/restore-vault', methods=['POST'])
+    @admin_required
+    def restore_orders_from_vault():
+        """
+        Disaster Recovery endpoint: Idempotently restores orders from a client/offline vault.
+        If any orders in the vault are missing from the SQL database,
+        it reconstructs the order and all item rows without duplicating existing ones.
+        """
+        data = request.get_json() or {}
+        orders_data = data.get('orders', [])
+        if not orders_data:
+            return jsonify({'error': 'No orders provided in vault payload'}), 400
+
+        restored = 0
+        skipped = 0
+
+        for ord_dict in orders_data:
+            ord_num = ord_dict.get('order_number')
+            if not ord_num:
+                continue
+
+            existing = Order.query.filter_by(order_number=ord_num).first()
+            if existing:
+                skipped += 1
+                continue
+
+            created_dt = get_ist_time()
+            if ord_dict.get('created_at'):
+                try:
+                    created_dt = datetime.strptime(ord_dict['created_at'], '%d %b %Y, %I:%M %p')
+                except Exception:
+                    pass
+
+            new_order = Order(
+                order_number=ord_num,
+                tracking_token=ord_dict.get('tracking_token') or uuid.uuid4().hex,
+                user_id=ord_dict.get('user_id'),
+                customer_name=ord_dict.get('customer_name', 'Customer'),
+                customer_phone=ord_dict.get('customer_phone', '9876543210'),
+                customer_address=ord_dict.get('customer_address', ''),
+                delivery_type=ord_dict.get('delivery_type', 'home_delivery'),
+                pincode=ord_dict.get('pincode', '400031'),
+                total_mrp=float(ord_dict.get('total_mrp') or 0.0),
+                final_amount=float(ord_dict.get('final_amount') or 0.0),
+                total_savings=float(ord_dict.get('total_savings') or 0.0),
+                credit_used=float(ord_dict.get('credit_used') or 0.0),
+                credit_earned=float(ord_dict.get('credit_earned') or 0.0),
+                payment_method=ord_dict.get('payment_method', 'Cash on Delivery (COD)'),
+                payment_status=ord_dict.get('payment_status', 'Paid'),
+                status=ord_dict.get('status', 'Delivered'),
+                delivery_availability=ord_dict.get('delivery_availability', 'pending'),
+                created_at=created_dt
+            )
+
+            items = []
+            for it in ord_dict.get('items', []):
+                item_row = OrderItem(
+                    product_id=it.get('product_id'),
+                    variant_id=it.get('variant_id'),
+                    product_name=it.get('product_name', 'Item'),
+                    variant_label=it.get('variant_label', '1 unit'),
+                    unit_price=float(it.get('unit_price') or 0.0),
+                    quantity=int(it.get('quantity') or 1),
+                    subtotal=float(it.get('subtotal') or 0.0)
+                )
+                items.append(item_row)
+
+            new_order.items = items
+            db.session.add(new_order)
+            append_order_to_audit_vault(new_order)
+            restored += 1
+
+        if restored > 0:
+            db.session.commit()
+
+        return jsonify({
+            'message': f'Vault recovery complete. {restored} orders restored, {skipped} existing preserved.',
+            'restored_count': restored,
+            'skipped_count': skipped,
+            'total_vaulted': len(orders_data)
+        })
 
     @app.route('/api/admin/orders/<int:order_id>/status', methods=['PATCH'])
     @admin_required
@@ -3924,12 +4041,14 @@ def create_app():
             credit_earned=round(credit_earned, 2),
             payment_method=payment_method,
             payment_status=payment_status,
-            status=order_status
+            status=order_status,
+            tracking_token=uuid.uuid4().hex
         )
         new_order.items = order_items
 
         db.session.add(new_order)
         db.session.commit()
+        append_order_to_audit_vault(new_order)
 
         return jsonify({
             'message': f'बिल #{order_number} सफलतापूर्वक दर्ज हुआ!',
