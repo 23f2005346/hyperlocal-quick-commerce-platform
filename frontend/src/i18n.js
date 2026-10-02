@@ -151,6 +151,12 @@ export const translations = {
     status_pending_verification: "UPI पडताळणी बाकी (Verification Pending)",
     pay_upi_btn: "UPI ने भरा",
     view_receipt_btn: "पावती / बिल",
+    delivery_availability_title: "डिलिव्हरी उपलब्धता पडताळणी",
+    delivery_avail_confirm_btn: "✅ होय, मी घरी उपलब्ध आहे (Dispatch Now)",
+    delivery_avail_reschedule_btn: "⏳ सध्या उपलब्ध नाही (नंतर पाठवा)",
+    delivery_avail_confirmed_badge: "✅ ग्राहक उपलब्ध (Confirmed)",
+    delivery_avail_reschedule_badge: "⏳ पुन्हा वेळ द्या (Reschedule)",
+    delivery_avail_pending_badge: "⏳ उपलब्धता विचारली आहे",
 
     // Support & Feedback
     tab_help_feedback: "मदत व तक्रार",
@@ -536,6 +542,12 @@ export const translations = {
     status_pending_verification: "UPI सत्यापन बाकी (Verification Pending)",
     pay_upi_btn: "UPI से भुगतान करें",
     view_receipt_btn: "पर्चा देखें",
+    delivery_availability_title: "डिलीवरी उपलब्धता पुष्टि",
+    delivery_avail_confirm_btn: "✅ हाँ, मैं घर पर उपलब्ध हूँ (Dispatch Now)",
+    delivery_avail_reschedule_btn: "⏳ अभी उपलब्ध नहीं हूँ (बाद में भेजें)",
+    delivery_avail_confirmed_badge: "✅ ग्राहक उपलब्ध (Confirmed)",
+    delivery_avail_reschedule_badge: "⏳ रीशेड्यूल (Reschedule)",
+    delivery_avail_pending_badge: "⏳ उपलब्धता पूछी गई है",
 
     // Support & Feedback
     tab_help_feedback: "मदद व शिकायत",
@@ -921,6 +933,12 @@ export const translations = {
     status_pending_verification: "UPI Verification Pending",
     pay_upi_btn: "Pay via UPI",
     view_receipt_btn: "View Receipt",
+    delivery_availability_title: "Delivery Availability Confirmation",
+    delivery_avail_confirm_btn: "✅ Yes, I am Available (Dispatch Now)",
+    delivery_avail_reschedule_btn: "⏳ Not Available Right Now (Reschedule)",
+    delivery_avail_confirmed_badge: "✅ Customer Available (Confirmed)",
+    delivery_avail_reschedule_badge: "⏳ Reschedule Requested",
+    delivery_avail_pending_badge: "⏳ Availability Awaited",
 
     // Support & Feedback
     tab_help_feedback: "Help & Feedback",

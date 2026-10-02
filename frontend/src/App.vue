@@ -1762,6 +1762,28 @@
                     >
                       🔊 साऊंडबॉक्स: .{{ getSoundboxPaise(ord.final_amount) }}
                     </span>
+                    <!-- Customer Delivery Availability Badge -->
+                    <span
+                      v-if="ord.delivery_availability === 'available'"
+                      style="margin-left: 8px; background: #dcfce7; border: 1.5px solid #86efac; color: #166534; font-size: 0.78rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"
+                      title="Customer clicked: Yes, I am available for delivery!"
+                    >
+                      🟢 {{ currentLang === 'en' ? 'Available (Confirmed)' : (currentLang === 'mr' ? 'ग्राहक उपलब्ध (सहमती)' : 'ग्राहक उपलब्ध (सहमति)') }}
+                    </span>
+                    <span
+                      v-else-if="ord.delivery_availability === 'reschedule'"
+                      style="margin-left: 8px; background: #fef3c7; border: 1.5px solid #fde047; color: #854d0e; font-size: 0.78rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"
+                      title="Customer requested to reschedule delivery"
+                    >
+                      ⏳ {{ currentLang === 'en' ? 'Reschedule Requested' : (currentLang === 'mr' ? 'वेळ बदला (Reschedule)' : 'रीशेड्यूल (बाद में भेजें)') }}
+                    </span>
+                    <span
+                      v-else-if="ord.status === 'Out for Delivery'"
+                      style="margin-left: 8px; background: #f1f5f9; border: 1.5px solid #cbd5e1; color: #475569; font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"
+                      title="Awaiting customer confirmation via WhatsApp link"
+                    >
+                      📲 {{ currentLang === 'en' ? 'Avail. Link Sent' : (currentLang === 'mr' ? 'उपलब्धता लिंक पाठवली' : 'उपलब्धता लिंक भेजी') }}
+                    </span>
                   </div>
                 </div>
                 <div class="admin-order-ticket-amount">
@@ -3221,6 +3243,43 @@
                 </div>
               </div>
 
+              <!-- Flipkart-Style Live Availability Banner if Out for Delivery -->
+              <div
+                v-if="ord.status === 'Out for Delivery'"
+                style="margin-top: 12px; background: #ecfdf5; border: 1.5px solid #6ee7b7; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                  <span style="font-weight: 800; color: #065f46; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+                    🛵💨 <strong>{{ currentLang === 'en' ? 'Delivery Boy is nearby! Are you available?' : (currentLang === 'mr' ? 'डिलिव्हरी पार्टनर निघत आहे! तुम्ही घरी आहात का?' : 'डिलीवरी बॉय निकलने वाला है! क्या आप घर पर हैं?') }}</strong>
+                  </span>
+                  <span v-if="ord.delivery_availability === 'available'" style="font-size: 0.8rem; font-weight: 900; color: #15803d; background: #dcfce7; padding: 3px 8px; border-radius: 6px;">
+                    🟢 {{ currentLang === 'en' ? 'Confirmed: Available' : (currentLang === 'mr' ? 'कन्फर्म: उपलब्ध' : 'कन्फर्म: उपलब्ध') }}
+                  </span>
+                  <span v-else-if="ord.delivery_availability === 'reschedule'" style="font-size: 0.8rem; font-weight: 900; color: #b45309; background: #fef3c7; padding: 3px 8px; border-radius: 6px;">
+                    ⏳ {{ currentLang === 'en' ? 'Reschedule Requested' : (currentLang === 'mr' ? 'नंतर पाठवण्याची विनंती' : 'बाद में भेजने का अनुरोध') }}
+                  </span>
+                </div>
+                <div v-if="ord.delivery_availability !== 'available'" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px;">
+                  <button
+                    type="button"
+                    @click="confirmOrderAvailability(ord.order_number, 'available')"
+                    style="flex: 1; min-width: 140px; background: #059669; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                  >
+                    {{ t('delivery_avail_confirm_btn') }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="confirmOrderAvailability(ord.order_number, 'reschedule')"
+                    style="background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
+                  >
+                    {{ t('delivery_avail_reschedule_btn') }}
+                  </button>
+                </div>
+                <div v-else style="font-size: 0.78rem; color: #047857; font-weight: 700;">
+                  ✨ {{ currentLang === 'en' ? 'Thank you! Your order is being expedited to your address.' : (currentLang === 'mr' ? 'धन्यवाद! डिलिव्हरी पार्टनर तात्काळ आपल्या पत्त्यावर पोहोचत आहे.' : 'धन्यवाद! डिलीवरी पार्टनर तुरंत आपके पते पर पहुँच रहा है।') }}
+                </div>
+              </div>
+
               <!-- Statuses Row -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.85rem;">
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -4471,6 +4530,72 @@
             <span v-else>✅ {{ t('place_order_btn') }} (₹{{ finalPayableAmount }})</span>
           </button>
         </form>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 1-TAP DELIVERY AVAILABILITY CONFIRMATION MODAL           -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showDeliveryCheckModal && deliveryCheckOrder" @click.self="showDeliveryCheckModal = false">
+      <div class="modal-card" style="max-width: 440px; text-align: center; padding: 24px;">
+        <div style="font-size: 3rem; margin-bottom: 8px;">🛵💨</div>
+        <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0 0 8px;">
+          {{ currentLang === 'en' ? 'Delivery Availability Check' : (currentLang === 'mr' ? 'डिलिव्हरी उपलब्धता पडताळणी' : 'डिलीवरी उपलब्धता पुष्टि') }}
+        </h3>
+        <p style="font-size: 0.9rem; color: #475569; margin: 0 0 16px; line-height: 1.4;">
+          {{ currentLang === 'en'
+            ? `Hello ${deliveryCheckOrder.customer_name}! Your order #${deliveryCheckOrder.order_number} (₹${deliveryCheckOrder.final_amount}) is out for delivery. Are you available at your address?`
+            : (currentLang === 'mr'
+              ? `नमस्ते ${deliveryCheckOrder.customer_name}! तुमचा ऑर्डर #${deliveryCheckOrder.order_number} (₹${deliveryCheckOrder.final_amount}) डिलिव्हरीसाठी निघाला आहे. तुम्ही घरी उपलब्ध आहात का?`
+              : `नमस्ते ${deliveryCheckOrder.customer_name}! आपका ऑर्डर #${deliveryCheckOrder.order_number} (₹${deliveryCheckOrder.final_amount}) डिलीवरी के लिए निकल चुका है। क्या आप घर पर उपलब्ध हैं?`)
+          }}
+        </p>
+
+        <!-- Current Status Banner if already answered -->
+        <div v-if="deliveryCheckOrder.delivery_availability === 'available'" style="background: #dcfce7; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+          <div style="font-weight: 900; color: #166534; font-size: 0.95rem;">
+            🟢 {{ currentLang === 'en' ? 'Availability Confirmed!' : (currentLang === 'mr' ? 'उपलब्धता नोंदवली!' : 'उपलब्धता दर्ज!') }}
+          </div>
+          <div style="font-size: 0.82rem; color: #15803d; margin-top: 4px;">
+            {{ currentLang === 'en' ? 'Our delivery boy is on the way to your doorstep.' : (currentLang === 'mr' ? 'डिलिव्हरी पार्टनर तात्काळ आपल्या पत्त्यावर पोहोचत आहे.' : 'हमारा डिलीवरी पार्टनर आपके पते पर पहुँच रहा है।') }}
+          </div>
+        </div>
+        <div v-else-if="deliveryCheckOrder.delivery_availability === 'reschedule'" style="background: #fef3c7; border: 1.5px solid #fde047; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+          <div style="font-weight: 900; color: #854d0e; font-size: 0.95rem;">
+            ⏳ {{ currentLang === 'en' ? 'Reschedule Requested' : (currentLang === 'mr' ? 'नंतर पाठवण्याची नोंद' : 'बाद में भेजने का अनुरोध दर्ज') }}
+          </div>
+          <div style="font-size: 0.82rem; color: #a16207; margin-top: 4px;">
+            {{ currentLang === 'en' ? 'Store will call you shortly to arrange a convenient delivery time.' : (currentLang === 'mr' ? 'दुकानदार लवकरच कॉल करून नवीन वेळ ठरवतील.' : 'स्टोर टीम कॉल करके सुविधानुसार समय तय करेगी।') }}
+          </div>
+        </div>
+
+        <!-- 1-Tap Action Buttons -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button
+            type="button"
+            :disabled="deliveryCheckSubmitting"
+            @click="confirmOrderAvailability(deliveryCheckOrder.order_number, 'available')"
+            style="background: #059669; color: white; border: none; padding: 14px 18px; border-radius: 12px; font-weight: 900; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);"
+          >
+            <span>{{ deliveryCheckSubmitting ? '⏳ ...' : '✅' }}</span>
+            <span>{{ t('delivery_avail_confirm_btn') }}</span>
+          </button>
+          <button
+            type="button"
+            :disabled="deliveryCheckSubmitting"
+            @click="confirmOrderAvailability(deliveryCheckOrder.order_number, 'reschedule')"
+            style="background: #f8fafc; color: #475569; border: 1.5px solid #cbd5e1; padding: 12px 18px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; cursor: pointer;"
+          >
+            {{ t('delivery_avail_reschedule_btn') }}
+          </button>
+        </div>
+
+        <div style="margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
+          <span>📞 Store Helpline: <a href="tel:9142052967" style="color: #059669; font-weight: 700; text-decoration: none;">91420-52967</a></span>
+          <button type="button" @click="showDeliveryCheckModal = false" style="background: none; border: none; color: #94a3b8; font-weight: 700; cursor: pointer;">
+            ✕ {{ currentLang === 'en' ? 'Close' : 'बंद' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -7456,6 +7581,11 @@ const orderSubmitting = ref(false);
 const lastOrderReceipt = ref(null);
 const useStoreCredit = ref(false);
 
+// Delivery Availability 1-Tap State
+const showDeliveryCheckModal = ref(false);
+const deliveryCheckOrder = ref(null);
+const deliveryCheckSubmitting = ref(false);
+
 const customerForm = ref({
   name: '',
   phone: '',
@@ -8381,6 +8511,60 @@ async function confirmUpiPayForCustomerOrder() {
     }
   } catch (err) {
     console.error('Pay error:', err);
+  }
+}
+
+async function confirmOrderAvailability(orderNumber, choice) {
+  if (!orderNumber) return;
+  deliveryCheckSubmitting.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/availability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choice })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (deliveryCheckOrder.value && deliveryCheckOrder.value.order_number === orderNumber) {
+        deliveryCheckOrder.value.delivery_availability = choice;
+      }
+      // Update in customer orders list if present
+      if (customerOrders.value) {
+        const found = customerOrders.value.find(o => o.order_number === orderNumber);
+        if (found) found.delivery_availability = choice;
+      }
+      // Update in admin orders list if admin is logged in
+      if (adminOrders.value) {
+        const foundAdmin = adminOrders.value.find(o => o.order_number === orderNumber);
+        if (foundAdmin) foundAdmin.delivery_availability = choice;
+      }
+      showToast(
+        choice === 'available'
+          ? (currentLang.value === 'en' ? '✅ Delivery confirmed! Partner is on the way.' : (currentLang.value === 'mr' ? '✅ डिलिव्हरी निश्चित केली! पार्टनर तात्काळ पोहोचत आहे.' : '✅ डिलीवरी निश्चित! पार्टनर तुरंत पहुँच रहा है।'))
+          : (currentLang.value === 'en' ? '⏳ Reschedule noted! Store will call you.' : (currentLang.value === 'mr' ? '⏳ नोंद घेतली! दुकानदार संपर्क करतील.' : '⏳ रीशेड्यूल दर्ज हुआ! स्टोर टीम कॉल करेगी।'))
+      );
+    } else {
+      showToast(data.error || 'Failed to update availability', 'error');
+    }
+  } catch (err) {
+    console.error('Availability check error:', err);
+    showToast('Network error updating availability', 'error');
+  } finally {
+    deliveryCheckSubmitting.value = false;
+  }
+}
+
+async function openDeliveryCheckForOrder(orderNumber) {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}`);
+    if (res.ok) {
+      deliveryCheckOrder.value = await res.json();
+      showDeliveryCheckModal.value = true;
+    } else {
+      console.warn('Could not find order for delivery check:', orderNumber);
+    }
+  } catch (err) {
+    console.error('Failed to load order for check:', err);
   }
 }
 
@@ -10539,20 +10723,55 @@ function sendAdminWhatsAppStatus(order, statusType) {
   const custName = order.customer_name || 'Customer';
   const orderNum = order.order_number || ('KM-' + order.id);
   const amount = Number(order.final_amount || 0).toFixed(2);
+  const lang = currentLang.value || 'mr';
+
+  // Base URL for 1-tap availability confirmation
+  const checkLink = `${window.location.origin}/?order=${encodeURIComponent(orderNum)}&check=1`;
 
   let msg = '';
-  if (statusType === 'confirmed') {
-    msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
-  } else if (statusType === 'out_for_delivery') {
-    msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} डिलीवरी के लिए निकल चुका है! 🛵💨\n\nक्या आप घर पर उपलब्ध हैं? हमारा डिलीवरी बॉय अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\nकृपया डिलीवरी प्राप्त करने के लिए तैयार रहें। सहायता या निर्देश के लिए कॉल करें: 91420-52967. धन्यवाद! 🙏\n- कोमल मार्ट`;
-  } else if (statusType === 'delivered') {
-    msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
-  } else if (statusType === 'verified') {
-    msg = `नमस्ते ${custName} जी, आपके ऑर्डर #${orderNum} का UPI पेमेंट (₹${amount}) सफलतापूर्वक वेरिफाई हो गया है! ✅\nऑर्डर डिलीवरी के लिए तैयार किया जा रहा है। धन्यवाद! 🙏\n- कोमल मार्ट`;
-  } else if (statusType === 'payment_failed') {
-    msg = `नमस्ते ${custName} जी, आपने ऑर्डर #${orderNum} (₹${amount}) के लिए UPI पेमेंट मार्क किया था, लेकिन बैंक सर्वर में समस्या के कारण यह राशि हमारे खाते में प्राप्त नहीं हुई है (यदि आपके बैंक खाते से पैसे कटे हैं तो 24 घंटे में बैंक द्वारा स्वतः वापस रिफंड हो जाएंगे)। ⚠️\n\nचिंता न करें! आप सामान प्राप्त करते समय नकद (Cash on Delivery) दे सकते हैं या डिलीवरी बॉय के सामने दोबारा UPI कर सकते हैं।\nसहायता या पूछताछ के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट`;
+  if (lang === 'mr') {
+    if (statusType === 'confirmed') {
+      msg = `नमस्ते ${custName} जी, कोमल मार्टकडून तुमचा ऑर्डर #${orderNum} (₹${amount}) कन्फर्म झाला आहे आणि सामान पॅक केले जात आहे. 📦\nलवकरच आपल्या पत्त्यावर पोहोचेल. धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
+    } else if (statusType === 'out_for_delivery') {
+      msg = `नमस्ते ${custName} जी, तुमचा कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलिव्हरीसाठी निघाला आहे! 🛵💨\n\nआमचा डिलिव्हरी पार्टनर पुढील 10-15 मिनिटांत आपल्या घरी पोहोचत आहे.\n\n👉 *तुम्ही घरी उपलब्ध आहात का?*\nकृपया डिलिव्हरी कन्फर्म करण्यासाठी खालील लिंकवर १-टॅप करा:\n🔗 ${checkLink}\n\nमदत किंवा पत्त्यासाठी कॉल करा: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाळा`;
+    } else if (statusType === 'delivered') {
+      msg = `नमस्ते ${custName} जी, तुमचा ऑर्डर #${orderNum} यशस्वीरित्या पोहोचवला गेला आहे. ✅\nकोमल मार्टमधून खरेदी केल्याबद्दल मनःपूर्वक धन्यवाद! 🌾✨`;
+    } else if (statusType === 'verified') {
+      msg = `नमस्ते ${custName} जी, तुमच्या ऑर्डर #${orderNum} चे UPI पेमेंट (₹${amount}) यशस्वी पडताळले गेले आहे! ✅\nऑर्डर डिलिव्हरीसाठी तयार केली जात आहे. धन्यवाद! 🙏\n- कोमल मार्ट`;
+    } else if (statusType === 'payment_failed') {
+      msg = `नमस्ते ${custName} जी, तुम्ही ऑर्डर #${orderNum} (₹${amount}) साठी UPI पेमेंट केले होते, परंतु बँक सर्व्हरच्या समस्येमुळे ही रक्कम खात्यात जमा झाली नाही. ⚠️\n(पैसे कट झाले असल्यास २४ तासांत बँकेकडून आपोआप परत मिळतील).\n\nकाळजी करू नका! तुम्ही सामान घेताना रोख (Cash) किंवा डिलिव्हरी बॉयसमोर पुन्हा UPI करू शकता.\nसंपर्क: 91420-52967. धन्यवाद! 🙏\n- कोमल मार्ट`;
+    } else {
+      msg = `नमस्ते ${custName} जी, कोमल मार्ट ऑर्डर #${orderNum} चे अपडेट.`;
+    }
+  } else if (lang === 'en') {
+    if (statusType === 'confirmed') {
+      msg = `Hello ${custName}, your Komal Mart order #${orderNum} (₹${amount}) is confirmed and being packed! 📦\nIt will reach your doorstep shortly. Thank you! 🙏\n- Komal Mart (91420-52967)`;
+    } else if (statusType === 'out_for_delivery') {
+      msg = `Hello ${custName}, your Komal Mart order #${orderNum} (₹${amount}) is OUT FOR DELIVERY! 🛵💨\n\nOur delivery partner will reach your address in the next 10-15 minutes.\n\n👉 *Are you available right now?*\nPlease tap below to confirm delivery availability:\n🔗 ${checkLink}\n\nFor directions or support, call: 91420-52967.\nThank you! 🙏\n- Komal Mart, Wadala`;
+    } else if (statusType === 'delivered') {
+      msg = `Hello ${custName}, your order #${orderNum} has been successfully delivered! ✅\nThank you for shopping with Komal Mart! 🌾✨`;
+    } else if (statusType === 'verified') {
+      msg = `Hello ${custName}, your UPI payment of ₹${amount} for order #${orderNum} has been verified successfully! ✅\nYour order is being prepared for dispatch. Thank you! 🙏\n- Komal Mart`;
+    } else if (statusType === 'payment_failed') {
+      msg = `Hello ${custName}, we noticed your UPI payment of ₹${amount} for order #${orderNum} was not received due to bank server issues. ⚠️\n(If debited, your bank will refund automatically within 24 hours).\n\nNo worries! You can pay Cash on Delivery or UPI directly to our delivery boy upon arrival.\nAssistance: 91420-52967. Thank you! 🙏\n- Komal Mart`;
+    } else {
+      msg = `Hello ${custName}, update for your Komal Mart order #${orderNum}.`;
+    }
   } else {
-    msg = `नमस्ते ${custName} जी, आपके कोमल मार्ट ऑर्डर #${orderNum} का स्टेटस अपडेट: ठीक है।`;
+    // Default: Hindi
+    if (statusType === 'confirmed') {
+      msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
+    } else if (statusType === 'out_for_delivery') {
+      msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलीवरी के लिए निकल चुका है! 🛵💨\n\nहमारा डिलीवरी पार्टनर अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\n👉 *क्या आप घर पर उपलब्ध हैं?*\nकृपया डिलीवरी कन्फर्म करने के लिए नीचे दिए गए लिंक पर टैप करें:\n🔗 ${checkLink}\n\nसहायता या निर्देश के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाला`;
+    } else if (statusType === 'delivered') {
+      msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
+    } else if (statusType === 'verified') {
+      msg = `नमस्ते ${custName} जी, आपके ऑर्डर #${orderNum} का UPI पेमेंट (₹${amount}) सफलतापूर्वक वेरिफाई हो गया है! ✅\nऑर्डर डिलीवरी के लिए तैयार किया जा रहा है। धन्यवाद! 🙏\n- कोमल मार्ट`;
+    } else if (statusType === 'payment_failed') {
+      msg = `नमस्ते ${custName} जी, आपने ऑर्डर #${orderNum} (₹${amount}) के लिए UPI पेमेंट मार्क किया था, लेकिन बैंक सर्वर में समस्या के कारण यह राशि हमारे खाते में प्राप्त नहीं हुई है (यदि आपके बैंक खाते से पैसे कटे हैं तो 24 घंटे में बैंक द्वारा स्वतः वापस रिफंड हो जाएंगे)। ⚠️\n\nचिंता न करें! आप सामान प्राप्त करते समय नकद (Cash on Delivery) दे सकते हैं या डिलीवरी बॉय के सामने दोबारा UPI कर सकते हैं।\nसहायता या पूछताछ के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट`;
+    } else {
+      msg = `नमस्ते ${custName} जी, आपके कोमल मार्ट ऑर्डर #${orderNum} का स्टेटस अपडेट: ठीक है।`;
+    }
   }
 
   const url = `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
@@ -11339,6 +11558,14 @@ onMounted(() => {
     }
   } catch (e) {
     console.warn('Failed to parse saved parcha:', e);
+  }
+
+  // Check URL query parameters for 1-Tap Delivery Availability Check (e.g. ?order=KM-20261002-1098&check=1)
+  const urlParams = new URLSearchParams(window.location.search);
+  const checkOrderNum = urlParams.get('order');
+  const isDeliveryCheck = urlParams.get('check');
+  if (checkOrderNum && isDeliveryCheck) {
+    openDeliveryCheckForOrder(checkOrderNum);
   }
 
   // Handle #admin route direct access

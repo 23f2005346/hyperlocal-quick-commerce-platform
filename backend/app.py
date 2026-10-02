@@ -1379,6 +1379,12 @@ def create_app():
                 if 'pincode' not in order_cols:
                     cur.execute("ALTER TABLE orders ADD COLUMN pincode VARCHAR(10) DEFAULT '400031'")
                     conn.commit()
+                if 'delivery_availability' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN delivery_availability VARCHAR(30) DEFAULT 'pending'")
+                    conn.commit()
+                if 'delivery_availability_time' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN delivery_availability_time DATETIME DEFAULT NULL")
+                    conn.commit()
 
                 # Ensure product_variants.is_clearance and clearance_price columns exist
                 cur.execute("PRAGMA table_info(product_variants)")
@@ -2993,6 +2999,26 @@ def create_app():
         order = Order.query.filter_by(order_number=order_number).first_or_404()
         return jsonify(order.to_dict())
 
+    @app.route('/api/orders/<string:order_number>/availability', methods=['POST'])
+    def confirm_order_delivery_availability(order_number):
+        order = Order.query.filter_by(order_number=order_number).first_or_404()
+        data = request.get_json() or {}
+        # response: 'available' (Yes, available) or 'reschedule' (Not available right now)
+        choice = data.get('choice', 'available')
+        if choice not in ['available', 'reschedule']:
+            return jsonify({'error': 'Invalid availability choice. Must be available or reschedule.'}), 400
+
+        order.delivery_availability = choice
+        order.delivery_availability_time = get_ist_time()
+        db.session.commit()
+
+        msg = 'Delivery confirmed! Our delivery partner is heading to your address.' if choice == 'available' else 'Noted. Store partner will call you to reschedule delivery.'
+        return jsonify({
+            'message': msg,
+            'choice': choice,
+            'order': order.to_dict()
+        })
+
     # --- PROTECTED STORE OWNER / ADMIN ROUTES ---
 
     @app.route('/api/admin/orders', methods=['GET'])
@@ -3009,6 +3035,9 @@ def create_app():
 
         if 'status' in data:
             order.status = data['status']
+        if 'delivery_availability' in data:
+            order.delivery_availability = data['delivery_availability']
+            order.delivery_availability_time = get_ist_time()
         if 'payment_status' in data:
             prev_pay_status = order.payment_status
             new_pay_status = data['payment_status']

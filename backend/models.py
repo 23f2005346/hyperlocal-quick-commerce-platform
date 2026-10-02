@@ -160,6 +160,8 @@ class Order(db.Model):
     payment_method = db.Column(db.String(50), default='Cash on Delivery')
     payment_status = db.Column(db.String(30), default='Unpaid') # 'Paid' or 'Unpaid / Khata'
     status = db.Column(db.String(30), default='Placed') # Placed, Packed, Out for Delivery, Delivered
+    delivery_availability = db.Column(db.String(30), default='pending') # 'pending', 'available', 'reschedule'
+    delivery_availability_time = db.Column(db.DateTime, nullable=True)
     credit_used = db.Column(db.Float, default=0.0)
     credit_earned = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=get_ist_time)
@@ -184,6 +186,8 @@ class Order(db.Model):
             'payment_method': self.payment_method,
             'payment_status': self.payment_status,
             'status': self.status,
+            'delivery_availability': self.delivery_availability or 'pending',
+            'delivery_availability_time': self.delivery_availability_time.strftime('%d %b %Y, %I:%M %p') if self.delivery_availability_time else None,
             'created_at': self.created_at.strftime('%d %b %Y, %I:%M %p'),
             'items': [item.to_dict() for item in self.items]
         }
