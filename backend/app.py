@@ -1481,11 +1481,14 @@ def create_app():
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
-        # Mandatory Email for 24/7 self-service password reset and digital receipts
-        if not email or not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com). २४/७ पासवर्ड रीसेटसाठी ईमेल आवश्यक आहे.', 'code': 'INVALID_EMAIL'}), 400
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा दुसरा ईमेल वापरा.', 'code': 'EMAIL_EXISTS'}), 400
+        # Optional Email (prompted for 24/7 automated password reset and digital receipts)
+        if email:
+            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com) किंवा रिकामे ठेवा.', 'code': 'INVALID_EMAIL'}), 400
+            if User.query.filter_by(email=email).first():
+                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा दुसरा ईमेल वापरा.', 'code': 'EMAIL_EXISTS'}), 400
+        else:
+            email = None
 
         # Unique username validation (if provided)
         if username:

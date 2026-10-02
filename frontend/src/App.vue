@@ -647,10 +647,10 @@
       <footer style="margin-top: 60px; padding: 32px 20px 24px 20px; border-top: 1.5px solid var(--border); background: #fdfbf7; color: var(--text-subtle); font-size: 0.88rem;">
         <div style="max-width: 900px; margin: 0 auto; text-align: center;">
           <h4 style="font-size: 1.15rem; font-weight: 900; color: #064e3b; margin: 0 0 6px 0;">
-            🌾 कोमल एंटरप्रायझेस / कोमल मार्ट (Komal Enterprises)
+            🌾 Komal Enterprises / Komal Mart
           </h4>
           <p style="margin: 0 0 8px 0; color: #334155; font-size: 0.84rem; line-height: 1.5;">
-            📍 <strong>पत्ता:</strong> 1st Floor, GRD 6, विठ्ठल रुखमाई CHS, बी.बी. खांडेकर मार्ग, राम मंदिरा जवळ, वडाळा (प), मुंबई - ४०००३१
+            📍 <strong>Address:</strong> 1st Floor, GRD 6, Vitthal Rukhmai CHS, B.B. Khandekar Marg, Nr. Ram Mandir, Wadala (W), Mumbai - 400031
           </p>
 
           <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.82rem; color: #1e293b;">
@@ -666,22 +666,22 @@
           </div>
 
           <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; font-size: 0.84rem;">
-            <span>📞 <strong>दुकान / काउंटर:</strong> <a href="tel:9987602693" style="color: #059669; font-weight: 700; text-decoration: none;">9987602693</a></span>
+            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:9987602693" style="color: #059669; font-weight: 700; text-decoration: none;">9987602693</a></span>
             <span>•</span>
-            <span>📞 <strong>वडिलांचा संपर्क:</strong> <a href="tel:8369795519" style="color: #059669; font-weight: 700; text-decoration: none;">8369795519</a></span>
+            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:8369795519" style="color: #059669; font-weight: 700; text-decoration: none;">8369795519</a></span>
             <span>•</span>
-            <span>📞 <strong>भाऊ / व्यवस्थापक:</strong> <a href="tel:7045311406" style="color: #059669; font-weight: 700; text-decoration: none;">7045311406</a></span>
+            <span>📞 <strong>Hareram Kumar:</strong> <a href="tel:7045311406" style="color: #059669; font-weight: 700; text-decoration: none;">7045311406</a></span>
             <span>•</span>
-            <span>📲 <strong>WhatsApp हेल्पलाईन:</strong> <a href="https://wa.me/919142052967" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none;">91420-52967</a></span>
+            <span>📲 <strong>WhatsApp Helpline:</strong> <a href="https://wa.me/919142052967" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none;">91420-52967</a></span>
           </div>
 
           <p style="margin-top: 14px; font-size: 0.8rem; color: #94a3b8;">
-            कोमल मार्ट • शुद्ध किराणा, चक्कीचे ताजे पीठ, डाळी, मसाले व धान्य • वडाळा, दादर, माटुंगा, शिवडी, सायन परिसरासाठी तत्पर सेवा
+            Komal Mart • Pure Kirana, Fresh Chakki Atta, Dals, Spices & Grains • Hyperlocal doorstep delivery across Wadala, Dadar, Matunga, Sewri & Sion.
           </p>
 
           <p style="margin-top: 10px;">
             <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
-              🔐 दुकानदार पोर्टल लॉगिन (Store Owner Access)
+              🔐 Store Owner / Admin Portal Access
             </a>
           </p>
         </div>
@@ -4187,11 +4187,11 @@
 
           <div class="form-group">
             <label class="form-label">
-              {{ t('auth_register_email') }} <span style="color: #dc2626;">*</span>
+              {{ t('auth_register_email') }} <span style="font-size: 0.76rem; color: #64748b; font-weight: 600;">({{ currentLang === 'en' ? 'Optional' : (currentLang === 'mr' ? 'ऐच्छिक' : 'ऐच्छिक') }})</span>
             </label>
-            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@gmail.com" />
+            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@gmail.com" />
             <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
-              {{ currentLang === 'en' ? '🔐 Required for instant 24/7 automated password reset (Email OTP) & PDF bills.' : (currentLang === 'mr' ? '🔐 २४/७ त्वरित पासवर्ड रीसेट (ईमेल OTP) आणि बिलासाठी आवश्यक.' : '🔐 24/7 तत्काल पासवर्ड रीसेट (ईमेल OTP) और बिल के लिए आवश्यक।') }}
+              {{ currentLang === 'en' ? '💡 Tip: Adding an email enables instant 24/7 automated password reset (Email OTP) & digital receipts.' : (currentLang === 'mr' ? '💡 टीप: २४/७ त्वरित पासवर्ड रीसेट (ईमेल OTP) आणि बिलासाठी ईमेल जोडणे फायद्याचे ठरेल.' : '💡 सुझाव: 24/7 तत्काल पासवर्ड रीसेट (ईमेल OTP) और बिल के लिए ईमेल जोड़ना सुविधाजनक रहेगा।') }}
             </span>
           </div>
 
