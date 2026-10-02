@@ -1,1 +1,1 @@
-web: gunicorn --chdir backend -w 2 --threads 4 --timeout 120 -b 0.0.0.0:$PORT "app:create_app()"
+web: gunicorn --chdir backend -w 1 --threads 8 --timeout 120 -b 0.0.0.0:$PORT "app:create_app()"
