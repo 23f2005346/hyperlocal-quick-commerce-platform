@@ -4044,49 +4044,16 @@
 
           <div class="form-group">
             <label class="form-label">{{ t('auth_register_phone') }} <span style="color: #dc2626;">*</span></label>
-            <div style="display: flex; gap: 8px;">
-              <input
-                type="tel"
-                v-model="registerForm.phone"
-                required
-                maxlength="10"
-                pattern="[6-9][0-9]{9}"
-                class="form-input"
-                :placeholder="t('auth_register_phone_ph')"
-                :disabled="regOtpSent && regOtpCountdown > 0"
-                style="flex: 1;"
-              />
-              <button
-                type="button"
-                @click="sendRegistrationOtp"
-                :disabled="regOtpSubmitting || regOtpCountdown > 0"
-                style="background: #047857; color: white; border: none; padding: 0 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; cursor: pointer;"
-              >
-                {{ regOtpCountdown > 0 ? `${regOtpCountdown}s` : (regOtpSent ? (currentLang === 'en' ? 'Resend' : (currentLang === 'mr' ? 'पुन्हा पाठवा' : 'दोबारा भेजें')) : (currentLang === 'en' ? 'Send OTP' : (currentLang === 'mr' ? 'OTP पाठवा' : 'OTP भेजें'))) }}
-              </button>
-            </div>
-            <span style="font-size: 0.72rem; color: var(--text-muted);">{{ t('auth_register_phone_hint') }}</span>
-          </div>
-
-          <!-- Fast2SMS 6-Digit OTP Field -->
-          <div class="form-group" v-if="regOtpSent">
-            <label class="form-label">
-              {{ currentLang === 'en' ? '6-Digit SMS OTP' : (currentLang === 'mr' ? '६-अंकी SMS OTP' : '६-अंकी SMS OTP') }}
-              <span style="color: #dc2626;">*</span>
-            </label>
             <input
-              type="text"
-              v-model="registerForm.otp"
+              type="tel"
+              v-model="registerForm.phone"
               required
-              maxlength="6"
-              pattern="[0-9]{6}"
+              maxlength="10"
+              pattern="[6-9][0-9]{9}"
               class="form-input"
-              placeholder="123456"
-              style="letter-spacing: 4px; font-size: 1.15rem; font-weight: 800; text-align: center; border-color: #059669; background: #ecfdf5;"
+              :placeholder="t('auth_register_phone_ph')"
             />
-            <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
-              ✓ {{ currentLang === 'en' ? 'OTP sent to mobile via Fast2SMS. Valid for 10 mins.' : (currentLang === 'mr' ? 'मोबाईलवर SMS द्वारे OTP पाठवला आहे. १० मिनिटे वैध.' : 'मोबाइल पर SMS द्वारा OTP भेजा गया है। १० मिनट वैध।') }}
-            </span>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">{{ t('auth_register_phone_hint') }}</span>
           </div>
 
           <div class="form-group">
@@ -8205,15 +8172,6 @@ async function handleRegister() {
     authError.value = t('auth_err_dummy_phone');
     return;
   }
-  if (!regOtpSent.value) {
-    authError.value = currentLang.value === 'mr' ? 'कृपया आधी "OTP पाठवा" वर क्लिक करून मोबाईल नंबर पडताळून घ्या.' : (currentLang.value === 'hi' ? 'कृपया पहले "OTP भेजें" पर क्लिक करके मोबाइल नंबर सत्यापित करें।' : 'Please click "Send OTP" to verify your mobile number first.');
-    return;
-  }
-  const otp = (registerForm.value.otp || '').trim();
-  if (otp.length !== 6) {
-    authError.value = currentLang.value === 'mr' ? 'कृपया ६-अंकी SMS OTP टाका.' : (currentLang.value === 'hi' ? 'कृपया ६-अंकी SMS OTP दर्ज करें।' : 'Please enter the 6-digit SMS OTP.');
-    return;
-  }
   authSubmitting.value = true;
   authError.value = '';
   try {
@@ -8221,7 +8179,6 @@ async function handleRegister() {
       name: registerForm.value.name.trim(),
       username: registerForm.value.username ? registerForm.value.username.trim() : null,
       phone: phone,
-      otp: otp,
       email: registerForm.value.email ? registerForm.value.email.trim() : null,
       password: registerForm.value.password,
       address: registerForm.value.address.trim()

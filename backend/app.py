@@ -306,58 +306,16 @@ def is_dummy_phone(phone: str) -> bool:
  
 def send_fast2sms_otp(phone: str, otp: str):
     """
-    Dispatches 6-digit verification OTP to an Indian mobile number using Fast2SMS Quick SMS API (route: 'q').
-    Requires zero KYC and zero DLT registration.
+    DISPATCH GUARD: External SMS calls disabled to strictly protect Fast2SMS wallet balance.
+    Prints OTP to server console / dev logs without incurring any charges.
     """
-    api_key = os.environ.get('FAST2SMS_API_KEY', '').strip()
-    if not api_key:
-        print("[FAST2SMS WARNING] FAST2SMS_API_KEY not configured in environment. Printed OTP to terminal console only.")
-        return False, "FAST2SMS_API_KEY not configured"
-
     clean_phone = re.sub(r'\D', '', str(phone))
     if len(clean_phone) == 12 and clean_phone.startswith('91'):
         clean_phone = clean_phone[2:]
-    if len(clean_phone) != 10:
-        return False, "Invalid 10-digit mobile number format"
 
-    payload = {
-        "route": "q",
-        "message": f"Your Komal Mart verification code is {otp}. Valid for 10 minutes. Do not share with anyone.",
-        "language": "english",
-        "flash": 0,
-        "numbers": clean_phone
-    }
-
-    try:
-        req_data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            "https://www.fast2sms.com/dev/bulkV2",
-            data=req_data,
-            headers={
-                "authorization": api_key,
-                "Content-Type": "application/json",
-                "User-Agent": "KomalMart/1.0"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10.0) as resp:
-            resp_data = json.loads(resp.read().decode('utf-8', errors='replace'))
-            if resp_data.get('return') is True:
-                req_id = resp_data.get('request_id', 'unknown')
-                print(f"[FAST2SMS SUCCESS] Sent OTP to {clean_phone}. Request ID: {req_id}")
-                return True, "SMS OTP dispatched successfully"
-            else:
-                raw_msg = resp_data.get('message')
-                err_msg = raw_msg[0] if isinstance(raw_msg, list) and raw_msg else str(raw_msg or 'Unknown SMS error')
-                print(f"[FAST2SMS ERROR] {err_msg}")
-                return False, f"Fast2SMS error: {err_msg}"
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode('utf-8', errors='replace')
-        print(f"[FAST2SMS HTTP ERROR {e.code}] {err_body}")
-        return False, f"Fast2SMS HTTP error {e.code}"
-    except Exception as e:
-        print(f"[FAST2SMS EXCEPTION] Failed to send SMS to {clean_phone}: {e}")
-        return False, str(e)
+    print(f"\n[FAST2SMS GUARD ACTIVE - 0 COST] Verification Code for {clean_phone}: {otp}")
+    print("[FAST2SMS GUARD] External API call halted to preserve wallet balance.\n")
+    return True, "OTP generated (Balance protected)"
 
 def get_fast2sms_balance():
     """Fetches remaining wallet balance and SMS credits from Fast2SMS."""
@@ -1522,26 +1480,6 @@ def create_app():
         # Enforce unique phone
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
-
-        # Verify Registration OTP
-        rec = REGISTRATION_OTP_STORE.get(phone)
-        if not rec:
-            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया प्रथम "Send OTP" वर क्लिक करा.', 'code': 'OTP_NOT_FOUND'}), 400
-
-        if time.time() > rec.get('expires_at', 0):
-            REGISTRATION_OTP_STORE.pop(phone, None)
-            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
-
-        rec['attempts'] = rec.get('attempts', 0) + 1
-        if rec['attempts'] > 5:
-            REGISTRATION_OTP_STORE.pop(phone, None)
-            return jsonify({'error': 'अनेक वेळा चुकीचा OTP टाकला. सुरक्षेसाठी हे सत्र रद्द केले आहे. कृपया नवीन OTP मागवा.', 'code': 'TOO_MANY_ATTEMPTS'}), 400
-
-        if rec.get('otp') != otp:
-            return jsonify({'error': f'चुकीचा OTP कोड! कृपया मोबाईलवर आलेला योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {5 - rec["attempts"]}).', 'code': 'INVALID_OTP'}), 400
-
-        # OTP verified successfully! Clear from store
-        REGISTRATION_OTP_STORE.pop(phone, None)
 
         # Optional Email Validation & Uniqueness (NULL allowed if omitted)
         if email:
