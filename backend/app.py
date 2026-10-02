@@ -2455,10 +2455,23 @@ def create_app():
                 'error': mime_or_err or 'TTS generation failed'
             }), 502
 
+    # Fast In-Memory Catalog Cache (TTL: 60s) to eliminate N+1 latency over cloud database
+    CATALOG_CACHE = {}
+
+    def invalidate_catalog_cache():
+        CATALOG_CACHE.clear()
+
     @app.route('/api/categories', methods=['GET'])
     def get_categories():
-        categories = Category.query.order_by(Category.display_order.asc()).all()
-        return jsonify([cat.to_dict() for cat in categories])
+        try:
+            from sqlalchemy.orm import selectinload
+            categories = Category.query.options(selectinload(Category.products)).order_by(Category.display_order.asc()).all()
+            return jsonify([cat.to_dict() for cat in categories])
+        except Exception as e:
+            print(f"[CATEGORIES ERROR] {e}")
+            # Fallback query without eager load if dialect has options issue
+            categories = Category.query.order_by(Category.display_order.asc()).all()
+            return jsonify([cat.to_dict() for cat in categories])
 
     @app.route('/api/products', methods=['GET'])
     def get_products():
@@ -2467,58 +2480,86 @@ def create_app():
         loose_filter = request.args.get('loose')
         sort_by = request.args.get('sort')
 
-        query = Product.query
+        # Fast cache check for standard catalog browsing (sub-1ms response)
+        cache_key = f"{category_slug or 'all'}:{loose_filter or 'all'}:{sort_by or 'default'}"
+        now = time.time()
+        if not search_query and cache_key in CATALOG_CACHE:
+            cached_time, cached_data = CATALOG_CACHE[cache_key]
+            if now - cached_time < 60:
+                return jsonify(cached_data)
 
-        clearance_filter = request.args.get('clearance')
-        if category_slug == 'clearance' or clearance_filter in ['true', '1']:
-            query = query.join(ProductVariant).filter(ProductVariant.is_clearance == True)
-        elif category_slug:
-            category = Category.query.filter_by(slug=category_slug).first()
-            if category:
-                query = query.filter_by(category_id=category.id)
-            else:
-                return jsonify([])
+        try:
+            from sqlalchemy.orm import joinedload, selectinload
+            query = Product.query.options(
+                joinedload(Product.category),
+                selectinload(Product.variants),
+                selectinload(Product.tiered_prices)
+            )
 
-        if loose_filter in ['true', 'false']:
-            is_loose = (loose_filter == 'true')
-            query = query.filter_by(is_loose=is_loose)
+            clearance_filter = request.args.get('clearance')
+            if category_slug == 'clearance' or clearance_filter in ['true', '1']:
+                query = query.join(ProductVariant).filter(ProductVariant.is_clearance == True)
+            elif category_slug:
+                category = Category.query.filter_by(slug=category_slug).first()
+                if category:
+                    query = query.filter_by(category_id=category.id)
+                else:
+                    return jsonify([])
 
-        # Smart Hinglish & Phonetic Search Aliases Matching
-        if search_query:
-            from sqlalchemy import or_
-            raw_query = search_query.strip().lower()
-            tokens = [t.strip() for t in raw_query.split() if t.strip()]
+            if loose_filter in ['true', 'false']:
+                is_loose = (loose_filter == 'true')
+                query = query.filter_by(is_loose=is_loose)
 
-            all_terms = set()
-            all_terms.add(raw_query)
-            for tok in tokens:
-                all_terms.add(tok)
-                if tok in SEARCH_ALIASES:
-                    for alias in SEARCH_ALIASES[tok]:
-                        all_terms.add(alias)
+            # Smart Hinglish & Phonetic Search Aliases Matching
+            if search_query:
+                from sqlalchemy import or_
+                raw_query = search_query.strip().lower()
+                tokens = [t.strip() for t in raw_query.split() if t.strip()]
 
-            filter_clauses = []
-            for t in all_terms:
-                like_term = f"%{t}%"
-                filter_clauses.append(Product.name.ilike(like_term))
-                filter_clauses.append(Product.name_hi.ilike(like_term))
-                filter_clauses.append(Product.brand.ilike(like_term))
-                filter_clauses.append(Category.name.ilike(like_term))
-                filter_clauses.append(Category.name_hi.ilike(like_term))
+                all_terms = set()
+                all_terms.add(raw_query)
+                for tok in tokens:
+                    all_terms.add(tok)
+                    if tok in SEARCH_ALIASES:
+                        for alias in SEARCH_ALIASES[tok]:
+                            all_terms.add(alias)
 
-            query = query.join(Category).filter(or_(*filter_clauses)).distinct()
+                filter_clauses = []
+                for t in all_terms:
+                    like_term = f"%{t}%"
+                    filter_clauses.append(Product.name.ilike(like_term))
+                    filter_clauses.append(Product.name_hi.ilike(like_term))
+                    filter_clauses.append(Product.brand.ilike(like_term))
+                    filter_clauses.append(Category.name.ilike(like_term))
+                    filter_clauses.append(Category.name_hi.ilike(like_term))
 
-        products = query.all()
-        result = [p.to_dict() for p in products]
+                query = query.join(Category).filter(or_(*filter_clauses)).distinct()
 
-        if sort_by == 'price_asc':
-            result.sort(key=lambda p: p['variants'][0]['selling_price'] if p['variants'] else 0)
-        elif sort_by == 'price_desc':
-            result.sort(key=lambda p: p['variants'][0]['selling_price'] if p['variants'] else 0, reverse=True)
-        elif sort_by == 'name':
-            result.sort(key=lambda p: p['name'].lower())
+            products = query.all()
+            result = [p.to_dict() for p in products]
 
-        return jsonify(result)
+            if sort_by == 'price_asc':
+                result.sort(key=lambda p: p['variants'][0]['selling_price'] if p['variants'] else 0)
+            elif sort_by == 'price_desc':
+                result.sort(key=lambda p: p['variants'][0]['selling_price'] if p['variants'] else 0, reverse=True)
+            elif sort_by == 'name':
+                result.sort(key=lambda p: p['name'].lower())
+
+            # Cache successful browse queries
+            if not search_query:
+                CATALOG_CACHE[cache_key] = (now, result)
+
+            return jsonify(result)
+        except Exception as e:
+            print(f"[PRODUCTS ERROR] {e}")
+            import traceback
+            traceback.print_exc()
+            # If cache has any data for this key, return stale cache over 500 error
+            if cache_key in CATALOG_CACHE:
+                return jsonify(CATALOG_CACHE[cache_key][1])
+            # Direct query fallback
+            fallback_prods = Product.query.all()
+            return jsonify([p.to_dict() for p in fallback_prods])
 
     @app.route('/api/products/<int:product_id>', methods=['GET'])
     def get_product_detail(product_id):
@@ -2887,6 +2928,7 @@ def create_app():
             db.session.add(variant)
 
         db.session.commit()
+        invalidate_catalog_cache()
         return jsonify({'message': 'Product added successfully!', 'product': product.to_dict()}), 201
 
     @app.route('/api/products/<int:product_id>', methods=['PUT', 'PATCH'])
@@ -2920,6 +2962,7 @@ def create_app():
             product.image_url = str(data['image_url']).strip()
 
         db.session.commit()
+        invalidate_catalog_cache()
         return jsonify({
             'message': f'Product {product.name} updated successfully!',
             'product': product.to_dict()
@@ -2966,6 +3009,7 @@ def create_app():
                 print(f"[RESTOCK ALERT TRIGGERED] Notified {alert.customer_name} ({alert.customer_phone}) for {prod_name} - {variant.unit_size}")
 
         db.session.commit()
+        invalidate_catalog_cache()
         return jsonify({
             'message': 'Variant updated successfully in SQLite!',
             'variant': variant.to_dict(),
@@ -2978,6 +3022,7 @@ def create_app():
         product = Product.query.get_or_404(product_id)
         db.session.delete(product)
         db.session.commit()
+        invalidate_catalog_cache()
         return jsonify({'message': f'Product {product.name} deleted successfully!'})
 
     @app.route('/api/products/bulk-delete', methods=['POST'])
@@ -2995,6 +3040,7 @@ def create_app():
                 db.session.delete(product)
                 deleted_count += 1
         db.session.commit()
+        invalidate_catalog_cache()
         return jsonify({'message': f'Successfully deleted {deleted_count} products!', 'deleted_count': deleted_count})
 
     @app.route('/api/reset-seed', methods=['POST'])

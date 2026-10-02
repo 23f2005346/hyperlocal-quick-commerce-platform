@@ -8272,7 +8272,7 @@ async function fetchCategories() {
   }
 }
 
-async function fetchProducts() {
+async function fetchProducts(retryCount = 0) {
   loading.value = true;
   try {
     const params = new URLSearchParams();
@@ -8289,9 +8289,16 @@ async function fetchProducts() {
           selectedVariants.value[p.id] = p.variants[0].id;
         }
       });
+    } else if (retryCount < 2) {
+      setTimeout(() => { fetchProducts(retryCount + 1); }, 1200);
+      return;
     }
   } catch (err) {
     console.error('Products fetch error:', err);
+    if (retryCount < 2) {
+      setTimeout(() => { fetchProducts(retryCount + 1); }, 1200);
+      return;
+    }
   } finally {
     loading.value = false;
   }
