@@ -2398,11 +2398,11 @@
                 <h1 style="margin: 0; color: #064e3b; font-size: 1.55rem; font-weight: 900; letter-spacing: 0.5px;">
                   🌾 कोमल मार्ट (KOMAL MART)
                 </h1>
-                <div style="font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 3px;">
-                  मुख्य बाजार, स्टेशन रोड, वडाळा (प.), मुंबई - ४०००३१ • फोन: ९८२००११२२३
+                <div style="font-size: 0.86rem; font-weight: 700; color: #1e293b; margin-top: 3px;">
+                  1st Floor, GRD 6, Vitthal Rukhmai CHS, B.B. Khandekar Marg, Nr. Ram Mandir, Wadala (W), Mumbai - 400031
                 </div>
                 <div style="font-size: 0.8rem; color: #475569; margin-top: 3px;">
-                  हायपरलोकल किराणा व सुपरमार्केट • दैनिक वित्तीय ताळेबंद व लेखापरीक्षण अहवाल
+                  <strong>GSTIN:</strong> 27ACOPU3896J1ZK • <strong>FSSAI:</strong> 11521003000327 • <strong>Phone:</strong> 9987602693 / 8369795519
                 </div>
               </div>
               <div style="text-align: right;">
