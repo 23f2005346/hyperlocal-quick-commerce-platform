@@ -770,6 +770,15 @@
               <strong class="stat-val">{{ paidAdminOrders.length }}</strong>
             </div>
           </div>
+          <div class="stat-card" style="border-left: 4px solid #0284c7; cursor: pointer;" @click="fetchSmsBalance" title="Click to refresh SMS balance">
+            <div class="stat-icon">💬</div>
+            <div class="stat-content">
+              <span class="stat-label">Fast2SMS Balance</span>
+              <strong class="stat-val" style="color: #0369a1; font-size: 1.05rem;">
+                ₹{{ smsBalanceInfo.wallet }} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">({{ smsBalanceInfo.sms_count }} SMS)</span>
+              </strong>
+            </div>
+          </div>
         </div>
 
         <!-- Modern Admin Sub-Navigation Tabs -->
@@ -3801,12 +3810,12 @@
           <!-- Step 2: Verify OTP & Set New Password -->
           <div v-else-if="resetStep === 2">
             <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center;">
-              <div style="font-size: 1.8rem; margin-bottom: 4px;">📩</div>
+              <div style="font-size: 1.8rem; margin-bottom: 4px;">{{ resetChannel === 'sms' ? '📲' : '📩' }}</div>
               <p style="font-size: 0.85rem; color: #065f46; font-weight: 700; margin: 0 0 4px 0;">
-                {{ t('auth_reset_notice_step2') }}
+                {{ resetChannel === 'sms' ? (currentLang === 'en' ? '6-Digit OTP sent via SMS to mobile' : (currentLang === 'mr' ? 'मोबाईलवर SMS द्वारे ६-अंकी OTP पाठवला आहे' : 'मोबाइल पर SMS द्वारा ६-अंकी OTP भेजा गया है')) : t('auth_reset_notice_step2') }}
               </p>
               <div style="display: inline-block; background: white; border: 1px dashed #059669; padding: 4px 10px; border-radius: 6px; font-size: 0.88rem; font-weight: 800; color: #047857;">
-                ✉️ {{ resetMaskedEmail }}
+                {{ resetChannel === 'sms' ? '📱' : '✉️' }} {{ resetMaskedTarget || resetMaskedEmail }}
               </div>
             </div>
 
@@ -3854,22 +3863,46 @@
                 {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_btn') }}
               </button>
 
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.8rem;">
-                <button
-                  type="button"
-                  @click="handleResendResetOtp"
-                  :disabled="authSubmitting"
-                  style="background: none; border: none; color: #047857; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;"
-                >
-                  {{ t('auth_reset_resend_btn') }}
-                </button>
-                <button
-                  type="button"
-                  @click="resetStep = 1; authError = '';"
-                  style="background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; padding: 0;"
-                >
-                  ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
-                </button>
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; font-size: 0.8rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <button
+                    type="button"
+                    @click="handleResendResetOtp()"
+                    :disabled="authSubmitting"
+                    style="background: none; border: none; color: #047857; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;"
+                  >
+                    {{ t('auth_reset_resend_btn') }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="resetStep = 1; authError = '';"
+                    style="background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; padding: 0;"
+                  >
+                    ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
+                  </button>
+                </div>
+
+                <!-- Dual Channel Switch Option -->
+                <div v-if="resetChannel === 'sms' && resetHasEmail" style="text-align: center; margin-top: 4px;">
+                  <button
+                    type="button"
+                    @click="handleResendResetOtp('email')"
+                    :disabled="authSubmitting"
+                    style="background: none; border: 1px dashed #0284c7; border-radius: 6px; padding: 4px 8px; color: #0284c7; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
+                  >
+                    ✉️ {{ currentLang === 'en' ? 'Didn\'t get SMS? Send OTP to registered Email' : (currentLang === 'mr' ? 'SMS आला नाही? नोंदणीकृत ईमेलवर OTP पाठवा' : 'SMS नहीं आया? पंजीकृत ईमेल पर OTP भेजें') }}
+                  </button>
+                </div>
+                <div v-else-if="resetChannel === 'email' && resetHasPhone" style="text-align: center; margin-top: 4px;">
+                  <button
+                    type="button"
+                    @click="handleResendResetOtp('sms')"
+                    :disabled="authSubmitting"
+                    style="background: none; border: 1px dashed #059669; border-radius: 6px; padding: 4px 8px; color: #059669; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
+                  >
+                    📱 {{ currentLang === 'en' ? 'Didn\'t get Email? Send OTP to mobile SMS' : (currentLang === 'mr' ? 'ईमेल आला नाही? मोबाईलवर SMS द्वारे OTP पाठवा' : 'ईमेल नहीं आया? मोबाइल पर SMS द्वारा OTP भेजें') }}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -3951,16 +3984,60 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">{{ t('auth_register_phone') }}</label>
-            <input type="tel" v-model="registerForm.phone" required pattern="[6-9][0-9]{9}" class="form-input" :placeholder="t('auth_register_phone_ph')" />
+            <label class="form-label">{{ t('auth_register_phone') }} <span style="color: #dc2626;">*</span></label>
+            <div style="display: flex; gap: 8px;">
+              <input
+                type="tel"
+                v-model="registerForm.phone"
+                required
+                maxlength="10"
+                pattern="[6-9][0-9]{9}"
+                class="form-input"
+                :placeholder="t('auth_register_phone_ph')"
+                :disabled="regOtpSent && regOtpCountdown > 0"
+                style="flex: 1;"
+              />
+              <button
+                type="button"
+                @click="sendRegistrationOtp"
+                :disabled="regOtpSubmitting || regOtpCountdown > 0"
+                style="background: #047857; color: white; border: none; padding: 0 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; cursor: pointer;"
+              >
+                {{ regOtpCountdown > 0 ? `${regOtpCountdown}s` : (regOtpSent ? (currentLang === 'en' ? 'Resend' : (currentLang === 'mr' ? 'पुन्हा पाठवा' : 'दोबारा भेजें')) : (currentLang === 'en' ? 'Send OTP' : (currentLang === 'mr' ? 'OTP पाठवा' : 'OTP भेजें'))) }}
+              </button>
+            </div>
             <span style="font-size: 0.72rem; color: var(--text-muted);">{{ t('auth_register_phone_hint') }}</span>
           </div>
 
+          <!-- Fast2SMS 6-Digit OTP Field -->
+          <div class="form-group" v-if="regOtpSent">
+            <label class="form-label">
+              {{ currentLang === 'en' ? '6-Digit SMS OTP' : (currentLang === 'mr' ? '६-अंकी SMS OTP' : '६-अंकी SMS OTP') }}
+              <span style="color: #dc2626;">*</span>
+            </label>
+            <input
+              type="text"
+              v-model="registerForm.otp"
+              required
+              maxlength="6"
+              pattern="[0-9]{6}"
+              class="form-input"
+              placeholder="123456"
+              style="letter-spacing: 4px; font-size: 1.15rem; font-weight: 800; text-align: center; border-color: #059669; background: #ecfdf5;"
+            />
+            <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
+              ✓ {{ currentLang === 'en' ? 'OTP sent to mobile via Fast2SMS. Valid for 10 mins.' : (currentLang === 'mr' ? 'मोबाईलवर SMS द्वारे OTP पाठवला आहे. १० मिनिटे वैध.' : 'मोबाइल पर SMS द्वारा OTP भेजा गया है। १० मिनट वैध।') }}
+            </span>
+          </div>
+
           <div class="form-group">
-            <label class="form-label">{{ t('auth_register_email') }}</label>
-            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@example.com" />
+            <label class="form-label">
+              {{ t('auth_register_email') }}
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">({{ currentLang === 'en' ? 'Optional' : (currentLang === 'mr' ? 'ऐच्छिक' : 'वैकल्पिक') }})</span>
+            </label>
+            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com" />
             <span style="font-size: 0.72rem; color: var(--text-muted);">
-              {{ currentLang === 'en' ? 'Password reset OTP & invoices will be sent to this email' : (currentLang === 'mr' ? 'पासवर्ड रीसेट OTP व बिले या ईमेलवर पाठवली जातील' : 'पासवर्ड रीसेट OTP और बिल इस ईमेल पर भेजे जाएंगे') }}
+              {{ currentLang === 'en' ? 'Optional: Used for PDF invoices and dual backup account recovery.' : (currentLang === 'mr' ? 'ऐच्छिक: PDF बिल आणि बॅकअप खाते पुनर्प्राप्तीसाठी.' : 'वैकल्पिक: PDF बिल और बैकअप खाता रिकवरी के लिए।') }}
             </span>
           </div>
 
@@ -6817,15 +6894,25 @@ const authError = ref('');
 const authSubmitting = ref(false);
 
 const authForm = ref({ identifier: '', password: '' });
-const registerForm = ref({ name: '', username: '', email: '', phone: '', password: '', address: '' });
+const registerForm = ref({ name: '', username: '', email: '', phone: '', password: '', address: '', otp: '' });
+const regOtpSent = ref(false);
+const regOtpSubmitting = ref(false);
+const regOtpCountdown = ref(0);
+let regOtpTimer = null;
+
 const resetStep = ref(1); // 1 = enter phone/email, 2 = enter OTP & new password
 const resetIdentifier = ref('');
 const resetOtp = ref('');
 const resetNewPassword = ref('');
 const resetConfirmPassword = ref('');
 const resetToken = ref('');
+const resetMaskedTarget = ref('');
 const resetMaskedEmail = ref('');
 const resetNoEmailPhone = ref('');
+const resetChannel = ref('sms'); // 'sms' | 'email'
+const resetHasEmail = ref(false);
+const resetHasPhone = ref(false);
+const smsBalanceInfo = ref({ configured: true, wallet: '145.00', sms_count: 580 });
 const admin2faState = ref({
   active: false,
   temp_token: '',
@@ -7671,14 +7758,22 @@ function openAuthModal(mode = 'login') {
   authMode.value = mode;
   authError.value = '';
   admin2faState.value = { active: false, temp_token: '', masked_email: '', admin_email: '', otp: '' };
+  regOtpSent.value = false;
+  regOtpCountdown.value = 0;
+  if (regOtpTimer) clearInterval(regOtpTimer);
+  registerForm.value = { name: '', username: '', email: '', phone: '', password: '', address: '', otp: '' };
   resetStep.value = 1;
   resetIdentifier.value = '';
   resetOtp.value = '';
   resetNewPassword.value = '';
   resetConfirmPassword.value = '';
   resetToken.value = '';
+  resetMaskedTarget.value = '';
   resetMaskedEmail.value = '';
   resetNoEmailPhone.value = '';
+  resetChannel.value = 'sms';
+  resetHasEmail.value = false;
+  resetHasPhone.value = false;
   if (mode === 'admin') {
     authForm.value = { identifier: 'thisisroushan01@gmail.com', password: '' };
   } else {
@@ -7793,7 +7888,7 @@ async function handleVerifyAdmin2Fa() {
   }
 }
 
-async function handleRequestResetOtp() {
+async function handleRequestResetOtp(preferredChannel = null) {
   if (!resetIdentifier.value.trim()) {
     authError.value = currentLang.value === 'mr' ? 'कृपया मोबाईल नंबर किंवा ईमेल पत्ता टाका.' : (currentLang.value === 'hi' ? 'कृपया मोबाइल नंबर या ईमेल पता दर्ज करें।' : 'Please enter mobile number or email address.');
     return;
@@ -7802,17 +7897,22 @@ async function handleRequestResetOtp() {
   authError.value = '';
   resetNoEmailPhone.value = '';
   try {
+    const payload = { identifier: resetIdentifier.value.trim() };
+    if (preferredChannel) payload.channel = preferredChannel;
     const res = await fetch(`${API_BASE}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: resetIdentifier.value.trim() })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (res.ok) {
       resetToken.value = data.reset_token;
-      resetMaskedEmail.value = data.masked_email;
+      resetChannel.value = data.channel || 'sms';
+      resetMaskedTarget.value = data.masked_target || data.masked_email || '';
+      resetHasEmail.value = Boolean(data.has_email);
+      resetHasPhone.value = Boolean(data.has_phone);
       resetStep.value = 2;
-      showToast(currentLang.value === 'mr' ? `📩 OTP पडताळणी कोड ${data.masked_email} वर पाठवला आहे.` : (currentLang.value === 'hi' ? `📩 OTP सत्यापन कोड ${data.masked_email} पर भेजा गया है।` : `📩 OTP verification code sent to ${data.masked_email}.`));
+      showToast(data.message || (resetChannel.value === 'sms' ? `📲 OTP पडताळणी कोड ${resetMaskedTarget.value} वर SMS द्वारे पाठवला आहे.` : `📩 OTP कोड ${resetMaskedTarget.value} वर पाठवला आहे.`));
     } else {
       if (data.code === 'NO_EMAIL_ON_ACCOUNT') {
         resetNoEmailPhone.value = data.customer_phone || resetIdentifier.value;
@@ -7826,7 +7926,7 @@ async function handleRequestResetOtp() {
   }
 }
 
-async function handleResendResetOtp() {
+async function handleResendResetOtp(switchChannel = null) {
   if (!resetToken.value) {
     resetStep.value = 1;
     return;
@@ -7834,14 +7934,18 @@ async function handleResendResetOtp() {
   authSubmitting.value = true;
   authError.value = '';
   try {
+    const payload = { reset_token: resetToken.value };
+    if (switchChannel) payload.channel = switchChannel;
     const res = await fetch(`${API_BASE}/auth/resend-forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reset_token: resetToken.value })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (res.ok) {
-      showToast(currentLang.value === 'mr' ? '🔄 नवीन OTP कोड ईमेलवर पुन्हा पाठवला आहे!' : (currentLang.value === 'hi' ? '🔄 नया OTP कोड ईमेल पर पुनः भेजा गया है!' : '🔄 New OTP code resent to email!'));
+      if (data.channel) resetChannel.value = data.channel;
+      if (data.masked_target) resetMaskedTarget.value = data.masked_target;
+      showToast(data.message || (resetChannel.value === 'sms' ? '🔄 नवीन OTP SMS द्वारे पुन्हा पाठवला आहे!' : '🔄 New OTP resent to email!'));
     } else {
       authError.value = formatAuthError(data, 'Resend failed');
     }
@@ -7889,6 +7993,7 @@ async function handleVerifyAndResetPassword() {
       resetNewPassword.value = '';
       resetConfirmPassword.value = '';
       resetToken.value = '';
+      resetMaskedTarget.value = '';
     } else {
       authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'पासवर्ड बदल अयशस्वी.' : (currentLang.value === 'hi' ? 'पासवर्ड बदलना असफल।' : 'Password reset failed.'));
     }
@@ -7917,8 +8022,8 @@ function isDummyPhone(phone) {
   return false;
 }
 
-async function handleRegister() {
-  const phone = registerForm.value.phone.trim();
+async function sendRegistrationOtp() {
+  const phone = (registerForm.value.phone || '').trim();
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
     authError.value = t('auth_err_invalid_phone');
@@ -7928,6 +8033,57 @@ async function handleRegister() {
     authError.value = t('auth_err_dummy_phone');
     return;
   }
+  regOtpSubmitting.value = true;
+  authError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/send-registration-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      regOtpSent.value = true;
+      regOtpCountdown.value = data.cooldown || 60;
+      if (regOtpTimer) clearInterval(regOtpTimer);
+      regOtpTimer = setInterval(() => {
+        if (regOtpCountdown.value > 0) {
+          regOtpCountdown.value--;
+        } else {
+          clearInterval(regOtpTimer);
+        }
+      }, 1000);
+      showToast(currentLang.value === 'mr' ? `📲 OTP कोड ${phone} वर पाठवला आहे!` : (currentLang.value === 'hi' ? `📲 OTP कोड ${phone} पर भेजा गया है!` : `📲 OTP code sent to ${phone}!`));
+    } else {
+      authError.value = data.error || (currentLang.value === 'mr' ? 'OTP पाठवता आला नाही.' : 'Failed to send OTP.');
+    }
+  } catch (err) {
+    authError.value = t('auth_err_network');
+  } finally {
+    regOtpSubmitting.value = false;
+  }
+}
+
+async function handleRegister() {
+  const phone = (registerForm.value.phone || '').trim();
+  const phoneRegex = /^[6-9]\d{9}$/;
+  if (!phoneRegex.test(phone)) {
+    authError.value = t('auth_err_invalid_phone');
+    return;
+  }
+  if (isDummyPhone(phone)) {
+    authError.value = t('auth_err_dummy_phone');
+    return;
+  }
+  if (!regOtpSent.value) {
+    authError.value = currentLang.value === 'mr' ? 'कृपया आधी "OTP पाठवा" वर क्लिक करून मोबाईल नंबर पडताळून घ्या.' : (currentLang.value === 'hi' ? 'कृपया पहले "OTP भेजें" पर क्लिक करके मोबाइल नंबर सत्यापित करें।' : 'Please click "Send OTP" to verify your mobile number first.');
+    return;
+  }
+  const otp = (registerForm.value.otp || '').trim();
+  if (otp.length !== 6) {
+    authError.value = currentLang.value === 'mr' ? 'कृपया ६-अंकी SMS OTP टाका.' : (currentLang.value === 'hi' ? 'कृपया ६-अंकी SMS OTP दर्ज करें।' : 'Please enter the 6-digit SMS OTP.');
+    return;
+  }
   authSubmitting.value = true;
   authError.value = '';
   try {
@@ -7935,6 +8091,7 @@ async function handleRegister() {
       name: registerForm.value.name.trim(),
       username: registerForm.value.username ? registerForm.value.username.trim() : null,
       phone: phone,
+      otp: otp,
       email: registerForm.value.email ? registerForm.value.email.trim() : null,
       password: registerForm.value.password,
       address: registerForm.value.address.trim()
@@ -7963,6 +8120,9 @@ async function handleRegister() {
       customerForm.value.phone = data.user.phone;
       customerForm.value.address = data.user.address;
       showAuthModal.value = false;
+      regOtpSent.value = false;
+      regOtpCountdown.value = 0;
+      if (regOtpTimer) clearInterval(regOtpTimer);
       showToast(`${t('greeting')} ${data.user.name}!`);
     } else {
       authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'नोंदणी अयशस्वी.' : (currentLang.value === 'hi' ? 'पंजीकरण असफल।' : 'Registration failed.'));
@@ -10499,10 +10659,25 @@ async function loadCustomerKhata() {
   }
 }
 
+async function fetchSmsBalance() {
+  if (!authToken.value || currentUser.value?.role !== 'admin') return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/sms-balance`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      smsBalanceInfo.value = await res.json();
+    }
+  } catch (e) {
+    console.error('Failed to fetch SMS balance', e);
+  }
+}
+
 async function loadAdminOrders(shouldSwitchTab = false) {
   if (shouldSwitchTab) {
     adminActiveTab.value = 'orders';
   }
+  fetchSmsBalance();
   try {
     const res = await fetch(`${API_BASE}/admin/orders`, {
       headers: { 'Authorization': `Bearer ${authToken.value}` }

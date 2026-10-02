@@ -54,7 +54,10 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 # Strict Store Owner Admin Email Whitelist
 ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
 ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
-CUSTOMER_RESET_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0 } }
+CUSTOMER_RESET_STORE = {} # { reset_key: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0, 'channel': 'sms'|'email' } }
+REGISTRATION_OTP_STORE = {} # { phone: { 'otp': '123456', 'expires_at': ts, 'attempts': 0, 'last_sent': ts } }
+
+FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', '').strip()
 
 # SMTP configuration for real email delivery (Gmail App Password)
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
@@ -300,6 +303,86 @@ def is_dummy_phone(phone: str) -> bool:
             return True
 
     return False
+ 
+def send_fast2sms_otp(phone: str, otp: str):
+    """
+    Dispatches 6-digit verification OTP to an Indian mobile number using Fast2SMS Quick SMS API (route: 'q').
+    Requires zero KYC and zero DLT registration.
+    """
+    api_key = os.environ.get('FAST2SMS_API_KEY', '').strip()
+    if not api_key:
+        print("[FAST2SMS WARNING] FAST2SMS_API_KEY not configured in environment. Printed OTP to terminal console only.")
+        return False, "FAST2SMS_API_KEY not configured"
+
+    clean_phone = re.sub(r'\D', '', str(phone))
+    if len(clean_phone) == 12 and clean_phone.startswith('91'):
+        clean_phone = clean_phone[2:]
+    if len(clean_phone) != 10:
+        return False, "Invalid 10-digit mobile number format"
+
+    payload = {
+        "route": "q",
+        "message": f"Your Komal Mart verification code is {otp}. Valid for 10 minutes. Do not share with anyone.",
+        "language": "english",
+        "flash": 0,
+        "numbers": clean_phone
+    }
+
+    try:
+        req_data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            "https://www.fast2sms.com/dev/bulkV2",
+            data=req_data,
+            headers={
+                "authorization": api_key,
+                "Content-Type": "application/json",
+                "User-Agent": "KomalMart/1.0"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10.0) as resp:
+            resp_data = json.loads(resp.read().decode('utf-8', errors='replace'))
+            if resp_data.get('return') is True:
+                req_id = resp_data.get('request_id', 'unknown')
+                print(f"[FAST2SMS SUCCESS] Sent OTP to {clean_phone}. Request ID: {req_id}")
+                return True, "SMS OTP dispatched successfully"
+            else:
+                raw_msg = resp_data.get('message')
+                err_msg = raw_msg[0] if isinstance(raw_msg, list) and raw_msg else str(raw_msg or 'Unknown SMS error')
+                print(f"[FAST2SMS ERROR] {err_msg}")
+                return False, f"Fast2SMS error: {err_msg}"
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f"[FAST2SMS HTTP ERROR {e.code}] {err_body}")
+        return False, f"Fast2SMS HTTP error {e.code}"
+    except Exception as e:
+        print(f"[FAST2SMS EXCEPTION] Failed to send SMS to {clean_phone}: {e}")
+        return False, str(e)
+
+def get_fast2sms_balance():
+    """Fetches remaining wallet balance and SMS credits from Fast2SMS."""
+    api_key = os.environ.get('FAST2SMS_API_KEY', '').strip()
+    if not api_key:
+        return {'configured': False, 'wallet': '0.00', 'sms_count': 0}
+    try:
+        req = urllib.request.Request(
+            "https://www.fast2sms.com/dev/wallet",
+            headers={
+                "authorization": api_key,
+                "User-Agent": "KomalMart/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            data = json.loads(resp.read().decode('utf-8', errors='replace'))
+            if data.get('return') is True:
+                return {
+                    'configured': True,
+                    'wallet': str(data.get('wallet', '0.00')),
+                    'sms_count': int(data.get('sms_count', 0))
+                }
+    except Exception as e:
+        print(f"[FAST2SMS WALLET ERROR] {e}")
+    return {'configured': True, 'wallet': 'Error', 'sms_count': 0}
 
 SEARCH_ALIASES = {
     # Rice / Grains
@@ -1359,18 +1442,68 @@ def create_app():
 
     # --- AUTH ROUTES ---
 
+    @app.route('/api/auth/send-registration-otp', methods=['POST'])
+    def send_registration_otp():
+        """
+        Customer registration: Sends 6-digit SMS OTP to customer's mobile phone via Fast2SMS.
+        Validates phone format, dummy numbers, and checks for existing registration.
+        Rate limits to 1 OTP per 60 seconds per phone.
+        """
+        data = request.get_json() or {}
+        phone = re.sub(r'\D', '', str(data.get('phone') or '').strip())
+
+        if not phone:
+            return jsonify({'error': 'मोबाईल नंबर आवश्यक आहे.', 'code': 'MISSING_PHONE'}), 400
+
+        if not re.match(r'^[6-9]\d{9}$', phone):
+            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
+
+        if is_dummy_phone(phone):
+            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 1234567890, 9876543210) चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
+
+        # Check if already registered
+        if User.query.filter_by(phone=phone).first():
+            return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया थेट लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
+
+        # Rate limiting: 60 seconds cooldown between resends
+        rec = REGISTRATION_OTP_STORE.get(phone)
+        now = time.time()
+        if rec and (now - rec.get('last_sent', 0)) < 60:
+            remaining = int(60 - (now - rec['last_sent']))
+            return jsonify({'error': f'कृपया नवीन OTP मागण्यापूर्वी {remaining} सेकंद प्रतीक्षा करा.', 'code': 'RATE_LIMITED', 'retry_after': remaining}), 429
+
+        otp = f"{random.randint(100000, 999999)}"
+        REGISTRATION_OTP_STORE[phone] = {
+            'otp': otp,
+            'expires_at': now + 600, # 10 minutes
+            'attempts': 0,
+            'last_sent': now
+        }
+
+        print(f"\n[REGISTRATION SMS OTP] Phone: {phone}, OTP: {otp}")
+
+        sms_sent, msg = send_fast2sms_otp(phone, otp)
+
+        return jsonify({
+            'message': '६-अंकी पडताळणी OTP आपल्या मोबाईल नंबरवर पाठवला आहे.',
+            'phone': phone,
+            'sms_sent': sms_sent,
+            'cooldown': 60
+        }), 200
+
     @app.route('/api/auth/register', methods=['POST'])
     def register():
         data = request.get_json() or {}
         name = (data.get('name') or '').strip()
         username = (data.get('username') or '').strip()
         email = (data.get('email') or '').strip().lower()
-        phone = (data.get('phone') or '').strip()
+        phone = re.sub(r'\D', '', str(data.get('phone') or '').strip())
         password = (data.get('password') or '').strip()
+        otp = (data.get('otp') or '').strip()
         address = (data.get('address') or '').strip()
 
-        if not name or not password or not phone or not email:
-            return jsonify({'error': 'नाव, ईमेल पत्ता, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
+        if not name or not password or not phone:
+            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         # Mandatory & Strict Indian Mobile Validation (10 digits starting with 6,7,8,9)
         if not re.match(r'^[6-9]\d{9}$', phone):
@@ -1384,11 +1517,34 @@ def create_app():
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
-        # Mandatory Email Validation & Uniqueness
-        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com).', 'code': 'INVALID_EMAIL'}), 400
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'EMAIL_EXISTS'}), 400
+        # Verify Registration OTP
+        rec = REGISTRATION_OTP_STORE.get(phone)
+        if not rec:
+            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया प्रथम "Send OTP" वर क्लिक करा.', 'code': 'OTP_NOT_FOUND'}), 400
+
+        if time.time() > rec.get('expires_at', 0):
+            REGISTRATION_OTP_STORE.pop(phone, None)
+            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
+
+        rec['attempts'] = rec.get('attempts', 0) + 1
+        if rec['attempts'] > 5:
+            REGISTRATION_OTP_STORE.pop(phone, None)
+            return jsonify({'error': 'अनेक वेळा चुकीचा OTP टाकला. सुरक्षेसाठी हे सत्र रद्द केले आहे. कृपया नवीन OTP मागवा.', 'code': 'TOO_MANY_ATTEMPTS'}), 400
+
+        if rec.get('otp') != otp:
+            return jsonify({'error': f'चुकीचा OTP कोड! कृपया मोबाईलवर आलेला योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {5 - rec["attempts"]}).', 'code': 'INVALID_OTP'}), 400
+
+        # OTP verified successfully! Clear from store
+        REGISTRATION_OTP_STORE.pop(phone, None)
+
+        # Optional Email Validation & Uniqueness (NULL allowed if omitted)
+        if email:
+            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com).', 'code': 'INVALID_EMAIL'}), 400
+            if User.query.filter_by(email=email).first():
+                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया दुसरा ईमेल वापरा किंवा रिक्त ठेवा.', 'code': 'EMAIL_EXISTS'}), 400
+        else:
+            email = None
 
         # Unique username validation (if provided)
         if username:
@@ -1547,12 +1703,12 @@ def create_app():
     def forgot_password():
         """
         Step 1: Customer requests a password reset code.
-        Accepts 'identifier' (phone, email, or username).
-        Finds user, generates 6-digit OTP, saves to CUSTOMER_RESET_STORE,
-        and emails OTP via Port 443 HTTPS Resend API.
+        Accepts 'identifier' (phone, email, or username) and optional 'channel' ('sms' or 'email').
+        Dispatches SMS OTP via Fast2SMS to customer's phone, or Email OTP via Port 443 Resend.
         """
         data = request.get_json() or {}
         identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
+        prefer_channel = (data.get('channel') or '').strip().lower()
 
         if not identifier:
             return jsonify({'error': 'मोबाईल नंबर किंवा ईमेल आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
@@ -1566,88 +1722,123 @@ def create_app():
         if not user:
             return jsonify({'error': 'या मोबाईल नंबर किंवा ईमेलवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
-        if not user.email:
-            return jsonify({
-                'error': 'या खात्याशी कोणताही ईमेल पत्ता जोडलेला नाही. सुरक्षेसाठी कृपया दुकानदाराशी WhatsApp वर संपर्क साधा.',
-                'code': 'NO_EMAIL_ON_ACCOUNT',
-                'customer_phone': user.phone
-            }), 400
+        # Channel selection: SMS is primary for Kirana phone accounts; Email is dual fallback
+        is_email_input = '@' in identifier
+        channel = 'email' if (prefer_channel == 'email' or (is_email_input and prefer_channel != 'sms')) else 'sms'
 
-        # Generate cryptographically random 6-digit OTP
+        # Fallbacks if target channel contact info is unavailable
+        if channel == 'sms' and (not user.phone or is_dummy_phone(user.phone)):
+            if user.email:
+                channel = 'email'
+            else:
+                return jsonify({'error': 'या खात्यावर वैध मोबाईल नंबर किंवा ईमेल उपलब्ध नाही. कृपया दुकानाशी संपर्क साधा.', 'code': 'NO_CONTACT_FOUND'}), 400
+
+        if channel == 'email' and not user.email:
+            channel = 'sms'
+
+        # Generate 6-digit OTP
         otp = f"{random.randint(100000, 999999)}"
+        reset_key = str(user.id)
         reset_token = serializer.dumps({
             'user_id': user.id,
-            'email': user.email,
+            'reset_key': reset_key,
+            'channel': channel,
             'purpose': 'customer_password_reset'
         }, salt='cust-reset-salt')
 
-        CUSTOMER_RESET_STORE[user.email] = {
+        reset_payload = {
             'otp': otp,
             'expires_at': time.time() + 600, # 10 minutes
             'user_id': user.id,
+            'channel': channel,
             'attempts': 0
         }
+        CUSTOMER_RESET_STORE[reset_key] = reset_payload
+        if user.email:
+            CUSTOMER_RESET_STORE[user.email] = reset_payload
 
-        print(f"\n[CUSTOMER PASSWORD RESET] User: {user.name} ({user.phone}), Email: {user.email}, OTP: {otp}")
+        print(f"\n[CUSTOMER PASSWORD RESET] User: {user.name} (Phone: {user.phone}, Email: {user.email}), Channel: {channel}, OTP: {otp}")
 
-        # Send OTP email via Port 443 HTTPS Resend API
-        try:
-            email_sent, send_msg = send_customer_otp_email(user.email, otp, user.name)
-        except Exception as e:
-            print(f"[CUSTOMER OTP SEND ERROR] {e}")
-            email_sent = False
-            send_msg = str(e)
+        masked_dest = ''
+        sent_ok = False
 
-        # Mask email for privacy (e.g. ro***n@gmail.com)
-        parts = user.email.split('@')
-        name_part = parts[0]
-        domain_part = parts[1] if len(parts) > 1 else ''
-        masked_email = (name_part[:2] + '***' + name_part[-1:] + '@' + domain_part) if len(name_part) > 3 else user.email
+        if channel == 'sms':
+            masked_dest = user.phone[:2] + '******' + user.phone[-2:]
+            sent_ok, _ = send_fast2sms_otp(user.phone, otp)
+            msg = f'सुरक्षा कोड (OTP) आपल्या {masked_dest} मोबाईल नंबरवर SMS द्वारे पाठवला आहे.'
+        else:
+            parts = user.email.split('@')
+            masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
+            sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
+            msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.'
 
         return jsonify({
-            'message': f'सुरक्षा कोड (OTP) {masked_email} वर पाठवला आहे. कृपया आपला ईमेल तपासा.',
+            'message': msg,
             'reset_token': reset_token,
-            'masked_email': masked_email,
-            'email_sent': email_sent
+            'channel': channel,
+            'masked_target': masked_dest,
+            'has_email': bool(user.email),
+            'has_phone': bool(user.phone and not is_dummy_phone(user.phone)),
+            'sent_ok': sent_ok
         }), 200
 
     @app.route('/api/auth/resend-forgot-password', methods=['POST'])
     def resend_forgot_password():
-        """Allows resending OTP code to the customer email using the active reset_token."""
+        """Allows resending OTP code using the active reset_token, optionally switching channel."""
         data = request.get_json() or {}
         reset_token = (data.get('reset_token') or '').strip()
+        switch_channel = (data.get('channel') or '').strip().lower()
 
         if not reset_token:
             return jsonify({'error': 'Reset token is required', 'code': 'MISSING_FIELDS'}), 400
 
         try:
             payload = serializer.loads(reset_token, salt='cust-reset-salt', max_age=600)
-            email = payload.get('email')
             user_id = payload.get('user_id')
+            reset_key = payload.get('reset_key', str(user_id))
+            channel = switch_channel or payload.get('channel', 'sms')
         except (SignatureExpired, BadSignature, Exception):
             return jsonify({'error': 'सत्र संपले आहे. कृपया पुन्हा पासवर्ड रीसेट सुरू करा.', 'code': 'SESSION_EXPIRED'}), 401
 
         user = db.session.get(User, user_id)
-        if not user or user.email != email:
+        if not user:
             return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
+        if channel == 'email' and not user.email:
+            channel = 'sms'
+
         otp = f"{random.randint(100000, 999999)}"
-        CUSTOMER_RESET_STORE[email] = {
+        reset_payload = {
             'otp': otp,
             'expires_at': time.time() + 600,
             'user_id': user.id,
+            'channel': channel,
             'attempts': 0
         }
+        CUSTOMER_RESET_STORE[reset_key] = reset_payload
+        if user.email:
+            CUSTOMER_RESET_STORE[user.email] = reset_payload
 
-        print(f"\n[CUSTOMER PASSWORD RESET RESEND] User: {user.name}, Email: {email}, New OTP: {otp}")
-        email_sent, _ = send_customer_otp_email(email, otp, user.name)
+        print(f"\n[CUSTOMER PASSWORD RESET RESEND] User: {user.name}, Channel: {channel}, New OTP: {otp}")
 
-        parts = email.split('@')
-        masked = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else email
+        masked_dest = ''
+        sent_ok = False
+
+        if channel == 'sms':
+            masked_dest = user.phone[:2] + '******' + user.phone[-2:]
+            sent_ok, _ = send_fast2sms_otp(user.phone, otp)
+            msg = f'नवीन OTP कोड आपल्या {masked_dest} मोबाईलवर पुन्हा पाठवला आहे.'
+        else:
+            parts = user.email.split('@')
+            masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
+            sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
+            msg = f'नवीन OTP कोड {masked_dest} वर पुन्हा ईमेल केला आहे.'
 
         return jsonify({
-            'message': f'नवीन OTP कोड {masked} वर पुन्हा पाठवला आहे.',
-            'email_sent': email_sent
+            'message': msg,
+            'channel': channel,
+            'masked_target': masked_dest,
+            'sent_ok': sent_ok
         }), 200
 
     @app.route('/api/auth/reset-password', methods=['POST'])
@@ -1669,29 +1860,32 @@ def create_app():
 
         try:
             payload = serializer.loads(reset_token, salt='cust-reset-salt', max_age=600)
-            email = payload.get('email')
             user_id = payload.get('user_id')
+            reset_key = payload.get('reset_key', str(user_id))
         except (SignatureExpired, BadSignature, Exception):
             return jsonify({'error': 'OTP कोडची किंवा सत्राची मुदत संपली आहे. कृपया नवीन OTP कोड मागवा.', 'code': 'SESSION_EXPIRED'}), 401
 
-        record = CUSTOMER_RESET_STORE.get(email)
+        record = CUSTOMER_RESET_STORE.get(reset_key)
+        if not record and payload.get('email'):
+            record = CUSTOMER_RESET_STORE.get(payload.get('email'))
+
         if not record:
             return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा पासवर्ड रीसेट सुरू करा.', 'code': 'OTP_NOT_FOUND'}), 400
 
         if time.time() > record.get('expires_at', 0):
-            CUSTOMER_RESET_STORE.pop(email, None)
+            CUSTOMER_RESET_STORE.pop(reset_key, None)
             return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
 
         record['attempts'] = record.get('attempts', 0) + 1
         if record['attempts'] > 5:
-            CUSTOMER_RESET_STORE.pop(email, None)
+            CUSTOMER_RESET_STORE.pop(reset_key, None)
             return jsonify({'error': 'अनेक वेळा चुकीचा OTP टाकला गेला आहे. सुरक्षेसाठी हे सत्र रद्द केले आहे. कृपया नवीन OTP मागवा.', 'code': 'TOO_MANY_ATTEMPTS'}), 400
 
         if record.get('otp') != otp:
-            return jsonify({'error': f'चुकीचा OTP कोड! कृपया ईमेलवर आलेला योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {5 - record["attempts"]}).', 'code': 'INVALID_OTP'}), 400
+            return jsonify({'error': f'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {5 - record["attempts"]}).', 'code': 'INVALID_OTP'}), 400
 
         # OTP is 100% verified! Update user password
-        CUSTOMER_RESET_STORE.pop(email, None)
+        CUSTOMER_RESET_STORE.pop(reset_key, None)
         user = db.session.get(User, user_id)
         if not user:
             return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
@@ -1702,6 +1896,13 @@ def create_app():
         return jsonify({
             'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! आता नवीन पासवर्डने लॉगिन करा.'
         }), 200
+
+    @app.route('/api/admin/sms-balance', methods=['GET'])
+    @admin_required
+    def get_sms_wallet_balance():
+        """Returns Fast2SMS wallet balance and SMS credits count."""
+        info = get_fast2sms_balance()
+        return jsonify(info), 200
 
     @app.route('/api/auth/me', methods=['GET'])
     def get_me():
