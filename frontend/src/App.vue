@@ -643,14 +643,48 @@
         </div>
       </div>
 
-      <!-- Footer with Admin Login Link -->
-      <footer style="margin-top: 60px; padding: 24px; border-top: 1.5px solid var(--border); text-align: center; color: var(--text-subtle); font-size: 0.88rem;">
-        <p>कोमल मार्ट (Komal Mart) • शुद्ध किराणा, डाळी, पीठ, तेल व सर्व घरगुती सामान</p>
-        <p style="margin-top: 6px;">
-          <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none;">
-            🔐 दुकानदार पोर्टल लॉगिन (Store Owner Access)
-          </a>
-        </p>
+      <!-- Footer with Authentic Store Details, GST, FSSAI & Contact Details -->
+      <footer style="margin-top: 60px; padding: 32px 20px 24px 20px; border-top: 1.5px solid var(--border); background: #fdfbf7; color: var(--text-subtle); font-size: 0.88rem;">
+        <div style="max-width: 900px; margin: 0 auto; text-align: center;">
+          <h4 style="font-size: 1.15rem; font-weight: 900; color: #064e3b; margin: 0 0 6px 0;">
+            🌾 कोमल एंटरप्रायझेस / कोमल मार्ट (Komal Enterprises)
+          </h4>
+          <p style="margin: 0 0 8px 0; color: #334155; font-size: 0.84rem; line-height: 1.5;">
+            📍 <strong>पत्ता:</strong> 1st Floor, GRD 6, विठ्ठल रुखमाई CHS, बी.बी. खांडेकर मार्ग, राम मंदिरा जवळ, वडाळा (प), मुंबई - ४०००३१
+          </p>
+
+          <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.82rem; color: #1e293b;">
+            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+              🏛️ <strong>GSTIN:</strong> 27ACOPU3896J1ZK
+            </span>
+            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+              🛡️ <strong>FSSAI NO:</strong> 11521003000327
+            </span>
+            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+              ✉️ <strong>Email:</strong> binkteshsingh0820@gmail.com
+            </span>
+          </div>
+
+          <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; font-size: 0.84rem;">
+            <span>📞 <strong>दुकान / काउंटर:</strong> <a href="tel:9987602693" style="color: #059669; font-weight: 700; text-decoration: none;">9987602693</a></span>
+            <span>•</span>
+            <span>📞 <strong>वडिलांचा संपर्क:</strong> <a href="tel:8369795519" style="color: #059669; font-weight: 700; text-decoration: none;">8369795519</a></span>
+            <span>•</span>
+            <span>📞 <strong>भाऊ / व्यवस्थापक:</strong> <a href="tel:7045311406" style="color: #059669; font-weight: 700; text-decoration: none;">7045311406</a></span>
+            <span>•</span>
+            <span>📲 <strong>WhatsApp हेल्पलाईन:</strong> <a href="https://wa.me/919142052967" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none;">91420-52967</a></span>
+          </div>
+
+          <p style="margin-top: 14px; font-size: 0.8rem; color: #94a3b8;">
+            कोमल मार्ट • शुद्ध किराणा, चक्कीचे ताजे पीठ, डाळी, मसाले व धान्य • वडाळा, दादर, माटुंगा, शिवडी, सायन परिसरासाठी तत्पर सेवा
+          </p>
+
+          <p style="margin-top: 10px;">
+            <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
+              🔐 दुकानदार पोर्टल लॉगिन (Store Owner Access)
+            </a>
+          </p>
+        </div>
       </footer>
     </main>
 
@@ -852,6 +886,16 @@
             {{ t('admin_tab_support') }}
             <span v-if="adminOpenComplaintsCount > 0" class="tab-badge-danger" style="margin-left: 4px;">
               {{ adminOpenComplaintsCount }}
+            </span>
+          </button>
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'zones' }"
+            @click="switchAdminTab('zones')"
+          >
+            🛵 {{ currentLang === 'en' ? 'Delivery Zones' : (currentLang === 'mr' ? 'डिलिव्हरी परिसर' : 'डिलीवरी क्षेत्र') }}
+            <span v-if="Object.values(areaDeliveryHolds).filter(h => h.is_held).length > 0" class="tab-badge-warning" style="margin-left: 4px;">
+              {{ Object.values(areaDeliveryHolds).filter(h => h.is_held).length }} Hold
             </span>
           </button>
         </div>
@@ -2831,6 +2875,96 @@
             </div>
           </div>
         </div>
+
+        <!-- TAB 9: HYPERLOCAL DELIVERY ZONES & EMERGENCY HOLD CONTROLLER -->
+        <div v-if="adminActiveTab === 'zones'" style="margin-top: 14px;">
+          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+              <div>
+                <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                  🛵 {{ currentLang === 'en' ? 'Hyperlocal Delivery Zones & Area Hold Controller' : (currentLang === 'mr' ? 'परिसर डिलिव्हरी व तात्पुरती होल्ड नियंत्रण' : 'क्षेत्रीय डिलीवरी व अस्थायी होल्ड नियंत्रण') }}
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0 0;">
+                  {{ currentLang === 'en' 
+                    ? 'If a delivery rider is absent or weather/distance issues occur, place specific areas on temporary hold. Customers can still place orders safely (notified that delivery will occur tomorrow).'
+                    : (currentLang === 'mr'
+                      ? 'डिलिव्हरी बॉय गैरहजर असल्यास किंवा दूरच्या भागात अडचण आल्यास संबंधित परिसर होल्डवर ठेवा. ग्राहक ऑर्डर नोंदवू शकतील, पण त्यांना उद्या डिलिव्हरी होईल असा स्पष्ट निरोप दिसेल.'
+                      : 'यदि डिलीवरी बॉय अनुपस्थित है या किसी दूर के क्षेत्र में समस्या है, तो उस क्षेत्र को होल्ड पर रखें। ग्राहक ऑर्डर दे सकेंगे लेकिन उन्हें कल डिलीवरी की सूचना मिलेगी।') }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="fetchAreaDeliveryHolds"
+                class="btn-secondary"
+                style="padding: 8px 14px; font-size: 0.84rem; font-weight: 700; border-radius: 8px; cursor: pointer;"
+              >
+                🔄 {{ currentLang === 'en' ? 'Refresh Status' : 'रीफ्रेश' }}
+              </button>
+            </div>
+
+            <!-- Areas Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
+              <div
+                v-for="area in WADALA_SERVICEABLE_AREAS"
+                :key="area.pincode"
+                style="border: 2px solid; border-radius: 12px; padding: 16px; background: #ffffff; transition: all 0.2s;"
+                :style="areaDeliveryHolds[area.pincode]?.is_held 
+                  ? 'border-color: #f59e0b; background: #fffdf5;' 
+                  : 'border-color: #10b981; background: #f0fdf4;'"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                  <div>
+                    <span style="font-size: 0.78rem; font-weight: 900; padding: 2px 8px; border-radius: 4px;"
+                      :style="areaDeliveryHolds[area.pincode]?.is_held ? 'background: #fef3c7; color: #b45309;' : 'background: #d1fae5; color: #065f46;'"
+                    >
+                      PIN: {{ area.pincode }}
+                    </span>
+                    <h4 style="margin: 6px 0 0 0; font-size: 0.98rem; font-weight: 800; color: #1e293b;">
+                      {{ currentLang === 'en' ? area.name_en : (currentLang === 'mr' ? area.name_mr : area.name_hi) }}
+                    </h4>
+                  </div>
+                  <span style="font-size: 1.4rem;">
+                    {{ areaDeliveryHolds[area.pincode]?.is_held ? '⏳' : '🟢' }}
+                  </span>
+                </div>
+
+                <!-- Status indicator -->
+                <div style="font-size: 0.82rem; margin-bottom: 12px;">
+                  <strong :style="areaDeliveryHolds[area.pincode]?.is_held ? 'color: #b45309;' : 'color: #047857;'">
+                    {{ areaDeliveryHolds[area.pincode]?.is_held 
+                      ? '⚠️ डिलिव्हरी तात्पुरती पुढील वेळेसाठी राखीव (Held)' 
+                      : '✅ सुरळीत डिलिव्हरी सुरू (Normal Active)' }}
+                  </strong>
+                  <div v-if="areaDeliveryHolds[area.pincode]?.is_held" style="font-size: 0.76rem; color: #78350f; margin-top: 4px;">
+                    पुन्हा सुरू होण्याची वेळ: <strong>{{ areaDeliveryHolds[area.pincode]?.resume || 'उद्या सकाळपर्यंत' }}</strong>
+                  </div>
+                </div>
+
+                <!-- 1-Click Action Button -->
+                <div style="display: flex; gap: 8px;">
+                  <button
+                    v-if="!areaDeliveryHolds[area.pincode]?.is_held"
+                    type="button"
+                    :disabled="isAreaHoldToggling"
+                    @click="toggleAdminAreaHold(area.pincode, true, 'डिलिव्हरी बॉय गैरहजर असल्याने तात्पुरती डिलिव्हरी थांबवली आहे.')"
+                    style="flex: 1; background: #fffbeb; border: 1.5px solid #d97706; color: #b45309; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
+                  >
+                    ⏸️ डिलिव्हरी तात्पुरती होल्ड करा
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    :disabled="isAreaHoldToggling"
+                    @click="toggleAdminAreaHold(area.pincode, false)"
+                    style="flex: 1; background: #059669; border: 1.5px solid #059669; color: white; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;"
+                  >
+                    ▶️ डिलिव्हरी पुन्हा पूर्ववत करा (Resume)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -4307,10 +4441,41 @@
               </label>
               <select v-model="customerForm.pincode" class="form-input" style="font-weight: 700;">
                 <option v-for="area in WADALA_SERVICEABLE_AREAS" :key="area.pincode" :value="area.pincode">
-                  {{ currentLang === 'en' ? area.name_en : (currentLang === 'mr' ? area.name_mr : area.name_hi) }}
+                  {{ areaDeliveryHolds[area.pincode]?.is_held ? '⏳ ' : '' }}{{ currentLang === 'en' ? area.name_en : (currentLang === 'mr' ? area.name_mr : area.name_hi) }}{{ areaDeliveryHolds[area.pincode]?.is_held ? ' (तात्पुरती होल्ड / Delayed)' : '' }}
                 </option>
                 <option value="other">{{ currentLang === 'en' ? 'Other Pincode (Outside Wadala Zone)' : (currentLang === 'mr' ? 'इतर पिनकोड (वडाळा परिसराबाहेर)' : 'अन्य पिनकोड (वडाला क्षेत्र से बाहर)') }}</option>
               </select>
+            </div>
+
+            <!-- Soft Area Hold Alert (Customer can still order, but knows it will be delivered tomorrow/next schedule) -->
+            <div v-if="activeSelectedAreaHold" style="background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span style="font-size: 1.3rem; line-height: 1;">🛵⏳</span>
+                <div>
+                  <div style="font-weight: 900; color: #92400e; font-size: 0.88rem; margin-bottom: 2px;">
+                    {{ currentLang === 'en' ? 'Temporary Delivery Delay in this Area' : (currentLang === 'mr' ? 'या परिसरातील डिलिव्हरी तात्पुरती पुढील वेळेसाठी राखीव' : 'इस क्षेत्र में डिलीवरी अस्थायी रूप से होल्ड पर है') }}
+                  </div>
+                  <p style="margin: 0; font-size: 0.8rem; color: #78350f; line-height: 1.45;">
+                    {{ currentLang === 'en' 
+                      ? 'Due to a temporary delivery staff shortage, orders for this area will be dispatched by tomorrow morning. You can still place your order now, and we will safely reserve your items!'
+                      : (currentLang === 'mr'
+                        ? 'डिलिव्हरी बॉयच्या तात्पुरत्या अडचणीमुळे या भागातील डिलिव्हरी ' + (activeSelectedAreaHold.resume || 'उद्या सकाळपर्यंत') + ' नियोजित केली जाईल. आपण आताच ऑर्डर नोंदवू शकता, आपले सर्व सामान सुरक्षित बाजूला ठेवले जाईल!'
+                        : 'डिलीवरी स्टाफ की अस्थायी कमी के कारण इस क्षेत्र की डिलीवरी ' + (activeSelectedAreaHold.resume || 'कल सुबह तक') + ' की जाएगी। आप अभी ऑर्डर बुक कर सकते हैं, आपका सामान सुरक्षित पैक रहेगा!') }}
+                  </p>
+                  <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="background: #fef3c7; border: 1px dashed #d97706; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; color: #b45309;">
+                      ✅ {{ currentLang === 'en' ? 'Order will be safely held & dispatched tomorrow' : (currentLang === 'mr' ? 'ऑर्डर सुरक्षित ठेवून उद्या पोहोचवली जाईल' : 'ऑर्डर सुरक्षित रखकर कल डिलीवर होगी') }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="customerForm.deliveryType = 'store_pickup'"
+                      style="background: #059669; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 0.74rem; cursor: pointer;"
+                    >
+                      🏬 {{ currentLang === 'en' ? 'Pick up from Wadala Shop Today' : (currentLang === 'mr' ? 'आजच दुकानातून पिकअप करा' : 'आज दुकान से ले जाएं') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Warning if not serviceable -->
@@ -4573,7 +4738,10 @@
         <div class="parcha-receipt" id="printable-parcha-slip">
           <div class="parcha-header">
             <h3>{{ t('store_name_full') }}</h3>
-            <p style="font-size: 0.8rem;">मेन बाजार, स्टेशन रोड • फोन: 91420-52967</p>
+            <p style="font-size: 0.74rem; margin: 2px 0;">GRD 6, विठ्ठल रुखमाई CHS, बी.बी. खांडेकर मार्ग, राम मंदिरा जवळ, वडाळा (प), मुंबई-३१</p>
+            <p style="font-size: 0.72rem; margin: 2px 0; color: #44403c;">
+              <strong>GSTIN:</strong> 27ACOPU3896J1ZK • <strong>FSSAI:</strong> 11521003000327 • <strong>फोन:</strong> 9987602693 / 8369795519
+            </p>
             <p style="font-size: 0.85rem; font-weight: bold; margin-top: 4px;">
               {{ t('parcha_invoice_title') }}
             </p>
@@ -6266,7 +6434,7 @@
 
       <button
         class="bottom-nav-item"
-        :class="{ active: ['customers', 'zreport', 'restock', 'support'].includes(adminActiveTab) || showAdminMoreSheet }"
+        :class="{ active: ['customers', 'zreport', 'restock', 'support', 'zones'].includes(adminActiveTab) || showAdminMoreSheet }"
         @click="showAdminMoreSheet = !showAdminMoreSheet"
       >
         <div class="bottom-nav-cart-icon-wrapper">
@@ -6348,6 +6516,22 @@
               <span class="admin-more-desc">Customer Grievances & Tickets</span>
             </div>
             <span v-if="adminOpenComplaintsCount > 0" class="admin-more-badge badge-red">{{ adminOpenComplaintsCount }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'zones' }"
+            @click="switchAdminTab('zones'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #ecfdf5; color: #059669;">🛵</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ currentLang === 'en' ? 'Delivery Zones' : (currentLang === 'mr' ? 'डिलिव्हरी परिसर' : 'डिलीवरी क्षेत्र') }}</span>
+              <span class="admin-more-desc">Area delivery holds & delays</span>
+            </div>
+            <span v-if="Object.values(areaDeliveryHolds).filter(h => h.is_held).length > 0" class="admin-more-badge badge-amber">
+              {{ Object.values(areaDeliveryHolds).filter(h => h.is_held).length }} Hold
+            </span>
           </button>
 
           <button
@@ -7572,11 +7756,76 @@ const WADALA_SERVICEABLE_AREAS = [
 
 const ALLOWED_PINCODES = new Set(['400031', '400037', '400015', '400014', '400019', '400022']);
 
+// Dynamic Area Delivery Hold Management State (Synced with Backend)
+const areaDeliveryHolds = ref({
+  '400031': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' },
+  '400037': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' },
+  '400015': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' },
+  '400014': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' },
+  '400019': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' },
+  '400022': { is_held: false, reason: '', resume: 'उद्या सकाळपर्यंत' }
+});
+
+const isAreaHoldToggling = ref(false);
+
 const isPincodeServiceable = computed(() => {
   if (customerForm.value.deliveryType === 'store_pickup') return true;
   const pin = (customerForm.value.pincode || '').trim();
   return ALLOWED_PINCODES.has(pin);
 });
+
+const activeSelectedAreaHold = computed(() => {
+  if (customerForm.value.deliveryType === 'store_pickup') return null;
+  const pin = (customerForm.value.pincode || '').trim();
+  if (areaDeliveryHolds.value && areaDeliveryHolds.value[pin] && areaDeliveryHolds.value[pin].is_held) {
+    return areaDeliveryHolds.value[pin];
+  }
+  return null;
+});
+
+async function fetchAreaDeliveryHolds() {
+  try {
+    const res = await fetch(`${API_BASE}/delivery-areas`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.holds) {
+        areaDeliveryHolds.value = { ...areaDeliveryHolds.value, ...data.holds };
+      }
+    }
+  } catch (err) {
+    console.warn('[DELIVERY HOLDS FETCH ERROR]', err);
+  }
+}
+
+async function toggleAdminAreaHold(pincode, shouldHold, customReason = '') {
+  isAreaHoldToggling.value = true;
+  try {
+    const res = await fetch(`${API_BASE}/admin/delivery-areas/toggle-hold`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        pincode: pincode,
+        is_held: shouldHold,
+        reason: customReason || (shouldHold ? 'डिलिव्हरी बॉय गैरहजर असल्याने तात्पुरती डिलिव्हरी थांबवली आहे.' : ''),
+        resume: 'उद्या सकाळपर्यंत / पुढील २४ तासांत'
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      areaDeliveryHolds.value = { ...areaDeliveryHolds.value, ...data.holds };
+      showToast(data.message || '✅ डिलिव्हरी स्थिती अपडेट झाली!');
+    } else {
+      showToast(data.error || 'Failed to update area status');
+    }
+  } catch (err) {
+    showToast('Network error while updating area status');
+  } finally {
+    isAreaHoldToggling.value = false;
+  }
+}
 
 const isUrgentDelivery = computed(() => {
   return customerForm.value.deliverySlot === 'urgent' || customerForm.value.deliverySlot === 'instant';
@@ -11498,6 +11747,7 @@ onMounted(() => {
   checkAuth();
   fetchCategories();
   fetchProducts();
+  fetchAreaDeliveryHolds();
 
   // Restore saved Monthly Ration Parcha from localStorage
   try {

@@ -2608,6 +2608,68 @@ def create_app():
     def invalidate_catalog_cache():
         CATALOG_CACHE.clear()
 
+    # Dynamic Area Delivery Status & Emergency Hold Store
+    # Holds map pincode to {'is_held': bool, 'reason': str, 'estimated_resume': str}
+    AREA_HOLDS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'area_holds.json')
+    AREA_DELIVERY_HOLDS = {
+        '400031': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'},
+        '400037': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'},
+        '400015': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'},
+        '400014': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'},
+        '400019': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'},
+        '400022': {'is_held': False, 'reason': '', 'resume': 'उद्या सकाळपर्यंत'}
+    }
+
+    if os.path.exists(AREA_HOLDS_FILE):
+        try:
+            with open(AREA_HOLDS_FILE, 'r', encoding='utf-8') as f:
+                saved_holds = json.load(f)
+                AREA_DELIVERY_HOLDS.update(saved_holds)
+        except Exception as e:
+            print(f"[AREA HOLDS READ NOTICE] {e}")
+
+    def save_area_holds():
+        try:
+            with open(AREA_HOLDS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(AREA_DELIVERY_HOLDS, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"[AREA HOLDS WRITE ERROR] {e}")
+
+    @app.route('/api/delivery-areas', methods=['GET'])
+    def get_delivery_areas():
+        """Returns live serviceability and active temporary delivery hold statuses for all Wadala zones."""
+        return jsonify({
+            'success': True,
+            'holds': AREA_DELIVERY_HOLDS
+        })
+
+    @app.route('/api/admin/delivery-areas/toggle-hold', methods=['POST'])
+    @admin_required
+    def toggle_area_delivery_hold():
+        """Allows store admin to place an area on delivery hold or resume normal delivery."""
+        data = request.get_json() or {}
+        pincode = str(data.get('pincode') or '').strip()
+        is_held = bool(data.get('is_held', True))
+        reason = str(data.get('reason') or '').strip()
+        resume = str(data.get('resume') or 'उद्या सकाळपर्यंत / 24 तासांत').strip()
+
+        if not pincode:
+            return jsonify({'error': 'Pincode is required', 'code': 'MISSING_PINCODE'}), 400
+
+        AREA_DELIVERY_HOLDS[pincode] = {
+            'is_held': is_held,
+            'reason': reason or ('डिलिव्हरी बॉय गैरहजर असल्याने तात्पुरती डिलिव्हरी थांबवली आहे.' if is_held else ''),
+            'resume': resume
+        }
+        save_area_holds()
+
+        action_msg = f"पिनकोड {pincode} साठी डिलिव्हरी तात्पुरती होल्ड केली गेली." if is_held else f"पिनकोड {pincode} साठी डिलिव्हरी पुन्हा सुरू केली गेली!"
+        return jsonify({
+            'success': True,
+            'message': action_msg,
+            'holds': AREA_DELIVERY_HOLDS
+        })
+
     @app.route('/api/categories', methods=['GET'])
     def get_categories():
         try:
