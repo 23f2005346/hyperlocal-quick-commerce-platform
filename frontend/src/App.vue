@@ -1697,10 +1697,36 @@
                 ✕
               </button>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569;">
-              <span style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 700;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">
                 🔊 साऊंडबॉक्स व्हॉईस मॅचिंग चालू
               </span>
+              <button
+                type="button"
+                @click="downloadAdminExport('orders.csv')"
+                class="btn-secondary"
+                style="padding: 5px 10px; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                title="Export all orders to Excel / CSV"
+              >
+                📊 {{ currentLang === 'en' ? 'Orders CSV' : (currentLang === 'mr' ? 'ऑर्डर्स CSV' : 'ऑर्डर CSV') }}
+              </button>
+              <button
+                type="button"
+                @click="downloadAdminExport('customers.csv')"
+                class="btn-secondary"
+                style="padding: 5px 10px; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                title="Export customer khata ledger to CSV"
+              >
+                👥 {{ currentLang === 'en' ? 'Khata CSV' : (currentLang === 'mr' ? 'खातेदार CSV' : 'खातेदार CSV') }}
+              </button>
+              <button
+                type="button"
+                @click="downloadAdminExport('database')"
+                style="background: #064e3b; color: white; border: none; padding: 5px 11px; font-size: 0.78rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                title="Download full SQLite database backup"
+              >
+                💾 {{ currentLang === 'en' ? 'Backup DB' : (currentLang === 'mr' ? 'बॅकअप DB' : 'बैकअप DB') }}
+              </button>
             </div>
           </div>
 
@@ -4737,15 +4763,22 @@
 
         <div class="parcha-receipt" id="printable-parcha-slip">
           <div class="parcha-header">
-            <h3>{{ t('store_name_full') }}</h3>
-            <p style="font-size: 0.74rem; margin: 2px 0;">GRD 6, विठ्ठल रुखमाई CHS, बी.बी. खांडेकर मार्ग, राम मंदिरा जवळ, वडाळा (प), मुंबई-३१</p>
-            <p style="font-size: 0.72rem; margin: 2px 0; color: #44403c;">
-              <strong>GSTIN:</strong> 27ACOPU3896J1ZK • <strong>FSSAI:</strong> 11521003000327 • <strong>फोन:</strong> 9987602693 / 8369795519
+            <h3 style="margin: 0; font-size: 1.22rem; font-weight: 900; color: #064e3b;">
+              🌾 कोमल एंटरप्रायझेस / कोमल मार्ट (Komal Enterprises)
+            </h3>
+            <p style="font-size: 0.74rem; margin: 3px 0; color: #1e293b; line-height: 1.4;">
+              📍 1st Floor, GRD 6, Vitthal Rukhmai CHS, B.B. Khandekar Marg, Nr. Ram Mandir, Wadala (W), Mumbai - 400031
             </p>
-            <p style="font-size: 0.85rem; font-weight: bold; margin-top: 4px;">
+            <p style="font-size: 0.72rem; margin: 2px 0; color: #44403c;">
+              <strong>GSTIN:</strong> 27ACOPU3896J1ZK • <strong>FSSAI:</strong> 11521003000327
+            </p>
+            <p style="font-size: 0.72rem; margin: 2px 0; color: #065f46; font-weight: 700;">
+              📞 दुकान / शॉप मालक: 9987602693 / 8369795519 • व्यवस्थापक: 7045311406 • WhatsApp: 91420-52967
+            </p>
+            <p style="font-size: 0.85rem; font-weight: bold; margin-top: 6px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
               {{ t('parcha_invoice_title') }}
             </p>
-            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-top: 6px;">
               <span>पर्चा नं: <strong>{{ lastOrderReceipt.order_number }}</strong></span>
               <span>दिनांक: {{ lastOrderReceipt.created_at }}</span>
             </div>
@@ -4809,7 +4842,10 @@
           </div>
 
           <div style="text-align: center; font-size: 0.78rem; margin-top: 16px; border-top: 1.5px dashed #78716c; padding-top: 8px;">
-            🙏 {{ t('parcha_visit_again') }} 🙏
+            <div style="font-weight: 700;">🙏 {{ t('parcha_visit_again') }} 🙏</div>
+            <div style="font-size: 0.7rem; color: #78716c; margin-top: 3px;">
+              Komal Mart • Wadala, Mumbai | Helpline: 91420-52967
+            </div>
           </div>
         </div>
 
@@ -11744,6 +11780,51 @@ async function sendSundayWeeklyReportEmail() {
 
 function printZReport() {
   window.print();
+}
+
+async function downloadAdminExport(type) {
+  const token = localStorage.getItem('kirana_token') || authToken.value;
+  if (!token) {
+    showToast(currentLang.value === 'en' ? 'Please log in as Admin' : 'कृपया ॲडमिन म्हणून लॉगिन करा', 'error');
+    return;
+  }
+  showToast(currentLang.value === 'en' ? '⏳ Preparing export download...' : '⏳ फाईल डाऊनलोड तयार होत आहे...');
+  try {
+    let endpoint = '';
+    let defaultFilename = '';
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    if (type === 'orders.csv') {
+      endpoint = `${API_BASE}/admin/export/orders.csv`;
+      defaultFilename = `komalmart_orders_${dateStamp}.csv`;
+    } else if (type === 'customers.csv') {
+      endpoint = `${API_BASE}/admin/export/customers.csv`;
+      defaultFilename = `komalmart_khata_customers_${dateStamp}.csv`;
+    } else if (type === 'database') {
+      endpoint = `${API_BASE}/admin/backup/download?compress=true`;
+      defaultFilename = `komalmart_backup_${dateStamp}.db.gz`;
+    }
+
+    const res = await fetch(endpoint, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      showToast(currentLang.value === 'en' ? 'Failed to download export file' : 'फाईल डाऊनलोड अयशस्वी झाली', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    showToast(currentLang.value === 'en' ? '✅ File downloaded successfully!' : '✅ फाईल यशस्वीरीत्या डाऊनलोड झाली!');
+  } catch (e) {
+    console.error('Export download error:', e);
+    showToast(currentLang.value === 'en' ? 'Download error' : 'डाऊनलोड त्रुटी', 'error');
+  }
 }
 
 onMounted(() => {

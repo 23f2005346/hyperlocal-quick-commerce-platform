@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request, send_from_directory, send_file
+from flask import Flask, jsonify, request, send_from_directory, send_file, Response
 from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from sqlalchemy import event
@@ -3502,6 +3502,89 @@ def create_app():
             }), 201
         except Exception as e:
             return jsonify({'error': f'Backup creation failed: {str(e)}'}), 500
+
+    @app.route('/api/admin/export/orders.csv', methods=['GET'])
+    @admin_required
+    def export_orders_csv():
+        """Exports all store orders to a clean CSV spreadsheet."""
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Order ID', 'Order Number', 'Date (IST)', 'Customer Name', 'Phone',
+            'Delivery Address', 'Pincode', 'Item Count', 'Total MRP (₹)', 'Final Amount (₹)',
+            'Total Savings (₹)', 'Payment Method', 'Payment Status', 'Order Status', 'Delivery Availability'
+        ])
+
+        orders = Order.query.order_by(Order.created_at.desc()).all()
+        for o in orders:
+            writer.writerow([
+                o.id,
+                o.order_number,
+                o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '',
+                o.customer_name or (o.customer.name if o.customer else 'Counter'),
+                o.customer_phone or (o.customer.phone if o.customer else ''),
+                (o.customer_address or '').replace('\n', ' ').replace('\r', ''),
+                o.pincode or '400031',
+                len(o.items) if o.items else 0,
+                f"{o.total_mrp:.2f}" if o.total_mrp is not None else '0.00',
+                f"{o.final_amount:.2f}",
+                f"{o.total_savings:.2f}" if o.total_savings is not None else '0.00',
+                o.payment_method or 'Cash on Delivery',
+                o.payment_status or 'Unpaid',
+                o.status or 'Placed',
+                o.delivery_availability or 'pending'
+            ])
+
+        output.seek(0)
+        today = datetime.now().strftime('%Y%m%d')
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv; charset=utf-8',
+            headers={'Content-Disposition': f'attachment; filename=komalmart_orders_{today}.csv'}
+        )
+
+    @app.route('/api/admin/export/customers.csv', methods=['GET'])
+    @admin_required
+    def export_customers_csv():
+        """Exports customer directory & Khata ledger balances to CSV."""
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Customer ID', 'Full Name', 'Phone', 'Email', 'Delivery Address',
+            'Total Orders', 'Total Spent (₹)', 'Outstanding Khata Debt (₹)', 'Joined Date'
+        ])
+
+        customers = User.query.filter_by(role='customer').order_by(User.name.asc()).all()
+        for c in customers:
+            orders = Order.query.filter((Order.user_id == c.id) | (Order.customer_phone == c.phone)).all()
+            total_orders = len(orders)
+            total_spent = sum(o.final_amount for o in orders if o.payment_status == 'Paid')
+            unpaid_khata = sum(o.final_amount for o in orders if o.payment_status == 'Unpaid')
+            writer.writerow([
+                c.id,
+                c.name,
+                c.phone,
+                c.email or '',
+                (c.address or '').replace('\n', ' ').replace('\r', ''),
+                total_orders,
+                f"{total_spent:.2f}",
+                f"{unpaid_khata:.2f}",
+                c.created_at.strftime('%Y-%m-%d') if hasattr(c, 'created_at') and c.created_at else ''
+            ])
+
+        output.seek(0)
+        today = datetime.now().strftime('%Y%m%d')
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv; charset=utf-8',
+            headers={'Content-Disposition': f'attachment; filename=komalmart_khata_customers_{today}.csv'}
+        )
 
     # --- STORE OWNER: REGISTERED CUSTOMERS DIRECTORY & AUDIT ---
     @app.route('/api/admin/users', methods=['GET'])
