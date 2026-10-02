@@ -1481,14 +1481,11 @@ def create_app():
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
-        # Optional Email Validation & Uniqueness (NULL allowed if omitted)
-        if email:
-            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. name@example.com).', 'code': 'INVALID_EMAIL'}), 400
-            if User.query.filter_by(email=email).first():
-                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया दुसरा ईमेल वापरा किंवा रिक्त ठेवा.', 'code': 'EMAIL_EXISTS'}), 400
-        else:
-            email = None
+        # Mandatory Email for 24/7 self-service password reset and digital receipts
+        if not email or not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com). २४/७ पासवर्ड रीसेटसाठी ईमेल आवश्यक आहे.', 'code': 'INVALID_EMAIL'}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा दुसरा ईमेल वापरा.', 'code': 'EMAIL_EXISTS'}), 400
 
         # Unique username validation (if provided)
         if username:
@@ -1672,18 +1669,9 @@ def create_app():
         has_real_phone = bool(user.phone and not is_dummy_phone(user.phone))
 
         # Channel selection:
-        # If user explicitly provided email or preferred email, use email.
-        # If user entered 10-digit phone or preferred whatsapp/phone, use whatsapp reverse verification.
-        is_email_input = '@' in identifier
-        if prefer_channel == 'email' and has_real_email:
-            channel = 'email'
-        elif prefer_channel in ['whatsapp', 'sms', 'phone']:
-            channel = 'whatsapp'
-        elif is_email_input and has_real_email:
-            channel = 'email'
-        elif has_real_phone:
-            channel = 'whatsapp'
-        elif has_real_email:
+        # If user has a verified email, ALWAYS use Email OTP (dispatches to inbox, 24/7 automated, zero cost).
+        # Only if user has NO email (legacy phone account), fall back to store WhatsApp support.
+        if has_real_email:
             channel = 'email'
         else:
             channel = 'whatsapp'
@@ -1726,16 +1714,15 @@ def create_app():
                 'sent_ok': sent_ok
             }), 200
         else:
-            # Phone-only account: Provide instant WhatsApp 1-tap verification
-            wa_text = f"नमस्ते कोमल मार्ट! मी पासवर्ड रीसेट करत आहे. माझा फोन नंबर: {user.phone} आणि सुरक्षा कोड: {otp}"
+            # Phone-only account: direct them to store owner WhatsApp for manual security reset (zero code exposure)
+            wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}) पासवर्ड विसरलो आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा."
             wa_link = f"https://wa.me/919142052967?text={urllib.parse.quote(wa_text)}"
             return jsonify({
-                'message': 'आपल्या खात्याशी ईमेल जोडलेला नाही. सुरक्षेसाठी खालील बटनावर क्लिक करून WhatsApp वरून त्वरित कोड प्राप्त करा किंवा दुकानदाराशी संपर्क साधा.',
-                'reset_token': reset_token,
+                'message': 'आपल्या खात्यावर ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.',
+                'reset_token': '',
                 'channel': 'whatsapp',
                 'customer_phone': user.phone,
                 'wa_link': wa_link,
-                'wa_code': otp,
                 'has_email': False,
                 'has_phone': True,
                 'sent_ok': True

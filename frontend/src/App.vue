@@ -3856,41 +3856,38 @@
 
           <!-- Step 2: Verify OTP & Set New Password -->
           <div v-else-if="resetStep === 2">
-            <!-- Channel: WhatsApp Reverse Verification -->
-            <div v-if="resetChannel === 'whatsapp'" style="background: #f0fdf4; border: 1.5px solid #86efac; padding: 14px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
-              <div style="font-size: 2rem; margin-bottom: 6px;">🟢</div>
-              <p style="font-size: 0.9rem; color: #166534; font-weight: 800; margin: 0 0 6px 0;">
-                {{ currentLang === 'en' ? 'Verify via WhatsApp (Zero Cost)' : (currentLang === 'mr' ? 'WhatsApp द्वारे पडताळणी करा (मोफत)' : 'WhatsApp द्वारा सत्यापन करें (निःशुल्क)') }}
+            <!-- Channel: WhatsApp Store Support (For Legacy Phone Accounts Without Email) -->
+            <div v-if="resetChannel === 'whatsapp'" style="background: #fffbeb; border: 1.5px solid #fef3c7; padding: 16px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
+              <div style="font-size: 2rem; margin-bottom: 6px;">🏪</div>
+              <p style="font-size: 0.92rem; color: #92400e; font-weight: 800; margin: 0 0 6px 0;">
+                {{ currentLang === 'en' ? 'Store Security Verification' : (currentLang === 'mr' ? 'दुकानदार सुरक्षा पडताळणी' : 'दुकानदार सुरक्षा सत्यापन') }}
               </p>
-              <p style="font-size: 0.8rem; color: #374151; margin: 0 0 10px 0; line-height: 1.4;">
-                {{ currentLang === 'en' ? 'Tap below to send a pre-filled verification code to Komal Mart. Then enter the 6-digit code below to set your new password.' : (currentLang === 'mr' ? 'खालील बटनावर क्लिक करून कोमल मार्टला WhatsApp वर कोड पाठवा. त्यानंतर खाली ६-अंकी कोड टाकून नवीन पासवर्ड सेट करा.' : 'नीचे दिए बटन पर क्लिक करके कोमल मार्ट को WhatsApp पर कोड भेजें। फिर नीचे 6-अंकीय कोड दर्ज करके नया पासवर्ड सेट करें।') }}
+              <p style="font-size: 0.82rem; color: #4b5563; margin: 0 0 14px 0; line-height: 1.45;">
+                {{ currentLang === 'en' ? 'Your account does not have a registered email address. For your account safety, please message our store on WhatsApp to reset your password.' : (currentLang === 'mr' ? 'तुमच्या खात्याशी ईमेल जोडलेला नाही. खात्याच्या सुरक्षेसाठी, कृपया पासवर्ड रीसेट करण्यासाठी आमच्या दुकानदाराशी WhatsApp वर संपर्क साधा.' : 'आपके खाते से कोई ईमेल नहीं जुड़ा है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु हमारे दुकानदार से WhatsApp पर संपर्क करें।') }}
               </p>
               <a
                 v-if="resetWaLink"
                 :href="resetWaLink"
                 target="_blank"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #25d366; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 0.9rem; box-shadow: 0 2px 6px rgba(37,211,102,0.3); margin-bottom: 8px;"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #25d366; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 0.9rem; box-shadow: 0 2px 6px rgba(37,211,102,0.3);"
               >
-                📲 {{ currentLang === 'en' ? 'Tap to Send Verification Code on WhatsApp' : (currentLang === 'mr' ? 'WhatsApp वर कोड पाठवा' : 'WhatsApp पर कोड भेजें') }}
+                📲 {{ currentLang === 'en' ? 'Message Komal Mart on WhatsApp' : (currentLang === 'mr' ? 'WhatsApp वर दुकानदाराशी संपर्क साधा' : 'WhatsApp पर दुकानदार से संपर्क करें') }}
               </a>
-              <div style="font-size: 0.76rem; color: #047857; margin-top: 4px; font-weight: 700;">
-                {{ currentLang === 'en' ? 'Your Security Code:' : (currentLang === 'mr' ? 'तुमचा सुरक्षा कोड:' : 'आपका सुरक्षा कोड:') }}
-                <span style="font-size: 1rem; letter-spacing: 2px; background: white; padding: 2px 8px; border-radius: 4px; border: 1px dashed #059669; margin-left: 4px;">{{ resetWaCode }}</span>
-              </div>
             </div>
 
-            <!-- Channel: Email OTP via Resend -->
-            <div v-else style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center;">
+            <!-- Channel: Automated Email OTP via Resend -->
+            <div v-else style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 14px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
               <div style="font-size: 1.8rem; margin-bottom: 4px;">📩</div>
-              <p style="font-size: 0.85rem; color: #065f46; font-weight: 700; margin: 0 0 4px 0;">
+              <p style="font-size: 0.88rem; color: #065f46; font-weight: 800; margin: 0 0 4px 0;">
                 {{ t('auth_reset_notice_step2') }}
               </p>
-              <div style="display: inline-block; background: white; border: 1px dashed #059669; padding: 4px 10px; border-radius: 6px; font-size: 0.88rem; font-weight: 800; color: #047857;">
+              <div style="display: inline-block; background: white; border: 1px dashed #059669; padding: 4px 12px; border-radius: 6px; font-size: 0.9rem; font-weight: 800; color: #047857; margin-top: 4px;">
                 ✉️ {{ resetMaskedTarget || resetMaskedEmail }}
               </div>
             </div>
 
-            <form @submit.prevent="handleVerifyAndResetPassword">
+            <!-- Form: Active only for Email OTP -->
+            <form v-if="resetChannel === 'email'" @submit.prevent="handleVerifyAndResetPassword">
               <div class="form-group">
                 <label class="form-label">{{ t('auth_reset_otp_label') }}</label>
                 <input
@@ -3934,48 +3931,34 @@
                 {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_btn') }}
               </button>
 
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; font-size: 0.8rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <button
-                    type="button"
-                    @click="handleResendResetOtp()"
-                    :disabled="authSubmitting"
-                    style="background: none; border: none; color: #047857; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;"
-                  >
-                    {{ t('auth_reset_resend_btn') }}
-                  </button>
-                  <button
-                    type="button"
-                    @click="resetStep = 1; authError = '';"
-                    style="background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; padding: 0;"
-                  >
-                    ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
-                  </button>
-                </div>
-
-                <!-- Dual Channel Switch Option -->
-                <div v-if="resetChannel === 'whatsapp' && resetHasEmail" style="text-align: center; margin-top: 4px;">
-                  <button
-                    type="button"
-                    @click="handleRequestResetOtp('email')"
-                    :disabled="authSubmitting"
-                    style="background: none; border: 1px dashed #0284c7; border-radius: 6px; padding: 4px 8px; color: #0284c7; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
-                  >
-                    ✉️ {{ currentLang === 'en' ? 'Send OTP to registered Email instead' : (currentLang === 'mr' ? 'नोंदणीकृत ईमेलवर OTP पाठवा' : 'पंजीकृत ईमेल पर OTP भेजें') }}
-                  </button>
-                </div>
-                <div v-else-if="resetChannel === 'email' && resetHasPhone" style="text-align: center; margin-top: 4px;">
-                  <button
-                    type="button"
-                    @click="handleRequestResetOtp('whatsapp')"
-                    :disabled="authSubmitting"
-                    style="background: none; border: 1px dashed #059669; border-radius: 6px; padding: 4px 8px; color: #059669; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
-                  >
-                    🟢 {{ currentLang === 'en' ? 'Verify via WhatsApp instead' : (currentLang === 'mr' ? 'WhatsApp द्वारे पडताळणी करा' : 'WhatsApp द्वारा सत्यापन करें') }}
-                  </button>
-                </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.8rem;">
+                <button
+                  type="button"
+                  @click="handleResendResetOtp()"
+                  :disabled="authSubmitting"
+                  style="background: none; border: none; color: #047857; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;"
+                >
+                  {{ t('auth_reset_resend_btn') }}
+                </button>
+                <button
+                  type="button"
+                  @click="resetStep = 1; authError = '';"
+                  style="background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; padding: 0;"
+                >
+                  ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
+                </button>
               </div>
             </form>
+
+            <div v-else style="text-align: center; margin-top: 12px;">
+              <button
+                type="button"
+                @click="resetStep = 1; authError = '';"
+                style="background: none; border: none; color: #64748b; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
+              >
+                ← {{ currentLang === 'en' ? 'Back' : (currentLang === 'mr' ? 'मागे जा' : 'वापस जाएं') }}
+              </button>
+            </div>
           </div>
 
           <p style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
@@ -4070,12 +4053,11 @@
 
           <div class="form-group">
             <label class="form-label">
-              {{ t('auth_register_email') }}
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">({{ currentLang === 'en' ? 'Optional' : (currentLang === 'mr' ? 'ऐच्छिक' : 'वैकल्पिक') }})</span>
+              {{ t('auth_register_email') }} <span style="color: #dc2626;">*</span>
             </label>
-            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@example.com" />
-            <span style="font-size: 0.72rem; color: var(--text-muted);">
-              {{ currentLang === 'en' ? 'Optional: Used for PDF invoices and dual backup account recovery.' : (currentLang === 'mr' ? 'ऐच्छिक: PDF बिल आणि बॅकअप खाते पुनर्प्राप्तीसाठी.' : 'वैकल्पिक: PDF बिल और बैकअप खाता रिकवरी के लिए।') }}
+            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@gmail.com" />
+            <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
+              {{ currentLang === 'en' ? '🔐 Required for instant 24/7 automated password reset (Email OTP) & PDF bills.' : (currentLang === 'mr' ? '🔐 २४/७ त्वरित पासवर्ड रीसेट (ईमेल OTP) आणि बिलासाठी आवश्यक.' : '🔐 24/7 तत्काल पासवर्ड रीसेट (ईमेल OTP) और बिल के लिए आवश्यक।') }}
             </span>
           </div>
 
