@@ -11,6 +11,7 @@ backend/backups/
 *.db-shm
 Products.images/
 backend/benchmark_results.json
+backend/area_holds.json
 komal_mart_master_catalog_draft.md
 
 

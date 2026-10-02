@@ -8758,10 +8758,15 @@ async function confirmOrderAvailability(orderNumber, choice) {
   if (!orderNumber) return;
   deliveryCheckSubmitting.value = true;
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken.value) {
+      headers['Authorization'] = `Bearer ${authToken.value}`;
+    }
+    const token = (deliveryCheckOrder.value && deliveryCheckOrder.value.tracking_token) || '';
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/availability`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ choice })
+      headers,
+      body: JSON.stringify({ choice, token })
     });
     const data = await res.json();
     if (res.ok) {
@@ -8794,9 +8799,14 @@ async function confirmOrderAvailability(orderNumber, choice) {
   }
 }
 
-async function openDeliveryCheckForOrder(orderNumber) {
+async function openDeliveryCheckForOrder(orderNumber, token) {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}`);
+    const headers = {};
+    if (authToken.value) {
+      headers['Authorization'] = `Bearer ${authToken.value}`;
+    }
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}${tokenQuery}`, { headers });
     if (res.ok) {
       deliveryCheckOrder.value = await res.json();
       showDeliveryCheckModal.value = true;
@@ -11846,12 +11856,13 @@ onMounted(() => {
     console.warn('Failed to parse saved parcha:', e);
   }
 
-  // Check URL query parameters for 1-Tap Delivery Availability Check (e.g. ?order=KM-20261002-1098&check=1)
+  // Check URL query parameters for 1-Tap Delivery Availability Check (e.g. ?order=KM-20261002-1098&token=abc... or &check=1)
   const urlParams = new URLSearchParams(window.location.search);
   const checkOrderNum = urlParams.get('order');
   const isDeliveryCheck = urlParams.get('check');
-  if (checkOrderNum && isDeliveryCheck) {
-    openDeliveryCheckForOrder(checkOrderNum);
+  const trackingToken = urlParams.get('token');
+  if (checkOrderNum && (isDeliveryCheck || trackingToken)) {
+    openDeliveryCheckForOrder(checkOrderNum, trackingToken);
   }
 
   // Handle #admin route direct access

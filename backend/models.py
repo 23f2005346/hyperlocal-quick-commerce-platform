@@ -164,6 +164,7 @@ class Order(db.Model):
     delivery_availability_time = db.Column(db.DateTime, nullable=True)
     credit_used = db.Column(db.Float, default=0.0)
     credit_earned = db.Column(db.Float, default=0.0)
+    tracking_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -172,6 +173,7 @@ class Order(db.Model):
         return {
             'id': self.id,
             'order_number': self.order_number,
+            'tracking_token': self.tracking_token,
             'user_id': self.user_id,
             'customer_name': self.customer_name,
             'customer_phone': self.customer_phone,

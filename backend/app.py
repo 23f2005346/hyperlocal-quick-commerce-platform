@@ -58,6 +58,45 @@ CUSTOMER_RESET_STORE = {} # { reset_key: { 'otp': '123456', 'expires_at': ts, 'u
 REGISTRATION_OTP_STORE = {} # { phone: { 'otp': '123456', 'expires_at': ts, 'attempts': 0, 'last_sent': ts } }
 RESET_RATE_LIMIT_STORE = {} # { key: [timestamps] }
 RESET_COOLDOWN_STORE = {}   # { key: last_request_timestamp }
+LOGIN_ATTEMPTS_STORE = {}   # { key: { 'attempts': int, 'locked_until': ts, 'first_attempt': ts } }
+
+def check_login_rate_limit(key):
+    """
+    Blocks more than 5 failed login attempts within 15 minutes per IP/identifier.
+    Returns (is_allowed, wait_seconds).
+    """
+    now = time.time()
+    record = LOGIN_ATTEMPTS_STORE.get(key)
+    if not record:
+        return True, 0
+
+    locked_until = record.get('locked_until', 0)
+    if now < locked_until:
+        return False, int(locked_until - now)
+
+    # If 15 minutes passed since first attempt, reset tracking
+    if now - record.get('first_attempt', 0) > 900:
+        LOGIN_ATTEMPTS_STORE.pop(key, None)
+        return True, 0
+
+    return True, 0
+
+def record_login_failure(key):
+    now = time.time()
+    record = LOGIN_ATTEMPTS_STORE.get(key)
+    if not record or (now - record.get('first_attempt', 0) > 900):
+        LOGIN_ATTEMPTS_STORE[key] = {
+            'attempts': 1,
+            'locked_until': 0,
+            'first_attempt': now
+        }
+    else:
+        record['attempts'] += 1
+        if record['attempts'] >= 5:
+            record['locked_until'] = now + 900 # 15-minute lock
+
+def record_login_success(key):
+    LOGIN_ATTEMPTS_STORE.pop(key, None)
 
 FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', '').strip()
 
@@ -1378,6 +1417,19 @@ def create_app():
                 if 'delivery_availability_time' not in order_cols:
                     cur.execute("ALTER TABLE orders ADD COLUMN delivery_availability_time DATETIME DEFAULT NULL")
                     conn.commit()
+                if 'tracking_token' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN tracking_token VARCHAR(64) DEFAULT NULL")
+                    conn.commit()
+
+                # Ensure all orders have a cryptographically secure tracking_token
+                cur.execute("SELECT id FROM orders WHERE tracking_token IS NULL OR tracking_token = ''")
+                missing_tracking = cur.fetchall()
+                if missing_tracking:
+                    for row in missing_tracking:
+                        cur.execute("UPDATE orders SET tracking_token = ? WHERE id = ?", (uuid.uuid4().hex, row[0]))
+                    conn.commit()
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_tracking_token ON orders(tracking_token)")
+                conn.commit()
 
                 # Ensure product_variants.is_clearance and clearance_price columns exist
                 cur.execute("PRAGMA table_info(product_variants)")
@@ -1504,6 +1556,19 @@ def create_app():
         if not name or not password or not phone:
             return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
+        # Field length bounds to prevent DoS / database bloat
+        if len(name) > 100:
+            return jsonify({'error': 'नाव जास्तीत जास्त १०० अक्षरांचे असावे.', 'code': 'NAME_TOO_LONG'}), 400
+
+        if address and len(address) > 500:
+            return jsonify({'error': 'पत्ता जास्तीत जास्त ५०० अक्षरांचा असावा.', 'code': 'ADDRESS_TOO_LONG'}), 400
+
+        if email and len(email) > 120:
+            return jsonify({'error': 'ईमेल पत्ता जास्तीत जास्त १२० अक्षरांचा असावा.', 'code': 'EMAIL_TOO_LONG'}), 400
+
+        if len(password) > 100:
+            return jsonify({'error': 'पासवर्ड जास्तीत जास्त १०० अक्षरांचा असावा.', 'code': 'PASSWORD_TOO_LONG'}), 400
+
         # Mandatory & Strict Indian Mobile Validation (10 digits starting with 6,7,8,9)
         if not re.match(r'^[6-9]\d{9}$', phone):
             return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
@@ -1562,6 +1627,19 @@ def create_app():
         if not identifier or not password:
             return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
 
+        # Brute-force rate limiting: 5 failed attempts per IP + identifier -> 15 min lock
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+        rate_limit_key = f"{client_ip}:{identifier.lower()}"
+        allowed, wait_sec = check_login_rate_limit(rate_limit_key)
+        if not allowed:
+            wait_min = max(1, round(wait_sec / 60))
+            return jsonify({
+                'error': f'अनेक वेळा चुकीचा पासवर्ड टाकल्यामुळे खाते सुरक्षेसाठी तात्पुरते लॉक केले आहे. कृपया {wait_min} मिनिटे थांबा किंवा पासवर्ड रीसेट करा.',
+                'code': 'TOO_MANY_FAILED_LOGINS',
+                'wait_seconds': wait_sec,
+                'wait_minutes': wait_min
+            }), 429
+
         # Find user by email, phone, or username
         user = User.query.filter(
             (User.email == identifier.lower()) |
@@ -1569,11 +1647,16 @@ def create_app():
             (User.username == identifier)
         ).first()
 
-        if not user:
-            return jsonify({'error': 'या तपशीलांशी जुळणारे कोणतेही खाते सापडले नाही. कृपया नवीन खाते तयार करा.', 'code': 'USER_NOT_FOUND'}), 404
+        # Constant-time / unified error response to eliminate user enumeration
+        if not user or not user.check_password(password):
+            record_login_failure(rate_limit_key)
+            return jsonify({
+                'error': 'चुकीचा मोबाईल नंबर किंवा पासवर्ड! कृपया योग्य तपशील टाका किंवा पासवर्ड रीसेट करा.',
+                'code': 'INVALID_CREDENTIALS'
+            }), 401
 
-        if not user.check_password(password):
-            return jsonify({'error': 'चुकीचा पासवर्ड! कृपया योग्य पासवर्ड टाका.', 'code': 'INVALID_CREDENTIALS'}), 401
+        # Clear failed attempt count on successful authentication
+        record_login_success(rate_limit_key)
 
         # Check if user is Admin -> Strict Whitelist and 2FA Verification
         if user.role == 'admin':
@@ -3076,8 +3159,12 @@ def create_app():
         if is_upi:
             final_amount = assign_unique_soundbox_paise(final_amount, order_number)
 
+        # Generate cryptographically unguessable tracking token for public tracking links
+        tracking_token = uuid.uuid4().hex
+
         new_order = Order(
             order_number=order_number,
+            tracking_token=tracking_token,
             user_id=user.id if user else None,
             customer_name=customer_name,
             customer_phone=customer_phone,
@@ -3101,18 +3188,73 @@ def create_app():
         return jsonify({
             'message': 'Order placed successfully! Bill generated.',
             'order': new_order.to_dict(),
+            'tracking_token': tracking_token,
+            'tracking_url': f"/?order={new_order.order_number}&token={tracking_token}",
             'user': user.to_dict() if user else None
         }), 201
 
     @app.route('/api/orders/<string:order_number>', methods=['GET'])
     def get_order_by_number(order_number):
+        """
+        Retrieves order details with strict IDOR protection.
+        Access is restricted to:
+        1. Store Admin (Bearer token)
+        2. Verified Order Owner (Bearer token matching user_id or phone)
+        3. Secure Guest Tracking Link (matching unguessable UUID tracking_token)
+        """
         order = Order.query.filter_by(order_number=order_number).first_or_404()
+        
+        current_user = get_current_user()
+        token_param = (request.args.get('token') or request.headers.get('X-Tracking-Token') or '').strip()
+
+        is_authorized = False
+        if current_user:
+            if current_user.role == 'admin':
+                is_authorized = True
+            elif (order.user_id and current_user.id == order.user_id) or (order.customer_phone and current_user.phone == order.customer_phone):
+                is_authorized = True
+
+        if not is_authorized and token_param and order.tracking_token:
+            if token_param == order.tracking_token:
+                is_authorized = True
+
+        if not is_authorized:
+            return jsonify({
+                'error': 'अनाधिकृत प्रवेश: या ऑर्डरचे तपशील पाहण्यासाठी लॉगिन करा किंवा अधिकृत ट्रॅकिंग लिंक वापरा.',
+                'code': 'UNAUTHORIZED_ORDER_ACCESS'
+            }), 403
+
         return jsonify(order.to_dict())
 
     @app.route('/api/orders/<string:order_number>/availability', methods=['POST'])
     def confirm_order_delivery_availability(order_number):
+        """
+        Updates delivery availability (customer confirmed available vs reschedule).
+        Protected by tracking_token or account ownership.
+        """
         order = Order.query.filter_by(order_number=order_number).first_or_404()
         data = request.get_json() or {}
+
+        current_user = get_current_user()
+        token_param = (request.args.get('token') or data.get('token') or request.headers.get('X-Tracking-Token') or '').strip()
+
+        is_authorized = False
+        if current_user:
+            if current_user.role == 'admin':
+                is_authorized = True
+            elif (order.user_id and current_user.id == order.user_id) or (order.customer_phone and current_user.phone == order.customer_phone):
+                is_authorized = True
+
+        if not is_authorized and token_param and order.tracking_token:
+            if token_param == order.tracking_token:
+                is_authorized = True
+
+        if not is_authorized:
+            return jsonify({
+                'error': 'अनाधिकृत प्रवेश: डिलिव्हरी उपलब्धता अपडेट करण्यासाठी सुरक्षित ट्रॅकिंग लिंक आवश्यक आहे.',
+                'code': 'UNAUTHORIZED_ORDER_ACCESS'
+            }), 403
+
         # response: 'available' (Yes, available) or 'reschedule' (Not available right now)
         choice = data.get('choice', 'available')
         if choice not in ['available', 'reschedule']:
