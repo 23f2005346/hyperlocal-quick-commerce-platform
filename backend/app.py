@@ -1646,9 +1646,10 @@ def create_app():
     @app.route('/api/auth/forgot-password', methods=['POST'])
     def forgot_password():
         """
-        Step 1: Customer requests a password reset code.
-        Accepts 'identifier' (phone, email, or username) and optional 'channel' ('sms' or 'email').
-        Dispatches SMS OTP via Fast2SMS to customer's phone, or Email OTP via Port 443 Resend.
+        Step 1: Customer requests password reset.
+        - If customer account has email: sends instant 6-digit OTP via Resend HTTPS (Port 443) for zero cost.
+        - If customer account has phone only: generates a secure reset_token + reverse WhatsApp verification link
+          directing to store owner WhatsApp (9142052967) for 1-click verification, zero telecom SMS cost.
         """
         data = request.get_json() or {}
         identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
@@ -1666,19 +1667,26 @@ def create_app():
         if not user:
             return jsonify({'error': 'या मोबाईल नंबर किंवा ईमेलवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
-        # Channel selection: SMS is primary for Kirana phone accounts; Email is dual fallback
+        # Check if account has a real verified email and phone
+        has_real_email = bool(user.email and '@' in user.email and not user.email.endswith('@komalmart.local'))
+        has_real_phone = bool(user.phone and not is_dummy_phone(user.phone))
+
+        # Channel selection:
+        # If user explicitly provided email or preferred email, use email.
+        # If user entered 10-digit phone or preferred whatsapp/phone, use whatsapp reverse verification.
         is_email_input = '@' in identifier
-        channel = 'email' if (prefer_channel == 'email' or (is_email_input and prefer_channel != 'sms')) else 'sms'
-
-        # Fallbacks if target channel contact info is unavailable
-        if channel == 'sms' and (not user.phone or is_dummy_phone(user.phone)):
-            if user.email:
-                channel = 'email'
-            else:
-                return jsonify({'error': 'या खात्यावर वैध मोबाईल नंबर किंवा ईमेल उपलब्ध नाही. कृपया दुकानाशी संपर्क साधा.', 'code': 'NO_CONTACT_FOUND'}), 400
-
-        if channel == 'email' and not user.email:
-            channel = 'sms'
+        if prefer_channel == 'email' and has_real_email:
+            channel = 'email'
+        elif prefer_channel in ['whatsapp', 'sms', 'phone']:
+            channel = 'whatsapp'
+        elif is_email_input and has_real_email:
+            channel = 'email'
+        elif has_real_phone:
+            channel = 'whatsapp'
+        elif has_real_email:
+            channel = 'email'
+        else:
+            channel = 'whatsapp'
 
         # Generate 6-digit OTP
         otp = f"{random.randint(100000, 999999)}"
@@ -1703,28 +1711,35 @@ def create_app():
 
         print(f"\n[CUSTOMER PASSWORD RESET] User: {user.name} (Phone: {user.phone}, Email: {user.email}), Channel: {channel}, OTP: {otp}")
 
-        masked_dest = ''
-        sent_ok = False
-
-        if channel == 'sms':
-            masked_dest = user.phone[:2] + '******' + user.phone[-2:]
-            sent_ok, _ = send_fast2sms_otp(user.phone, otp)
-            msg = f'सुरक्षा कोड (OTP) आपल्या {masked_dest} मोबाईल नंबरवर SMS द्वारे पाठवला आहे.'
-        else:
+        if channel == 'email':
             parts = user.email.split('@')
             masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
             sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
             msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.'
-
-        return jsonify({
-            'message': msg,
-            'reset_token': reset_token,
-            'channel': channel,
-            'masked_target': masked_dest,
-            'has_email': bool(user.email),
-            'has_phone': bool(user.phone and not is_dummy_phone(user.phone)),
-            'sent_ok': sent_ok
-        }), 200
+            return jsonify({
+                'message': msg,
+                'reset_token': reset_token,
+                'channel': 'email',
+                'masked_target': masked_dest,
+                'has_email': True,
+                'has_phone': has_real_phone,
+                'sent_ok': sent_ok
+            }), 200
+        else:
+            # Phone-only account: Provide instant WhatsApp 1-tap verification
+            wa_text = f"नमस्ते कोमल मार्ट! मी पासवर्ड रीसेट करत आहे. माझा फोन नंबर: {user.phone} आणि सुरक्षा कोड: {otp}"
+            wa_link = f"https://wa.me/919142052967?text={urllib.parse.quote(wa_text)}"
+            return jsonify({
+                'message': 'आपल्या खात्याशी ईमेल जोडलेला नाही. सुरक्षेसाठी खालील बटनावर क्लिक करून WhatsApp वरून त्वरित कोड प्राप्त करा किंवा दुकानदाराशी संपर्क साधा.',
+                'reset_token': reset_token,
+                'channel': 'whatsapp',
+                'customer_phone': user.phone,
+                'wa_link': wa_link,
+                'wa_code': otp,
+                'has_email': False,
+                'has_phone': True,
+                'sent_ok': True
+            }), 200
 
     @app.route('/api/auth/resend-forgot-password', methods=['POST'])
     def resend_forgot_password():

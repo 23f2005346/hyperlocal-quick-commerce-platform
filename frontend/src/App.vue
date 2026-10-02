@@ -3829,10 +3829,10 @@
           <!-- Step 1: Request OTP -->
           <div v-if="resetStep === 1">
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; color: #166534; margin-bottom: 14px; line-height: 1.45;">
-              {{ t('auth_reset_notice_step1') }}
+              {{ currentLang === 'en' ? 'ℹ️ Enter your registered mobile number or email. You can verify instantly via WhatsApp or Email OTP to reset your password.' : (currentLang === 'mr' ? 'ℹ️ आपला नोंदणीकृत मोबाईल नंबर किंवा ईमेल टाका. पासवर्ड रीसेट करण्यासाठी आपण WhatsApp किंवा ईमेल OTP द्वारे त्वरित पडताळणी करू शकता.' : 'ℹ️ अपना पंजीकृत मोबाइल नंबर या ईमेल दर्ज करें। पासवर्ड रीसेट करने के लिए आप WhatsApp या ईमेल OTP द्वारा तुरंत सत्यापन कर सकते हैं।') }}
             </div>
 
-            <form @submit.prevent="handleRequestResetOtp">
+            <form @submit.prevent="handleRequestResetOtp()">
               <div class="form-group">
                 <label class="form-label">{{ t('auth_reset_identifier_label') }}</label>
                 <input
@@ -3848,33 +3848,45 @@
                 </span>
               </div>
 
-              <!-- Store WhatsApp Contact Alert if account has no email -->
-              <div v-if="resetNoEmailPhone" style="background: #fffbeb; border: 1.5px solid #fef3c7; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.82rem; color: #92400e;">
-                <p style="margin: 0 0 8px 0; font-weight: 700;">{{ t('auth_reset_no_email_error') }}</p>
-                <a
-                  :href="`https://wa.me/919142052967?text=${encodeURIComponent(`नमस्ते कोमल मार्ट! मी माझ्या खात्याचा पासवर्ड विसरलो आहे. माझा नोंदणीकृत फोन नंबर ${resetNoEmailPhone} आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा.`)}`"
-                  target="_blank"
-                  style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 800; font-size: 0.8rem;"
-                >
-                  📲 WhatsApp वर दुकानदाराशी संपर्क साधा
-                </a>
-              </div>
-
               <button type="submit" class="checkout-btn" :disabled="authSubmitting">
-                {{ authSubmitting ? t('auth_btn_submitting') : t('auth_reset_send_otp_btn') }}
+                {{ authSubmitting ? t('auth_btn_submitting') : (currentLang === 'en' ? '🔐 Continue to Reset Password' : (currentLang === 'mr' ? '🔐 पासवर्ड रीसेट सुरू करा' : '🔐 पासवर्ड रीसेट शुरू करें')) }}
               </button>
             </form>
           </div>
 
           <!-- Step 2: Verify OTP & Set New Password -->
           <div v-else-if="resetStep === 2">
-            <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center;">
-              <div style="font-size: 1.8rem; margin-bottom: 4px;">{{ resetChannel === 'sms' ? '📲' : '📩' }}</div>
+            <!-- Channel: WhatsApp Reverse Verification -->
+            <div v-if="resetChannel === 'whatsapp'" style="background: #f0fdf4; border: 1.5px solid #86efac; padding: 14px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
+              <div style="font-size: 2rem; margin-bottom: 6px;">🟢</div>
+              <p style="font-size: 0.9rem; color: #166534; font-weight: 800; margin: 0 0 6px 0;">
+                {{ currentLang === 'en' ? 'Verify via WhatsApp (Zero Cost)' : (currentLang === 'mr' ? 'WhatsApp द्वारे पडताळणी करा (मोफत)' : 'WhatsApp द्वारा सत्यापन करें (निःशुल्क)') }}
+              </p>
+              <p style="font-size: 0.8rem; color: #374151; margin: 0 0 10px 0; line-height: 1.4;">
+                {{ currentLang === 'en' ? 'Tap below to send a pre-filled verification code to Komal Mart. Then enter the 6-digit code below to set your new password.' : (currentLang === 'mr' ? 'खालील बटनावर क्लिक करून कोमल मार्टला WhatsApp वर कोड पाठवा. त्यानंतर खाली ६-अंकी कोड टाकून नवीन पासवर्ड सेट करा.' : 'नीचे दिए बटन पर क्लिक करके कोमल मार्ट को WhatsApp पर कोड भेजें। फिर नीचे 6-अंकीय कोड दर्ज करके नया पासवर्ड सेट करें।') }}
+              </p>
+              <a
+                v-if="resetWaLink"
+                :href="resetWaLink"
+                target="_blank"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #25d366; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 0.9rem; box-shadow: 0 2px 6px rgba(37,211,102,0.3); margin-bottom: 8px;"
+              >
+                📲 {{ currentLang === 'en' ? 'Tap to Send Verification Code on WhatsApp' : (currentLang === 'mr' ? 'WhatsApp वर कोड पाठवा' : 'WhatsApp पर कोड भेजें') }}
+              </a>
+              <div style="font-size: 0.76rem; color: #047857; margin-top: 4px; font-weight: 700;">
+                {{ currentLang === 'en' ? 'Your Security Code:' : (currentLang === 'mr' ? 'तुमचा सुरक्षा कोड:' : 'आपका सुरक्षा कोड:') }}
+                <span style="font-size: 1rem; letter-spacing: 2px; background: white; padding: 2px 8px; border-radius: 4px; border: 1px dashed #059669; margin-left: 4px;">{{ resetWaCode }}</span>
+              </div>
+            </div>
+
+            <!-- Channel: Email OTP via Resend -->
+            <div v-else style="background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center;">
+              <div style="font-size: 1.8rem; margin-bottom: 4px;">📩</div>
               <p style="font-size: 0.85rem; color: #065f46; font-weight: 700; margin: 0 0 4px 0;">
-                {{ resetChannel === 'sms' ? (currentLang === 'en' ? '6-Digit OTP sent via SMS to mobile' : (currentLang === 'mr' ? 'मोबाईलवर SMS द्वारे ६-अंकी OTP पाठवला आहे' : 'मोबाइल पर SMS द्वारा ६-अंकी OTP भेजा गया है')) : t('auth_reset_notice_step2') }}
+                {{ t('auth_reset_notice_step2') }}
               </p>
               <div style="display: inline-block; background: white; border: 1px dashed #059669; padding: 4px 10px; border-radius: 6px; font-size: 0.88rem; font-weight: 800; color: #047857;">
-                {{ resetChannel === 'sms' ? '📱' : '✉️' }} {{ resetMaskedTarget || resetMaskedEmail }}
+                ✉️ {{ resetMaskedTarget || resetMaskedEmail }}
               </div>
             </div>
 
@@ -3942,24 +3954,24 @@
                 </div>
 
                 <!-- Dual Channel Switch Option -->
-                <div v-if="resetChannel === 'sms' && resetHasEmail" style="text-align: center; margin-top: 4px;">
+                <div v-if="resetChannel === 'whatsapp' && resetHasEmail" style="text-align: center; margin-top: 4px;">
                   <button
                     type="button"
-                    @click="handleResendResetOtp('email')"
+                    @click="handleRequestResetOtp('email')"
                     :disabled="authSubmitting"
                     style="background: none; border: 1px dashed #0284c7; border-radius: 6px; padding: 4px 8px; color: #0284c7; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
                   >
-                    ✉️ {{ currentLang === 'en' ? 'Didn\'t get SMS? Send OTP to registered Email' : (currentLang === 'mr' ? 'SMS आला नाही? नोंदणीकृत ईमेलवर OTP पाठवा' : 'SMS नहीं आया? पंजीकृत ईमेल पर OTP भेजें') }}
+                    ✉️ {{ currentLang === 'en' ? 'Send OTP to registered Email instead' : (currentLang === 'mr' ? 'नोंदणीकृत ईमेलवर OTP पाठवा' : 'पंजीकृत ईमेल पर OTP भेजें') }}
                   </button>
                 </div>
                 <div v-else-if="resetChannel === 'email' && resetHasPhone" style="text-align: center; margin-top: 4px;">
                   <button
                     type="button"
-                    @click="handleResendResetOtp('sms')"
+                    @click="handleRequestResetOtp('whatsapp')"
                     :disabled="authSubmitting"
                     style="background: none; border: 1px dashed #059669; border-radius: 6px; padding: 4px 8px; color: #059669; font-weight: 700; font-size: 0.76rem; cursor: pointer;"
                   >
-                    📱 {{ currentLang === 'en' ? 'Didn\'t get Email? Send OTP to mobile SMS' : (currentLang === 'mr' ? 'ईमेल आला नाही? मोबाईलवर SMS द्वारे OTP पाठवा' : 'ईमेल नहीं आया? मोबाइल पर SMS द्वारा OTP भेजें') }}
+                    🟢 {{ currentLang === 'en' ? 'Verify via WhatsApp instead' : (currentLang === 'mr' ? 'WhatsApp द्वारे पडताळणी करा' : 'WhatsApp द्वारा सत्यापन करें') }}
                   </button>
                 </div>
               </div>
@@ -7001,7 +7013,9 @@ const resetToken = ref('');
 const resetMaskedTarget = ref('');
 const resetMaskedEmail = ref('');
 const resetNoEmailPhone = ref('');
-const resetChannel = ref('sms'); // 'sms' | 'email'
+const resetChannel = ref('sms'); // 'whatsapp' | 'email'
+const resetWaLink = ref('');
+const resetWaCode = ref('');
 const resetHasEmail = ref(false);
 const resetHasPhone = ref(false);
 const smsBalanceInfo = ref({ configured: true, wallet: '145.00', sms_count: 580 });
@@ -8004,17 +8018,16 @@ async function handleRequestResetOtp(preferredChannel = null) {
     const data = await res.json();
     if (res.ok) {
       resetToken.value = data.reset_token;
-      resetChannel.value = data.channel || 'sms';
+      resetChannel.value = data.channel || 'email';
       resetMaskedTarget.value = data.masked_target || data.masked_email || '';
+      resetWaLink.value = data.wa_link || '';
+      resetWaCode.value = data.wa_code || '';
       resetHasEmail.value = Boolean(data.has_email);
       resetHasPhone.value = Boolean(data.has_phone);
       resetStep.value = 2;
-      showToast(data.message || (resetChannel.value === 'sms' ? `📲 OTP पडताळणी कोड ${resetMaskedTarget.value} वर SMS द्वारे पाठवला आहे.` : `📩 OTP कोड ${resetMaskedTarget.value} वर पाठवला आहे.`));
+      showToast(data.message || (resetChannel.value === 'whatsapp' ? '📲 WhatsApp पडताळणी तयार!' : `📩 OTP कोड ${resetMaskedTarget.value} वर पाठवला आहे.`));
     } else {
-      if (data.code === 'NO_EMAIL_ON_ACCOUNT') {
-        resetNoEmailPhone.value = data.customer_phone || resetIdentifier.value;
-      }
-      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'OTP पाठवणे अयशस्वी.' : 'Failed to send OTP.');
+      authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'रीसेट विनंती अयशस्वी.' : 'Failed to process reset request.');
     }
   } catch (err) {
     authError.value = t('auth_err_network');
