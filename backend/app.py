@@ -56,6 +56,8 @@ ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
 ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
 CUSTOMER_RESET_STORE = {} # { reset_key: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0, 'channel': 'sms'|'email' } }
 REGISTRATION_OTP_STORE = {} # { phone: { 'otp': '123456', 'expires_at': ts, 'attempts': 0, 'last_sent': ts } }
+RESET_RATE_LIMIT_STORE = {} # { key: [timestamps] }
+RESET_COOLDOWN_STORE = {}   # { key: last_request_timestamp }
 
 FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', '').strip()
 
@@ -304,6 +306,39 @@ def is_dummy_phone(phone: str) -> bool:
 
     return False
  
+def check_reset_rate_limit(account_key: str, client_ip: str):
+    """
+    Guards Resend free-tier quota (100 emails/day) and prevents spam.
+    - Cooldown: 60 seconds minimum between requests for the same account.
+    - Hourly Account Cap: Maximum 3 OTP requests per account per hour.
+    - Hourly IP Cap: Maximum 8 OTP requests per IP per hour.
+    Returns (allowed: bool, wait_seconds: int, error_code: str)
+    """
+    now = time.time()
+    account_key = str(account_key)
+    # 1. Cooldown check (60s)
+    last_req = RESET_COOLDOWN_STORE.get(account_key, 0)
+    if now - last_req < 60:
+        return False, int(60 - (now - last_req)), 'COOLDOWN_ACTIVE'
+
+    # 2. Account rate limit (last 1 hour = 3600s)
+    user_history = [t for t in RESET_RATE_LIMIT_STORE.get(account_key, []) if now - t < 3600]
+    if len(user_history) >= 3:
+        return False, int(3600 - (now - user_history[0])), 'ACCOUNT_RATE_LIMIT'
+
+    # 3. IP rate limit
+    ip_history = [t for t in RESET_RATE_LIMIT_STORE.get(client_ip, []) if now - t < 3600]
+    if len(ip_history) >= 8:
+        return False, int(3600 - (now - ip_history[0])), 'IP_RATE_LIMIT'
+
+    # Record attempt
+    user_history.append(now)
+    RESET_RATE_LIMIT_STORE[account_key] = user_history
+    RESET_COOLDOWN_STORE[account_key] = now
+    ip_history.append(now)
+    RESET_RATE_LIMIT_STORE[client_ip] = ip_history
+
+    return True, 0, None
 def send_fast2sms_otp(phone: str, otp: str):
     """
     DISPATCH GUARD: External SMS calls disabled to strictly protect Fast2SMS wallet balance.
@@ -1648,12 +1683,14 @@ def create_app():
         """
         Step 1: Customer requests password reset.
         - If customer account has email: sends instant 6-digit OTP via Resend HTTPS (Port 443) for zero cost.
-        - If customer account has phone only: generates a secure reset_token + reverse WhatsApp verification link
-          directing to store owner WhatsApp (9142052967) for 1-click verification, zero telecom SMS cost.
+        - If customer account has phone only: generates a secure reverse WhatsApp verification link
+          directing to store owner Roushan's WhatsApp (9142052967) for manual identity verification.
+        - Protected by 60s cooldown and hourly rate limiting to safeguard Resend quota.
         """
         data = request.get_json() or {}
         identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
         prefer_channel = (data.get('channel') or '').strip().lower()
+        lang = (data.get('lang') or 'mr').strip().lower()
 
         if not identifier:
             return jsonify({'error': 'मोबाईल नंबर किंवा ईमेल आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
@@ -1666,6 +1703,17 @@ def create_app():
 
         if not user:
             return jsonify({'error': 'या मोबाईल नंबर किंवा ईमेलवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+        # Rate Limiting Guard: Max 3 requests/hour per account, max 8/hour per IP, 60s cooldown
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+        allowed, wait_sec, err_code = check_reset_rate_limit(user.id, client_ip)
+        if not allowed:
+            if err_code == 'COOLDOWN_ACTIVE':
+                err_msg = f'कृपया नवीन OTP विनंतीपूर्वी {wait_sec} सेकंद प्रतीक्षा करा.' if lang == 'mr' else (f'कृपया नया OTP मांगने से पहले {wait_sec} सेकंड प्रतीक्षा करें।' if lang == 'hi' else f'Please wait {wait_sec}s before requesting a new OTP.')
+            else:
+                wait_min = max(1, round(wait_sec / 60))
+                err_msg = f'अनेक वेळा प्रयत्न झाले आहेत. सुरक्षेसाठी कृपया {wait_min} मिनिटे थांबा किंवा व्हॉट्सॲपवर संपर्क साधा.' if lang == 'mr' else (f'बहुत अधिक प्रयास किए गए हैं। कृपया {wait_min} मिनट प्रतीक्षा करें या WhatsApp पर संपर्क करें।' if lang == 'hi' else f'Too many reset attempts. Please wait {wait_min} minutes or contact support on WhatsApp.')
+            return jsonify({'error': err_msg, 'code': 'RATE_LIMIT_EXCEEDED', 'wait_seconds': wait_sec}), 429
 
         # Check if account has a real verified email and phone
         has_real_email = bool(user.email and '@' in user.email and not user.email.endswith('@komalmart.local'))
@@ -1706,7 +1754,7 @@ def create_app():
             parts = user.email.split('@')
             masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
             sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
-            msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.'
+            msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.' if lang == 'mr' else (f'सुरक्षा कोड (OTP) {masked_dest} पर ईमेल किया गया है।' if lang == 'hi' else f'Verification OTP sent to {masked_dest}.')
             return jsonify({
                 'message': msg,
                 'reset_token': reset_token,
@@ -1717,11 +1765,21 @@ def create_app():
                 'sent_ok': sent_ok
             }), 200
         else:
-            # Phone-only account: direct them to store owner WhatsApp for manual security reset (zero code exposure)
-            wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}) पासवर्ड विसरलो आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा."
-            wa_link = f"https://wa.me/919142052967?text={urllib.parse.quote(wa_text)}"
+            # Phone-only account: direct them to Roushan's WhatsApp for manual security reset (zero code exposure)
+            ROUSHAN_WHATSAPP = '919142052967'
+            if lang == 'hi':
+                wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}) का पासवर्ड भूल गया हूँ। कृपया मुझे पासवर्ड रीसेट करने में सहायता करें।"
+                wa_user_msg = 'आपके खाते पर ईमेल दर्ज नहीं है। खाते की सुरक्षा के लिए कृपया नीचे दिए गए बटन से सीधे WhatsApp पर संपर्क करें।'
+            elif lang == 'en':
+                wa_text = f"Hello Komal Mart! I forgot my password for my account (Phone: {user.phone}). Please assist me with resetting my account password."
+                wa_user_msg = 'Your account does not have a registered email address. For account safety, please tap below to message store support on WhatsApp.'
+            else:
+                wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}) पासवर्ड विसरलो आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा."
+                wa_user_msg = 'आपल्या खात्यावर ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.'
+
+            wa_link = f"https://wa.me/{ROUSHAN_WHATSAPP}?text={urllib.parse.quote(wa_text)}"
             return jsonify({
-                'message': 'आपल्या खात्यावर ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.',
+                'message': wa_user_msg,
                 'reset_token': '',
                 'channel': 'whatsapp',
                 'customer_phone': user.phone,
@@ -1752,6 +1810,12 @@ def create_app():
         user = db.session.get(User, user_id)
         if not user:
             return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+        # Rate Limiting Guard on Resend
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+        allowed, wait_sec, err_code = check_reset_rate_limit(user.id, client_ip)
+        if not allowed:
+            return jsonify({'error': f'कृपया नवीन OTP मागण्यापूर्वी {wait_sec} सेकंद प्रतीक्षा करा.', 'code': 'RATE_LIMIT_EXCEEDED', 'wait_seconds': wait_sec}), 429
 
         if channel == 'email' and not user.email:
             channel = 'sms'
@@ -1844,6 +1908,47 @@ def create_app():
 
         return jsonify({
             'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! आता नवीन पासवर्डने लॉगिन करा.'
+        }), 200
+
+    @app.route('/api/admin/customers/<int:user_id>/reset-password', methods=['POST'])
+    @admin_required
+    def admin_reset_customer_password(user_id):
+        """
+        Allows Store Admin (Roushan) to securely reset a customer's password
+        after manually verifying their identity over WhatsApp / phone (e.g. verifying
+        their delivery address, last order amount, or confirmed phone identity).
+        """
+        user = db.session.get(User, user_id)
+        if not user or user.role != 'customer':
+            return jsonify({'error': 'ग्राहक सापडला नाही.', 'code': 'CUSTOMER_NOT_FOUND'}), 404
+
+        data = request.get_json() or {}
+        new_password = (data.get('new_password') or '').strip()
+        generate_temp = bool(data.get('generate_temp', False))
+
+        if generate_temp or not new_password:
+            # Generate a clean 6-digit temporary PIN
+            new_password = f"KM{random.randint(1000, 9999)}"
+
+        if len(new_password) < 4:
+            return jsonify({'error': 'पासवर्ड किमान ४ अक्षरांचा असावा.', 'code': 'PASSWORD_TOO_SHORT'}), 400
+
+        user.set_password(new_password)
+        db.session.commit()
+
+        # Invalidate any pending reset tokens for this user
+        CUSTOMER_RESET_STORE.pop(str(user.id), None)
+        if user.email:
+            CUSTOMER_RESET_STORE.pop(user.email, None)
+
+        current_admin = get_current_user()
+        admin_name = current_admin.name if current_admin else 'Admin'
+        print(f"\n[ADMIN PASSWORD RESET AUDIT] Admin '{admin_name}' reset password for Customer ID {user.id} ({user.phone}, {user.name}).")
+
+        return jsonify({
+            'success': True,
+            'message': f"Customer '{user.name}' ({user.phone}) password reset successfully!",
+            'temporary_password': new_password
         }), 200
 
     @app.route('/api/admin/sms-balance', methods=['GET'])

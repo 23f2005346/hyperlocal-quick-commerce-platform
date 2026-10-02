@@ -8239,7 +8239,10 @@ async function handleRequestResetOtp(preferredChannel = null) {
   authError.value = '';
   resetNoEmailPhone.value = '';
   try {
-    const payload = { identifier: resetIdentifier.value.trim() };
+    const payload = {
+      identifier: resetIdentifier.value.trim(),
+      lang: currentLang.value || 'mr'
+    };
     if (preferredChannel) payload.channel = preferredChannel;
     const res = await fetch(`${API_BASE}/auth/forgot-password`, {
       method: 'POST',
