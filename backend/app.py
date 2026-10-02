@@ -1447,6 +1447,22 @@ def create_app():
                 conn.close()
 
         db.create_all()
+
+        # Cloud Database Schema Compatibility Guard (Turso / PostgreSQL / Remote SQLite)
+        try:
+            from sqlalchemy import text, inspect
+            insp = inspect(db.engine)
+            existing_tables = insp.get_table_names()
+            if 'orders' in existing_tables:
+                col_names = [c['name'] for c in insp.get_columns('orders')]
+                if 'tracking_token' not in col_names:
+                    with db.engine.connect() as conn:
+                        conn.execute(text("ALTER TABLE orders ADD COLUMN tracking_token VARCHAR(64) DEFAULT NULL"))
+                        conn.commit()
+                        print("[CLOUD DB MIGRATION] Added tracking_token column to orders table.")
+        except Exception as e:
+            print(f"[CLOUD DB SCHEMA NOTICE] {e}")
+
         # Seed default admin and inventory if empty or missing admin
         if Category.query.count() == 0 or User.query.filter_by(role='admin').count() == 0:
             seed_database()
