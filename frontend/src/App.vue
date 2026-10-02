@@ -746,21 +746,21 @@
           <div class="kpi-mini-pill" @click="switchAdminTab('orders')">
             <span class="kpi-mini-icon">🧾</span>
             <div class="kpi-mini-data">
-              <span class="kpi-mini-val">{{ adminOrders.length }}</span>
+              <span class="kpi-mini-val">{{ isAdminOrdersLoading ? '...' : adminOrders.length }}</span>
               <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'ऑर्डर्स' : 'Orders' }}</span>
             </div>
           </div>
           <div class="kpi-mini-pill kpi-mini-danger" @click="switchAdminTab('khata')">
             <span class="kpi-mini-icon">🔴</span>
             <div class="kpi-mini-data">
-              <span class="kpi-mini-val">{{ unpaidAdminOrders.length }}</span>
+              <span class="kpi-mini-val">{{ isAdminOrdersLoading ? '...' : unpaidAdminOrders.length }}</span>
               <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'बाकी' : 'Khata' }}</span>
             </div>
           </div>
           <div class="kpi-mini-pill kpi-mini-success" @click="switchAdminTab('orders')">
             <span class="kpi-mini-icon">🟢</span>
             <div class="kpi-mini-data">
-              <span class="kpi-mini-val">{{ paidAdminOrders.length }}</span>
+              <span class="kpi-mini-val">{{ isAdminOrdersLoading ? '...' : paidAdminOrders.length }}</span>
               <span class="kpi-mini-lbl">{{ currentLang === 'mr' ? 'चुकता' : 'Paid' }}</span>
             </div>
           </div>
@@ -787,21 +787,21 @@
             <div class="stat-icon">🧾</div>
             <div class="stat-content">
               <span class="stat-label">{{ currentLang === 'mr' ? 'एकूण ऑर्डर्स' : (currentLang === 'hi' ? 'कुल ऑर्डर' : 'Total Orders') }}</span>
-              <strong class="stat-val">{{ adminOrders.length }}</strong>
+              <strong class="stat-val">{{ isAdminOrdersLoading ? '⏳' : adminOrders.length }}</strong>
             </div>
           </div>
           <div class="stat-card stat-card-danger">
             <div class="stat-icon">🔴</div>
             <div class="stat-content">
               <span class="stat-label">{{ currentLang === 'mr' ? 'बाकी उधारी' : (currentLang === 'hi' ? 'बाकी उधारी' : 'Unpaid Khata') }}</span>
-              <strong class="stat-val">{{ unpaidAdminOrders.length }}</strong>
+              <strong class="stat-val">{{ isAdminOrdersLoading ? '⏳' : unpaidAdminOrders.length }}</strong>
             </div>
           </div>
           <div class="stat-card stat-card-success">
             <div class="stat-icon">🟢</div>
             <div class="stat-content">
               <span class="stat-label">{{ currentLang === 'mr' ? 'चुकता ऑर्डर्स' : (currentLang === 'hi' ? 'चुकता ऑर्डर' : 'Paid Orders') }}</span>
-              <strong class="stat-val">{{ paidAdminOrders.length }}</strong>
+              <strong class="stat-val">{{ isAdminOrdersLoading ? '⏳' : paidAdminOrders.length }}</strong>
             </div>
           </div>
           <div class="stat-card" style="border-left: 4px solid #0284c7; cursor: pointer;" @click="fetchSmsBalance" title="Click to refresh SMS balance">
@@ -1736,40 +1736,40 @@
               :class="{ active: adminOrderFilter === 'all' }"
               @click="adminOrderFilter = 'all'"
             >
-              {{ currentLang === 'en' ? 'All Orders' : (currentLang === 'mr' ? 'सर्व ऑर्डर्स' : 'सभी ऑर्डर') }} ({{ adminOrders.length }})
+              {{ currentLang === 'en' ? 'All Orders' : (currentLang === 'mr' ? 'सर्व ऑर्डर्स' : 'सभी ऑर्डर') }} ({{ isAdminOrdersLoading ? '...' : adminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'pending' }"
               @click="adminOrderFilter = 'pending'"
               style="color: #b45309; font-weight: 800; background: #fef3c7; border: 1px solid #fde68a;"
             >
-              ⏳ {{ currentLang === 'en' ? 'Verify UPI' : (currentLang === 'mr' ? 'UPI पडताळणी' : 'UPI सत्यापन') }} ({{ pendingVerificationAdminOrders.length }})
+              ⏳ {{ currentLang === 'en' ? 'Verify UPI' : (currentLang === 'mr' ? 'UPI पडताळणी' : 'UPI सत्यापन') }} ({{ isAdminOrdersLoading ? '...' : pendingVerificationAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'unpaid' }"
               @click="adminOrderFilter = 'unpaid'"
               style="color: #b91c1c; font-weight: 800;"
             >
-              🔴 {{ currentLang === 'en' ? 'Unpaid / Khata' : (currentLang === 'mr' ? 'बाकी / उधारी' : 'बाकी / उधारी') }} ({{ unpaidAdminOrders.length }})
+              🔴 {{ currentLang === 'en' ? 'Unpaid / Khata' : (currentLang === 'mr' ? 'बाकी / उधारी' : 'बाकी / उधारी') }} ({{ isAdminOrdersLoading ? '...' : unpaidAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'paid' }"
               @click="adminOrderFilter = 'paid'"
               style="color: #15803d; font-weight: 800;"
             >
-              🟢 {{ currentLang === 'en' ? 'Paid' : (currentLang === 'mr' ? 'चुकता' : 'चुकता') }} ({{ paidAdminOrders.length }})
+              🟢 {{ currentLang === 'en' ? 'Paid' : (currentLang === 'mr' ? 'चुकता' : 'चुकता') }} ({{ isAdminOrdersLoading ? '...' : paidAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'cod' }"
               @click="adminOrderFilter = 'cod'"
             >
-              💵 {{ currentLang === 'en' ? 'Cash COD' : (currentLang === 'mr' ? 'नकद COD' : 'नकद COD') }} ({{ codAdminOrders.length }})
+              💵 {{ currentLang === 'en' ? 'Cash COD' : (currentLang === 'mr' ? 'नकद COD' : 'नकद COD') }} ({{ isAdminOrdersLoading ? '...' : codAdminOrders.length }})
             </button>
             <button
               :class="{ active: adminOrderFilter === 'upi' }"
               @click="adminOrderFilter = 'upi'"
             >
-              📱 {{ currentLang === 'en' ? 'UPI QR' : 'UPI QR' }} ({{ upiAdminOrders.length }})
+              📱 {{ currentLang === 'en' ? 'UPI QR' : 'UPI QR' }} ({{ isAdminOrdersLoading ? '...' : upiAdminOrders.length }})
             </button>
           </div>
 
@@ -1799,7 +1799,12 @@
             </div>
           </div>
 
-          <div v-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+          <!-- Loading state while fetching orders from cloud -->
+          <div v-if="isAdminOrdersLoading" style="text-align: center; padding: 48px 20px; color: #065f46; background: #f0fdf4; border-radius: 12px; border: 1.5px solid #a7f3d0; font-weight: 700;">
+            <div style="font-size: 1.8rem; margin-bottom: 8px;">🔄</div>
+            <div>{{ currentLang === 'en' ? 'Loading orders from cloud database...' : (currentLang === 'mr' ? 'क्लाउड डेटाबेसमधून ऑर्डर्स लोड होत आहेत...' : 'क्लाउड डेटाबेस से ऑर्डर लोड हो रहे हैं...') }}</div>
+          </div>
+          <div v-else-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
             {{ currentLang === 'en' ? 'No orders found matching this filter.' : (currentLang === 'mr' ? 'या फिल्टरमध्ये कोणतीही ऑर्डर सापडली नाही.' : 'इस फ़िल्टर में कोई ऑर्डर नहीं मिला।') }}
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 16px;">
@@ -7192,7 +7197,14 @@ function tAi(key) {
 }
 
 // Auth State
-const currentUser = ref(null);
+const savedUserStr = localStorage.getItem('kirana_user');
+let initialUser = null;
+try {
+  initialUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+} catch (e) {
+  initialUser = null;
+}
+const currentUser = ref(initialUser);
 const authToken = ref(localStorage.getItem('kirana_token') || '');
 const showAuthModal = ref(false);
 const authMode = ref('login'); // 'login' | 'register' | 'admin'
@@ -7275,6 +7287,7 @@ const adminActiveTab = ref('inventory');
 const adminSearch = ref('');
 const adminCategoryFilter = ref('');
 const adminOrders = ref([]);
+const isAdminOrdersLoading = ref(false);
 const showAddProductModal = ref(false);
 const selectedAdminOrderIds = ref([]);
 const selectedAdminProductIds = ref([]);
@@ -8084,6 +8097,7 @@ function showToast(msg) {
 async function checkAuth() {
   if (!authToken.value) {
     currentUser.value = null;
+    localStorage.removeItem('kirana_user');
     return;
   }
   try {
@@ -8094,11 +8108,12 @@ async function checkAuth() {
       const data = await res.json();
       currentUser.value = data.user;
       if (data.user) {
+        localStorage.setItem('kirana_user', JSON.stringify(data.user));
         profileForm.value = { ...data.user };
         customerForm.value.name = data.user.name;
         customerForm.value.phone = data.user.phone;
         customerForm.value.address = data.user.address;
-        if (data.user.role === 'admin') {
+        if (data.user.role === 'admin' && adminOrders.value.length === 0) {
           loadAdminOrders();
           loadAdminCustomers();
           loadAdminSupportTickets();
@@ -8194,6 +8209,7 @@ async function handleLogin() {
 
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
+      localStorage.setItem('kirana_user', JSON.stringify(data.user));
       currentUser.value = data.user;
       profileForm.value = { ...data.user };
       customerForm.value.name = data.user.name;
@@ -8245,6 +8261,7 @@ async function handleVerifyAdmin2Fa() {
     if (res.ok) {
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
+      localStorage.setItem('kirana_user', JSON.stringify(data.user));
       currentUser.value = data.user;
       profileForm.value = { ...data.user };
       showAuthModal.value = false;
@@ -8484,6 +8501,7 @@ async function handleRegister() {
     if (res.ok) {
       authToken.value = data.token;
       localStorage.setItem('kirana_token', data.token);
+      localStorage.setItem('kirana_user', JSON.stringify(data.user));
       currentUser.value = data.user;
       profileForm.value = { ...data.user };
       customerForm.value.name = data.user.name;
@@ -8508,6 +8526,7 @@ function logout() {
   authToken.value = '';
   currentUser.value = null;
   localStorage.removeItem('kirana_token');
+  localStorage.removeItem('kirana_user');
   showToast('लॉगआउट संपन्न हुआ।');
   resetFilters();
 }
@@ -8788,6 +8807,9 @@ async function confirmOrderAvailability(orderNumber, choice) {
           ? (currentLang.value === 'en' ? '✅ Delivery confirmed! Partner is on the way.' : (currentLang.value === 'mr' ? '✅ डिलिव्हरी निश्चित केली! पार्टनर तात्काळ पोहोचत आहे.' : '✅ डिलीवरी निश्चित! पार्टनर तुरंत पहुँच रहा है।'))
           : (currentLang.value === 'en' ? '⏳ Reschedule noted! Store will call you.' : (currentLang.value === 'mr' ? '⏳ नोंद घेतली! दुकानदार संपर्क करतील.' : '⏳ रीशेड्यूल दर्ज हुआ! स्टोर टीम कॉल करेगी।'))
       );
+      setTimeout(() => {
+        showDeliveryCheckModal.value = false;
+      }, 1800);
     } else {
       showToast(data.error || 'Failed to update availability', 'error');
     }
@@ -11146,6 +11168,7 @@ async function loadAdminOrders(shouldSwitchTab = false) {
   if (shouldSwitchTab) {
     adminActiveTab.value = 'orders';
   }
+  isAdminOrdersLoading.value = true;
   fetchSmsBalance();
   try {
     const res = await fetch(`${API_BASE}/admin/orders`, {
@@ -11156,6 +11179,8 @@ async function loadAdminOrders(shouldSwitchTab = false) {
     }
   } catch (err) {
     console.error('Admin orders fetch error:', err);
+  } finally {
+    isAdminOrdersLoading.value = false;
   }
 }
 
@@ -11838,6 +11863,13 @@ async function downloadAdminExport(type) {
 }
 
 onMounted(() => {
+  // If admin is already authenticated in localStorage, immediately kick off admin data fetches
+  if (isAdminLoggedIn.value) {
+    loadAdminOrders();
+    loadAdminCustomers();
+    loadAdminSupportTickets();
+  }
+
   checkAuth();
   fetchCategories();
   fetchProducts();
@@ -11862,7 +11894,13 @@ onMounted(() => {
   const isDeliveryCheck = urlParams.get('check');
   const trackingToken = urlParams.get('token');
   if (checkOrderNum && (isDeliveryCheck || trackingToken)) {
-    openDeliveryCheckForOrder(checkOrderNum, trackingToken);
+    // Do not hijack admin ERP screen if storekeeper is already in admin mode
+    if (!isAdminLoggedIn.value || window.location.hash !== '#admin') {
+      openDeliveryCheckForOrder(checkOrderNum, trackingToken);
+    }
+    // Clean URL query params immediately so browser reloads never repeat the popup loop
+    const cleanUrl = window.location.pathname + (window.location.hash || '');
+    window.history.replaceState({}, document.title, cleanUrl);
   }
 
   // Handle #admin route direct access
