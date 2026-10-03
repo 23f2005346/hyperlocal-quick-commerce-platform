@@ -7994,3 +7994,683 @@ a {
   font-weight: 800;
   font-size: 0.72rem;
 }
+
+
+/* ==========================================================================
+   DUKANDAR STOREKEEPER OVERLAY & RAPID PRICE/STOCK EDITOR
+   Unified visual storefront with storekeeper action dock, inline card editor,
+   and Komal AI voice action cards.
+   ========================================================================== */
+
+/* Dukandar Sticky Top Command Dock */
+.dukandar-top-dock {
+  background: #022c22;
+  color: #ecfdf5;
+  border-bottom: 2px solid #059669;
+  position: sticky;
+  top: 72px;
+  z-index: 40;
+  box-shadow: 0 4px 16px rgba(2, 44, 34, 0.25);
+  font-size: 0.88rem;
+}
+
+.dukandar-dock-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dukandar-dock-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dukandar-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(5, 150, 105, 0.35);
+  border: 1px solid #10b981;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  color: #a7f3d0;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dukandar-mode-dot {
+  width: 8px;
+  height: 8px;
+  background: #34d399;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #34d399;
+  animation: dukandar-pulse-dot 1.8s infinite;
+}
+
+@keyframes dukandar-pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.dukandar-dock-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dukandar-dock-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dukandar-dock-tab {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d1fae5;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.dukandar-dock-tab:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border-color: #34d399;
+}
+
+.dukandar-dock-tab.active {
+  background: #059669;
+  color: #ffffff;
+  border-color: #34d399;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+}
+
+.dock-badge-danger {
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.dock-badge-warning {
+  background: #f59e0b;
+  color: #78350f;
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.dukandar-dock-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dukandar-preview-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid #64748b;
+  color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.dukandar-preview-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #94a3b8;
+}
+
+.dukandar-preview-toggle-btn.active {
+  background: #d97706;
+  border-color: #f59e0b;
+  color: white;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.5);
+}
+
+.dukandar-quick-action-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.dukandar-quick-action-btn.primary {
+  background: #10b981;
+  border-color: #34d399;
+  color: #022c22;
+  font-weight: 800;
+}
+
+.dukandar-quick-action-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.dukandar-preview-banner {
+  background: #78350f;
+  color: #fef3c7;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-top: 1px solid #b45309;
+  width: 100%;
+}
+
+.preview-exit-btn {
+  background: #f59e0b;
+  color: #78350f;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Product Card Dukandar Overlay */
+.dukandar-card-strip {
+  margin: 6px 0 8px 0;
+  padding: 8px 10px;
+  background: #f0fdf4;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dukandar-card-stock-pill {
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.dukandar-card-stock-pill.stock-good {
+  color: #065f46;
+}
+
+.dukandar-card-stock-pill.stock-low {
+  color: #b45309;
+}
+
+.dukandar-card-stock-pill.stock-none {
+  color: #b91c1c;
+}
+
+.dukandar-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dukandar-btn-edit {
+  flex: 1;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dukandar-btn-edit:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.dukandar-btn-toggle {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dukandar-btn-toggle.is-in-stock {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #059669;
+}
+
+.dukandar-btn-plus10 {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dukandar-btn-plus10:hover {
+  background: #dbeafe;
+  transform: scale(1.05);
+}
+
+/* Quick Price & Stock Edit Modal */
+.dukandar-quick-edit-card {
+  max-width: 520px;
+  width: 92%;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  box-shadow: var(--shadow-modal);
+  border: 2px solid #059669;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.quick-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-edit-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.quick-edit-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #065f46;
+}
+
+.quick-edit-variant-tabs {
+  margin-bottom: 16px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.quick-variant-label {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.quick-variant-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-variant-chip {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-variant-chip.active {
+  background: #059669;
+  border-color: #059669;
+  color: white;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.quick-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.quick-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.quick-input-prefix-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-prefix {
+  position: absolute;
+  left: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.quick-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 1rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.quick-input:focus {
+  border-color: #059669;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.price-input {
+  padding-left: 28px;
+  font-size: 1.15rem;
+  color: #065f46;
+}
+
+.quick-stepper-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-stepper-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.quick-stepper-btn:hover {
+  background: #e2e8f0;
+}
+
+.stock-input {
+  text-align: center;
+  flex: 1;
+  min-width: 50px;
+}
+
+.quick-field-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.quick-availability-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.quick-toggle-pill {
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.quick-toggle-pill.in-stock.selected {
+  background: #ecfdf5;
+  border-color: #059669;
+  color: #065f46;
+  font-weight: 900;
+}
+
+.quick-toggle-pill.out-of-stock.selected {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #991b1b;
+  font-weight: 900;
+}
+
+.quick-clearance-section {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #991b1b;
+  cursor: pointer;
+}
+
+.quick-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.quick-cancel-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quick-save-btn {
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-save-btn:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+/* Komal AI Admin Result Card */
+.komal-ai-admin-result-card {
+  background: #f0fdf4;
+  border: 2px solid #059669;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 14px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+}
+
+.admin-result-badge {
+  display: inline-block;
+  background: #064e3b;
+  color: #a7f3d0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 8px;
+}
+
+.admin-result-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #065f46;
+  margin-bottom: 12px;
+}
+
+.admin-result-details {
+  background: white;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-result-prod {
+  font-size: 0.92rem;
+  color: #0f172a;
+  text-align: left;
+}
+
+.admin-result-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.admin-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.admin-result-done-btn {
+  background: #059669;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-result-again-btn {
+  background: white;
+  border: 1.5px solid #059669;
+  color: #059669;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Mobile Responsiveness for Dukandar UI */
+@media (max-width: 768px) {
+  .dukandar-top-dock {
+    top: 60px;
+  }
+  .dukandar-dock-inner {
+    padding: 6px 12px;
+  }
+  .dukandar-dock-tabs {
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .quick-edit-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .dukandar-card-actions {
+    flex-wrap: nowrap;
+  }
+  .dukandar-quick-edit-card {
+    padding: 16px;
+    width: 95%;
+  }
+}

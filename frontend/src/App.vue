@@ -128,7 +128,7 @@
         </div>
 
         <!-- Search Bar -->
-        <div class="search-bar-wrap" v-if="!isAdminLoggedIn">
+        <div class="search-bar-wrap" v-if="!isAdminLoggedIn || adminActiveTab === 'storefront'">
           <span class="search-icon">🔍</span>
           <input
             type="text"
@@ -151,7 +151,7 @@
             type="button"
             class="search-mic-ai-btn"
             @click="openKomalAiModal"
-            :title="tAi('ai_modal_title') + ' (बोलून सामान मागवा)'"
+            :title="tAi('ai_modal_title') + ' (बोलून सामान मागवा / अपडेट करा)'"
           >
             🎙️
           </button>
@@ -161,10 +161,30 @@
         <div class="header-actions">
           <!-- ADMIN CONTROLS (IF LOGGED IN AS ADMIN) -->
           <template v-if="isAdminLoggedIn">
-            <span style="font-size: 0.88rem; font-weight: 800; color: #064e3b; background: #ecfdf5; padding: 6px 14px; border-radius: 20px; border: 1px solid #a7f3d0;">
+            <button
+              v-if="adminActiveTab !== 'storefront'"
+              type="button"
+              class="user-btn"
+              @click="switchAdminTab('storefront')"
+              style="background: #ecfdf5; border-color: #6ee7b7; color: #064e3b; font-weight: 800;"
+              title="दुकानदार व्ह्यू (Storefront View)"
+            >
+              🏪 <span>{{ currentLang === 'mr' ? 'दुकानदार व्ह्यू' : 'Storefront' }}</span>
+            </button>
+            <button
+              v-else
+              type="button"
+              class="user-btn"
+              @click="switchAdminTab('orders')"
+              style="background: #eff6ff; border-color: #93c5fd; color: #1e40af; font-weight: 800;"
+              title="ईआरपी ऑर्डर्स (Orders ERP)"
+            >
+              🧾 <span>{{ currentLang === 'mr' ? 'ऑर्डर्स लेजर' : 'Orders ERP' }}</span>
+            </button>
+            <span style="font-size: 0.88rem; font-weight: 800; color: #064e3b; background: #ecfdf5; padding: 6px 14px; border-radius: 20px; border: 1px solid #a7f3d0;" class="desktop-only">
               👑 {{ t('admin_badge') }}
             </span>
-            <button class="user-btn" @click="logout">
+            <button class="user-btn user-logout-btn" @click="logout" style="padding: 7px 10px; color: #dc2626; border-color: #fecaca; background: #fff1f2;">
               🚪 {{ t('logout') }}
             </button>
           </template>
@@ -228,8 +248,117 @@
       </div>
     </header>
 
-    <!-- Category Bar (Only visible for customer store view) -->
-    <nav class="category-nav" v-if="!isAdminLoggedIn">
+    <!-- DUKANDAR STOREKEEPER COMMAND DOCK (Shown on Storefront when logged in as Admin) -->
+    <div class="dukandar-top-dock" v-if="isAdminLoggedIn && adminActiveTab === 'storefront'">
+      <div class="dukandar-dock-inner">
+        <div class="dukandar-dock-left">
+          <div class="dukandar-mode-pill">
+            <span class="dukandar-mode-dot"></span>
+            <span class="dukandar-mode-title">👑 {{ currentLang === 'mr' ? 'दुकानदार मोड' : (currentLang === 'hi' ? 'दुकानदार मोड' : 'Dukandar Mode') }}</span>
+          </div>
+
+          <div class="dukandar-dock-tabs">
+            <button
+              type="button"
+              class="dukandar-dock-tab"
+              :class="{ active: adminActiveTab === 'storefront' }"
+              @click="switchAdminTab('storefront')"
+            >
+              🏪 {{ currentLang === 'mr' ? 'दुकान' : (currentLang === 'hi' ? 'दुकान' : 'Store') }}
+            </button>
+            <button
+              type="button"
+              class="dukandar-dock-tab"
+              :class="{ active: adminActiveTab === 'pos' }"
+              @click="switchAdminTab('pos')"
+            >
+              ⚡ POS
+            </button>
+            <button
+              type="button"
+              class="dukandar-dock-tab"
+              :class="{ active: adminActiveTab === 'orders' }"
+              @click="switchAdminTab('orders')"
+            >
+              🧾 {{ currentLang === 'mr' ? 'ऑर्डर्स' : (currentLang === 'hi' ? 'ऑर्डर्स' : 'Orders') }}
+              <span v-if="unpaidAdminOrders.length > 0" class="dock-badge-danger">
+                {{ unpaidAdminOrders.length }}
+              </span>
+            </button>
+            <button
+              type="button"
+              class="dukandar-dock-tab"
+              :class="{ active: adminActiveTab === 'khata' }"
+              @click="switchAdminTab('khata')"
+            >
+              📒 {{ currentLang === 'mr' ? 'खाता' : (currentLang === 'hi' ? 'खाता' : 'Khata') }}
+              <span v-if="adminKhataSummary.total_market_udhaar > 0" class="dock-badge-warning">
+                ₹
+              </span>
+            </button>
+            <button
+              type="button"
+              class="dukandar-dock-tab desktop-only"
+              :class="{ active: adminActiveTab === 'zreport' }"
+              @click="switchAdminTab('zreport')"
+            >
+              📊 Z-Report
+            </button>
+            <button
+              type="button"
+              class="dukandar-dock-tab desktop-only"
+              :class="{ active: adminActiveTab === 'inventory' }"
+              @click="switchAdminTab('inventory')"
+            >
+              📋 {{ currentLang === 'mr' ? 'ईआरपी यादी' : (currentLang === 'hi' ? 'ईआरपी सूची' : 'ERP Table') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="dukandar-dock-right">
+          <!-- Customer View Preview Toggle -->
+          <button
+            type="button"
+            class="dukandar-preview-toggle-btn"
+            :class="{ active: adminPreviewAsCustomer }"
+            @click="adminPreviewAsCustomer = !adminPreviewAsCustomer"
+            :title="adminPreviewAsCustomer ? 'Exit Customer Preview' : 'Preview store exactly as customers see it'"
+          >
+            <span v-if="adminPreviewAsCustomer">👁️ {{ currentLang === 'mr' ? 'ग्राहक दृश्य चालू' : (currentLang === 'hi' ? 'ग्राहक दृश्य चालू' : 'Customer View (ON)') }}</span>
+            <span v-else>👁️ {{ currentLang === 'mr' ? 'ग्राहक दृश्य' : (currentLang === 'hi' ? 'ग्राहक दृश्य' : 'Customer Preview') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="dukandar-quick-action-btn primary"
+            @click="showAddProductModal = true; addProductMode = 'quick';"
+            title="Add new product to catalog"
+          >
+            ➕ {{ t('admin_add_product') }}
+          </button>
+
+          <button
+            type="button"
+            class="dukandar-quick-action-btn"
+            @click="openKomalAiModal"
+            title="Komal AI Voice Assistant"
+          >
+            🎙️ AI
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Banner when preview mode is ON -->
+      <div v-if="adminPreviewAsCustomer" class="dukandar-preview-banner">
+        <span>👁️ {{ currentLang === 'mr' ? 'तुम्ही सध्या "ग्राहक दृश्य" पाहत आहात — सर्व संपादने (Edit buttons) तात्पुरती लपवली आहेत.' : (currentLang === 'hi' ? 'आप वर्तमान में "ग्राहक दृश्य" देख रहे हैं — सभी एडिट विकल्प छुपा दिए गए हैं।' : 'You are currently previewing as a Customer — all inline edit buttons are hidden.') }}</span>
+        <button type="button" class="preview-exit-btn" @click="adminPreviewAsCustomer = false">
+          ✏️ {{ currentLang === 'mr' ? 'संपादने चालू करा' : (currentLang === 'hi' ? 'एडिट चालू करें' : 'Exit Preview') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Category Bar (Visible for customer store view & admin storefront view) -->
+    <nav class="category-nav" v-if="!isAdminLoggedIn || adminActiveTab === 'storefront'">
       <div class="category-scroll">
         <button
           class="category-pill"
@@ -268,9 +397,9 @@
     </div>
 
     <!-- ======================================================== -->
-    <!-- VIEW 1: CUSTOMER STORE VIEW (PRODUCTS, FILTERS, CART)    -->
+    <!-- VIEW 1: CUSTOMER STORE VIEW / DUKANDAR STOREFRONT        -->
     <!-- ======================================================== -->
-    <main class="main-layout" v-if="!isAdminLoggedIn">
+    <main class="main-layout" v-if="!isAdminLoggedIn || adminActiveTab === 'storefront'">
       <!-- Sleek Mobile-Only Quick Strip (Replaces bulky marketing cards on phone) -->
       <div class="mobile-app-quick-strip">
         <div class="quick-strip-left">
@@ -491,6 +620,52 @@
               </span>
             </div>
 
+            <!-- DUKANDAR CARD OVERLAY (Visible for admin on storefront when preview is off) -->
+            <div class="dukandar-card-strip" v-if="isAdminLoggedIn && !adminPreviewAsCustomer && getActiveVariant(prod)">
+              <div class="dukandar-card-stock-pill" :class="{
+                'stock-good': getActiveVariant(prod).is_available && (getActiveVariant(prod).stock_quantity || 0) > 5,
+                'stock-low': getActiveVariant(prod).is_available && (getActiveVariant(prod).stock_quantity || 0) <= 5 && (getActiveVariant(prod).stock_quantity || 0) > 0,
+                'stock-none': !getActiveVariant(prod).is_available || (getActiveVariant(prod).stock_quantity || 0) <= 0
+              }">
+                <span v-if="getActiveVariant(prod).is_available && (getActiveVariant(prod).stock_quantity || 0) > 0">
+                  📦 {{ currentLang === 'mr' ? 'शिल्लक' : (currentLang === 'hi' ? 'स्टॉक' : 'Stock') }}: <strong>{{ getActiveVariant(prod).stock_quantity }}</strong>
+                </span>
+                <span v-else>
+                  🔴 <strong>{{ currentLang === 'mr' ? 'स्टॉक संपला' : (currentLang === 'hi' ? 'स्टॉक खत्म' : 'Out of Stock') }}</strong> (0)
+                </span>
+              </div>
+
+              <div class="dukandar-card-actions">
+                <button
+                  type="button"
+                  class="dukandar-btn-edit"
+                  @click.stop="openQuickPriceEdit(prod, getActiveVariant(prod))"
+                  :title="currentLang === 'mr' ? 'किंमत व स्टॉक बदला' : 'Edit Price & Stock'"
+                >
+                  ✏️ {{ currentLang === 'mr' ? 'बदला' : (currentLang === 'hi' ? 'बदलें' : 'Edit') }}
+                </button>
+
+                <button
+                  type="button"
+                  class="dukandar-btn-toggle"
+                  :class="{ 'is-in-stock': getActiveVariant(prod).is_available }"
+                  @click.stop="toggleVariantStock(getActiveVariant(prod))"
+                  :title="getActiveVariant(prod).is_available ? 'Make Out of Stock' : 'Make In Stock'"
+                >
+                  {{ getActiveVariant(prod).is_available ? '🟢 चालू' : '🔴 बंद' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="dukandar-btn-plus10"
+                  @click.stop="quickRestockVariant(getActiveVariant(prod), 10)"
+                  title="+10 Stock"
+                >
+                  +10
+                </button>
+              </div>
+            </div>
+
             <!-- Unit Variant Selector & Loose Custom Weight Option -->
             <div class="variants-wrap" v-if="prod.variants && prod.variants.length > 0">
               <div class="variant-label-title">{{ t('weight_select_label') }}</div>
@@ -691,7 +866,7 @@
     <!-- ======================================================== -->
     <!-- VIEW 2: DUKANDAR / STORE OWNER ADMIN DASHBOARD           -->
     <!-- ======================================================== -->
-    <section class="main-layout" v-if="isAdminLoggedIn">
+    <section class="main-layout" v-if="isAdminLoggedIn && adminActiveTab !== 'storefront'">
       <div class="admin-dashboard-card">
         <div id="admin-tab-content-anchor"></div>
         <div class="admin-top-bar">
@@ -817,6 +992,14 @@
 
         <!-- Modern Admin Sub-Navigation Tabs -->
         <div class="admin-nav-tabs">
+          <button
+            class="admin-nav-tab-btn"
+            :class="{ active: adminActiveTab === 'storefront' }"
+            @click="switchAdminTab('storefront')"
+            style="background: #ecfdf5; border-color: #6ee7b7; color: #064e3b; font-weight: 800;"
+          >
+            🏪 {{ currentLang === 'mr' ? 'दुकानदार व्ह्यू' : (currentLang === 'hi' ? 'दुकानदार दृश्य' : 'Storefront') }}
+          </button>
           <button
             class="admin-nav-tab-btn"
             :class="{ active: adminActiveTab === 'inventory' }"
@@ -6447,11 +6630,11 @@
     <nav v-else class="mobile-bottom-nav admin-bottom-nav">
       <button
         class="bottom-nav-item"
-        :class="{ active: adminActiveTab === 'inventory' && !showAdminMoreSheet }"
-        @click="switchAdminTab('inventory'); showAdminMoreSheet = false;"
+        :class="{ active: adminActiveTab === 'storefront' && !showAdminMoreSheet }"
+        @click="switchAdminTab('storefront'); showAdminMoreSheet = false;"
       >
-        <span class="bottom-nav-icon">📦</span>
-        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'स्टॉक' : (currentLang === 'hi' ? 'स्टॉक' : 'Stock') }}</span>
+        <span class="bottom-nav-icon">🏪</span>
+        <span class="bottom-nav-label">{{ currentLang === 'mr' ? 'दुकान' : (currentLang === 'hi' ? 'दुकान' : 'Store') }}</span>
       </button>
 
       <button
@@ -6525,6 +6708,20 @@
         </div>
 
         <div class="admin-more-sheet-grid">
+          <button
+            type="button"
+            class="admin-more-sheet-card"
+            :class="{ active: adminActiveTab === 'inventory' }"
+            @click="switchAdminTab('inventory'); showAdminMoreSheet = false;"
+          >
+            <div class="admin-more-icon-box" style="background: #f1f5f9; color: #475569;">📋</div>
+            <div class="admin-more-info">
+              <span class="admin-more-name">{{ t('admin_tab_inventory') }}</span>
+              <span class="admin-more-desc">Full Inventory Spreadsheet Table</span>
+            </div>
+            <span class="admin-more-badge badge-blue">{{ products.length }}</span>
+          </button>
+
           <button
             type="button"
             class="admin-more-sheet-card"
@@ -6755,9 +6952,9 @@
       </div>
     </div>
 
-    <!-- Floating Komal AI Voice & Draft Bill Trigger (Customer View) -->
+    <!-- Floating Komal AI Voice & Draft Bill Trigger (Customer View & Storefront Admin) -->
     <button
-      v-if="!isAdminLoggedIn"
+      v-if="!isAdminLoggedIn || adminActiveTab === 'storefront'"
       class="floating-komal-ai-btn"
       :class="{ 'has-floating-cart': cartTotalQuantity > 0 }"
       @click="openKomalAiModal"
@@ -6856,30 +7053,65 @@
 
           <!-- Quick Prompts / Examples -->
           <div class="ai-quick-examples" v-if="!aiResult">
-            <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
-            <div class="quick-chips">
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
-              >
-                🌾 २kg साखर, ५kg आटा, १kg डाळ
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
-              >
-                ☕ Tata Tea, Colgate, पोहा
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
-              >
-                🍳 तेल, रवा, मीठ
-              </button>
-            </div>
+            <template v-if="isAdminLoggedIn">
+              <span class="quick-examples-title">👑 {{ currentLang === 'mr' ? 'दुकानदार व्हॉईस आज्ञा (टॅप करा):' : (currentLang === 'hi' ? 'दुकानदार वॉइस कमांड (टैप करें):' : 'Dukandar Voice Commands:') }}</span>
+              <div class="quick-chips">
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('तूर डाळ 190 रुपये करा')"
+                >
+                  💰 तूर डाळ 190 रु करा
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('साखर आउट ऑफ स्टॉक करा')"
+                >
+                  🚫 साखर आउट ऑफ स्टॉक
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('चक्की आटा स्टॉक 50 करा')"
+                >
+                  📦 चक्की आटा स्टॉक 50 करा
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('चना डाळ इन स्टॉक करा')"
+                >
+                  🟢 चना डाळ इन स्टॉक
+                </button>
+              </div>
+            </template>
+            <template v-else>
+              <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
+              <div class="quick-chips">
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
+                >
+                  🌾 २kg साखर, ५kg आटा, १kg डाळ
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
+                >
+                  ☕ Tata Tea, Colgate, पोहा
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
+                >
+                  🍳 तेल, रवा, मीठ
+                </button>
+              </div>
+            </template>
           </div>
 
           <!-- Generate Bill Button -->
@@ -6912,8 +7144,37 @@
             </button>
           </div>
 
-          <!-- Bill Header -->
-          <div class="ai-bill-title-bar">
+          <!-- DUKANDAR VOICE ACTION CONFIRMATION CARD -->
+          <div v-if="aiResult.is_admin_action" class="komal-ai-admin-result-card">
+            <div class="admin-result-badge">{{ aiResult.action_title }}</div>
+            <div class="admin-result-text">{{ aiResult.summary_text }}</div>
+            <div class="admin-result-details" v-if="aiResult.product && aiResult.variant">
+              <div class="admin-result-prod">
+                <strong>{{ getLocalizedProductName(aiResult.product, currentLang) }}</strong>
+                <span>({{ aiResult.variant.unit_size }})</span>
+              </div>
+              <div class="admin-result-stats">
+                <span>दर: <strong>₹{{ aiResult.variant.selling_price }}</strong></span>
+                <span>स्टॉक: <strong>{{ aiResult.variant.stock_quantity }}</strong></span>
+                <span :style="{ color: aiResult.variant.is_available ? '#059669' : '#dc2626', fontWeight: '800' }">
+                  {{ aiResult.variant.is_available ? '🟢 In Stock' : '🔴 Out of Stock' }}
+                </span>
+              </div>
+            </div>
+            <div class="admin-result-actions">
+              <button type="button" class="admin-result-done-btn" @click="closeKomalAiModal">
+                👍 {{ currentLang === 'mr' ? 'पूर्ण झाले (Done)' : 'Done' }}
+              </button>
+              <button type="button" class="admin-result-again-btn" @click="aiResult = null; aiInputText = ''">
+                🎙️ {{ currentLang === 'mr' ? 'दुसरी वस्तू बदला' : 'Update Another Item' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Customer / POS Bill Details (When not a price/stock update) -->
+          <template v-else>
+            <!-- Bill Header -->
+            <div class="ai-bill-title-bar">
             <h4>🧾 {{ tAi('ai_draft_bill_title') }}</h4>
             <span class="ai-bill-count">
               {{ aiResult.items ? aiResult.items.length : 0 }} {{ (aiLanguage || currentLang) === 'mr' ? 'वस्तू' : ((aiLanguage || currentLang) === 'hi' ? 'आइटम' : 'items') }}
@@ -7081,14 +7342,189 @@
               </button>
             </div>
           </div>
+        </template>
         </div>
+      </div>
+    </div>
+
+    <!-- DUKANDAR QUICK PRICE & STOCK EDIT MODAL -->
+    <div
+      class="modal-overlay"
+      v-if="showQuickPriceEditModal"
+      @click.self="showQuickPriceEditModal = false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quick-edit-modal-title"
+    >
+      <div class="modal-card dukandar-quick-edit-card">
+        <div class="quick-edit-header">
+          <div class="quick-edit-header-info">
+            <h3 id="quick-edit-modal-title" class="quick-edit-title">
+              ✏️ {{ currentLang === 'mr' ? 'किंमत व स्टॉक तात्काळ बदला' : (currentLang === 'hi' ? 'दाम व स्टॉक तुरंत बदलें' : 'Rapid Price & Stock Editor') }}
+            </h3>
+            <p class="quick-edit-subtitle" v-if="quickEditProduct">
+              <strong>{{ getLocalizedProductName(quickEditProduct, currentLang) }}</strong>
+              <span v-if="quickEditProduct.name_hi && currentLang !== 'hi'" style="color: #64748b; margin-left: 6px;">({{ quickEditProduct.name_hi }})</span>
+            </p>
+          </div>
+          <button class="close-btn" @click="showQuickPriceEditModal = false" aria-label="Close modal">✕</button>
+        </div>
+
+        <!-- Variant Selector Tabs (If product has multiple sizes like 500g, 1kg, 5kg) -->
+        <div class="quick-edit-variant-tabs" v-if="quickEditProduct && quickEditProduct.variants && quickEditProduct.variants.length > 1">
+          <span class="quick-variant-label">⚖️ {{ currentLang === 'mr' ? 'आकार / पॅकेट निवडा:' : (currentLang === 'hi' ? 'साइज / पैकेट चुनें:' : 'Select Size:') }}</span>
+          <div class="quick-variant-chips">
+            <button
+              v-for="v in quickEditProduct.variants"
+              :key="v.id"
+              type="button"
+              class="quick-variant-chip"
+              :class="{ active: quickEditSelectedVariantId === v.id }"
+              @click="selectQuickEditVariant(v)"
+            >
+              {{ v.unit_size }} (₹{{ v.selling_price }})
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Edit Form Fields -->
+        <form @submit.prevent="saveQuickPriceEdit" class="quick-edit-form">
+          <div class="quick-edit-grid">
+            <!-- Selling Price Field -->
+            <div class="quick-form-group">
+              <label class="quick-label">
+                💰 {{ currentLang === 'mr' ? 'विक्री दर (Selling Price)' : (currentLang === 'hi' ? 'बिक्री दर (Selling Price)' : 'Selling Price') }} *
+              </label>
+              <div class="quick-input-prefix-wrap">
+                <span class="input-prefix">₹</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  v-model.number="quickEditForm.selling_price"
+                  class="quick-input price-input"
+                  required
+                  autofocus
+                />
+              </div>
+              <span class="quick-field-hint">{{ currentLang === 'mr' ? 'ग्राहकांना दिसणारा अंतिम दर' : (currentLang === 'hi' ? 'ग्राहकों को दिखने वाला अंतिम दाम' : 'Price visible to customers') }}</span>
+            </div>
+
+            <!-- MRP Field -->
+            <div class="quick-form-group">
+              <label class="quick-label">
+                🏷️ {{ currentLang === 'mr' ? 'छापील किंमत (MRP)' : (currentLang === 'hi' ? 'प्रिंटेड दाम (MRP)' : 'Printed MRP') }} *
+              </label>
+              <div class="quick-input-prefix-wrap">
+                <span class="input-prefix">₹</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  v-model.number="quickEditForm.mrp"
+                  class="quick-input"
+                  required
+                />
+              </div>
+              <span class="quick-field-hint">{{ currentLang === 'mr' ? 'पॅकेटवरील छापील दर' : (currentLang === 'hi' ? 'पैकेट पर छपा दाम' : 'Standard packet MRP') }}</span>
+            </div>
+
+            <!-- Stock Quantity Field with Stepper -->
+            <div class="quick-form-group">
+              <label class="quick-label">
+                📦 {{ currentLang === 'mr' ? 'शिल्लक नग (Stock Qty)' : (currentLang === 'hi' ? 'उपलब्ध स्टॉक (Stock Qty)' : 'Stock Quantity') }} *
+              </label>
+              <div class="quick-stepper-wrap">
+                <button type="button" class="quick-stepper-btn" @click="quickEditForm.stock_quantity = Math.max(0, (quickEditForm.stock_quantity || 0) - 5)">-5</button>
+                <button type="button" class="quick-stepper-btn" @click="quickEditForm.stock_quantity = Math.max(0, (quickEditForm.stock_quantity || 0) - 1)">-1</button>
+                <input
+                  type="number"
+                  min="0"
+                  v-model.number="quickEditForm.stock_quantity"
+                  class="quick-input stock-input"
+                  required
+                />
+                <button type="button" class="quick-stepper-btn" @click="quickEditForm.stock_quantity = (quickEditForm.stock_quantity || 0) + 1">+1</button>
+                <button type="button" class="quick-stepper-btn" @click="quickEditForm.stock_quantity = (quickEditForm.stock_quantity || 0) + 5">+5</button>
+                <button type="button" class="quick-stepper-btn" @click="quickEditForm.stock_quantity = (quickEditForm.stock_quantity || 0) + 10">+10</button>
+              </div>
+              <span class="quick-field-hint">{{ currentLang === 'mr' ? 'दुकानातील प्रत्यक्ष शिल्लक नग' : (currentLang === 'hi' ? 'दुकान में वास्तविक उपलब्ध नग' : 'Physical units in store') }}</span>
+            </div>
+
+            <!-- Availability Toggle -->
+            <div class="quick-form-group">
+              <label class="quick-label">
+                🔘 {{ currentLang === 'mr' ? 'स्टॉक उपलब्धता (Status)' : (currentLang === 'hi' ? 'स्टॉक उपलब्धता (Status)' : 'Availability') }}
+              </label>
+              <div class="quick-availability-toggle">
+                <button
+                  type="button"
+                  class="quick-toggle-pill in-stock"
+                  :class="{ selected: quickEditForm.is_available }"
+                  @click="quickEditForm.is_available = true"
+                >
+                  🟢 {{ currentLang === 'mr' ? 'उपलब्ध (In Stock)' : (currentLang === 'hi' ? 'उपलब्ध (In Stock)' : 'In Stock') }}
+                </button>
+                <button
+                  type="button"
+                  class="quick-toggle-pill out-of-stock"
+                  :class="{ selected: !quickEditForm.is_available }"
+                  @click="quickEditForm.is_available = false"
+                >
+                  🔴 {{ currentLang === 'mr' ? 'संपला (Out of Stock)' : (currentLang === 'hi' ? 'खत्म (Out of Stock)' : 'Out of Stock') }}
+                </button>
+              </div>
+              <span class="quick-field-hint">{{ quickEditForm.is_available ? (currentLang === 'mr' ? 'ग्राहक ऑर्डर करू शकतात' : 'Customers can order') : (currentLang === 'mr' ? 'ऑर्डरसाठी बंद केले आहे' : 'Marked unavailable') }}</span>
+            </div>
+          </div>
+
+          <!-- Clearance / Special Offer Toggle -->
+          <div class="quick-clearance-section">
+            <label class="quick-checkbox-label">
+              <input type="checkbox" v-model="quickEditForm.is_clearance" />
+              <span>🔥 {{ currentLang === 'mr' ? 'विशेष सवलत (Clearance Sale) दर लागू करा' : (currentLang === 'hi' ? 'विशेष छूट (Clearance Sale) लागू करें' : 'Apply Clearance Markdown') }}</span>
+            </label>
+            <div v-if="quickEditForm.is_clearance" class="quick-clearance-input-wrap" style="margin-top: 8px;">
+              <label style="font-size: 0.8rem; font-weight: 700; color: #b91c1c;">{{ currentLang === 'mr' ? 'सवलत दर (Clearance Price ₹):' : 'Clearance Price (₹):' }}</label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                v-model.number="quickEditForm.clearance_price"
+                class="quick-input"
+                placeholder="उदा. 40"
+                style="border-color: #fca5a5; margin-top: 4px;"
+              />
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="quick-edit-actions">
+            <button
+              type="button"
+              class="quick-cancel-btn"
+              @click="showQuickPriceEditModal = false"
+            >
+              {{ currentLang === 'mr' ? 'रद्द करा' : (currentLang === 'hi' ? 'रद्द करें' : 'Cancel') }}
+            </button>
+
+            <button
+              type="submit"
+              class="quick-save-btn"
+              :disabled="quickEditForm.isSaving"
+            >
+              <span v-if="quickEditForm.isSaving">⏳ {{ currentLang === 'mr' ? 'सेव्ह होत आहे...' : (currentLang === 'hi' ? 'सेव हो रहा है...' : 'Saving...') }}</span>
+              <span v-else>💾 {{ currentLang === 'mr' ? 'बदल सेव्ह करा' : (currentLang === 'hi' ? 'बदलाव सेव करें' : 'Save Changes') }}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { translations, marathiProductNames, getLocalizedProductName, getLocalizedCategoryName } from './i18n.js';
 
 const API_BASE = '/api';
@@ -7304,7 +7740,20 @@ const filteredAdminSupportTickets = computed(() => {
 });
 
 // Admin State & Batch Printing
-const adminActiveTab = ref('inventory');
+const adminActiveTab = ref('storefront');
+const adminPreviewAsCustomer = ref(false);
+const showQuickPriceEditModal = ref(false);
+const quickEditProduct = ref(null);
+const quickEditSelectedVariantId = ref(null);
+const quickEditForm = reactive({
+  selling_price: 0,
+  mrp: 0,
+  stock_quantity: 0,
+  is_available: true,
+  is_clearance: false,
+  clearance_price: null,
+  isSaving: false
+});
 const adminSearch = ref('');
 const adminCategoryFilter = ref('');
 // LocalStorage Order Vault & Instant SWR Cache
@@ -8146,6 +8595,7 @@ async function checkAuth() {
         if (data.user.role === 'admin' && adminOrders.value.length === 0) {
           loadAdminOrders();
           loadAdminCustomers();
+          loadAdminKhata();
           loadAdminSupportTickets();
         }
       }
@@ -8249,9 +8699,10 @@ async function handleLogin() {
       authForm.value = { identifier: '', password: '' };
       showToast(`${t('greeting')} ${data.user.name}!`);
       if (data.user.role === 'admin') {
-        adminActiveTab.value = 'inventory';
+        adminActiveTab.value = 'storefront';
         loadAdminOrders();
         loadAdminCustomers();
+        loadAdminKhata();
       }
     } else {
       authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'लॉगिन अयशस्वी. कृपया पुन्हा प्रयत्न करा.' : (currentLang.value === 'hi' ? 'लॉगिन असफल। कृपया पुन: प्रयास करें।' : 'Login failed. Please try again.'));
@@ -8299,9 +8750,10 @@ async function handleVerifyAdmin2Fa() {
       authForm.value = { identifier: '', password: '' };
       showToast(`${t('greeting')} ${data.user.name}! 🔐`);
       if (data.user.role === 'admin') {
-        adminActiveTab.value = 'inventory';
+        adminActiveTab.value = 'storefront';
         loadAdminOrders();
         loadAdminCustomers();
+        loadAdminKhata();
       }
     } else {
       authError.value = formatAuthError(data, t('auth_err_invalid_otp'));
@@ -8555,6 +9007,8 @@ async function handleRegister() {
 function logout() {
   authToken.value = '';
   currentUser.value = null;
+  adminPreviewAsCustomer.value = false;
+  adminActiveTab.value = 'storefront';
   localStorage.removeItem('kirana_token');
   localStorage.removeItem('kirana_user');
   showToast('लॉगआउट संपन्न हुआ।');
@@ -9739,6 +10193,15 @@ async function handleProcessAiOrder() {
 
   isAiLoading.value = true;
   try {
+    // If Storekeeper / Admin is logged in and speaking/typing a command, check if this is an instant Dukandar price/stock action!
+    if (isAdminLoggedIn.value && text) {
+      const handled = await handleDukandarVoiceCommand(text);
+      if (handled) {
+        isAiLoading.value = false;
+        return;
+      }
+    }
+
     const payload = {
       text: text,
       language: aiLanguage.value || currentLang.value || 'mr'
@@ -10514,6 +10977,244 @@ async function quickRestockVariant(variant, amount = 10) {
   await saveVariantPrice(variant);
 }
 
+// --- DUKANDAR STOREKEEPER RAPID PRICE & STOCK EDIT METHODS ---
+function openQuickPriceEdit(product, variant = null) {
+  if (!product) return;
+  quickEditProduct.value = product;
+  const v = variant || (product.variants && product.variants.length > 0 ? product.variants[0] : null);
+  if (v) {
+    quickEditSelectedVariantId.value = v.id;
+    quickEditForm.selling_price = v.selling_price;
+    quickEditForm.mrp = v.mrp;
+    quickEditForm.stock_quantity = v.stock_quantity !== undefined && v.stock_quantity !== null ? v.stock_quantity : 0;
+    quickEditForm.is_available = v.is_available !== false;
+    quickEditForm.is_clearance = Boolean(v.is_clearance);
+    quickEditForm.clearance_price = v.clearance_price || null;
+  }
+  showQuickPriceEditModal.value = true;
+}
+
+function selectQuickEditVariant(v) {
+  if (!v) return;
+  quickEditSelectedVariantId.value = v.id;
+  quickEditForm.selling_price = v.selling_price;
+  quickEditForm.mrp = v.mrp;
+  quickEditForm.stock_quantity = v.stock_quantity !== undefined && v.stock_quantity !== null ? v.stock_quantity : 0;
+  quickEditForm.is_available = v.is_available !== false;
+  quickEditForm.is_clearance = Boolean(v.is_clearance);
+  quickEditForm.clearance_price = v.clearance_price || null;
+}
+
+async function saveQuickPriceEdit() {
+  if (!quickEditProduct.value || !quickEditSelectedVariantId.value) return;
+  quickEditForm.isSaving = true;
+  try {
+    const payload = {
+      selling_price: parseFloat(quickEditForm.selling_price),
+      mrp: parseFloat(quickEditForm.mrp),
+      stock_quantity: parseInt(quickEditForm.stock_quantity, 10),
+      is_available: Boolean(quickEditForm.is_available),
+      is_clearance: Boolean(quickEditForm.is_clearance),
+      clearance_price: quickEditForm.clearance_price ? parseFloat(quickEditForm.clearance_price) : null
+    };
+
+    const res = await fetch(`${API_BASE}/variants/${quickEditSelectedVariantId.value}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      // Immediately reflect updates in reactive products state
+      const prod = products.value.find(p => p.id === quickEditProduct.value.id);
+      if (prod && prod.variants) {
+        const v = prod.variants.find(vr => vr.id === quickEditSelectedVariantId.value);
+        if (v) {
+          Object.assign(v, payload);
+          v.is_in_stock = payload.is_available && payload.stock_quantity > 0;
+        }
+      }
+      const prodName = getLocalizedProductName(quickEditProduct.value, currentLang.value);
+      const varSize = prod?.variants?.find(vr => vr.id === quickEditSelectedVariantId.value)?.unit_size || '';
+      showToast(
+        currentLang.value === 'mr'
+          ? `✅ ${prodName} (${varSize}) अपडेट झाले: ₹${payload.selling_price}, शिल्लक: ${payload.stock_quantity}`
+          : `✅ ${prodName} (${varSize}) updated: ₹${payload.selling_price}, Stock: ${payload.stock_quantity}`
+      );
+      showQuickPriceEditModal.value = false;
+    } else {
+      const err = await res.json();
+      showToast(`❌ ${err.error || 'अपडेट अयशस्वी'}`);
+    }
+  } catch (err) {
+    console.error('saveQuickPriceEdit error:', err);
+    showToast('❌ नेटवर्क त्रुटी आली. कृपया पुन्हा प्रयत्न करा.');
+  } finally {
+    quickEditForm.isSaving = false;
+  }
+}
+
+async function handleDukandarVoiceCommand(rawText) {
+  if (!rawText) return false;
+  let text = rawText.toLowerCase().trim();
+  // Normalize Devanagari numerals to ASCII
+  text = text.replace(/[०-९]/g, d => '०१२३४५६७८९'.indexOf(d));
+
+  const isPricePattern = /(?:भाव|दर|किंमत|रेट|रुपये|रुपया|रु|₹|price|rate)/i.test(text);
+  const isStockPattern = /(?:स्टॉक|शिल्लक|stock|quantity|qty)/i.test(text);
+  const isOutOfStockPattern = /(?:आउट\s*ऑफ\s*स्टॉक|आऊट\s*ऑफ\s*स्टॉक|out\s*of\s*stock|संपला|खत्म|बंद)/i.test(text);
+  const isInStockPattern = /(?:इन\s*स्टॉक|इनस्टॉक|in\s*stock|चालू|सुरू|उपलब्ध)/i.test(text);
+
+  if (!isPricePattern && !isStockPattern && !isOutOfStockPattern && !isInStockPattern) {
+    return false;
+  }
+
+  // Attempt to find best matching product in loaded products
+  let matchedProduct = null;
+  let highestScore = 0;
+
+  for (const prod of products.value) {
+    const pName = (prod.name || '').toLowerCase();
+    const pNameHi = (prod.name_hi || '').toLowerCase();
+    const pBrand = (prod.brand || '').toLowerCase();
+
+    // Check direct substring inclusion first
+    if ((pName && text.includes(pName)) || (pNameHi && text.includes(pNameHi))) {
+      matchedProduct = prod;
+      highestScore = 999;
+      break;
+    }
+
+    // Keyword word token matching
+    const prodWords = (pName + ' ' + pNameHi + ' ' + pBrand)
+      .replace(/[()\/,-]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !['loose', 'desi', 'mandi', 'packet', 'gram', 'kilo', 'item'].includes(w));
+
+    let matchCount = 0;
+    for (const w of prodWords) {
+      if (text.includes(w)) {
+        matchCount++;
+      }
+    }
+
+    if (matchCount > highestScore && matchCount >= 1) {
+      highestScore = matchCount;
+      matchedProduct = prod;
+    }
+  }
+
+  if (!matchedProduct || !matchedProduct.variants || matchedProduct.variants.length === 0) {
+    return false;
+  }
+
+  // Find target variant
+  let targetVariant = null;
+  for (const v of matchedProduct.variants) {
+    const sizeNorm = v.unit_size.toLowerCase().replace(/\s+/g, '');
+    if (text.includes(sizeNorm) ||
+        (sizeNorm === '1kg' && (text.includes('1 किलो') || text.includes('एक किलो') || text.includes('1 kg') || text.includes('1kilo'))) ||
+        (sizeNorm === '500g' && (text.includes('500 ग्राम') || text.includes('पावशेर') || text.includes('आधा किलो') || text.includes('500g'))) ||
+        (sizeNorm === '5kg' && (text.includes('5 किलो') || text.includes('पाच किलो') || text.includes('5 kg') || text.includes('5kilo')))) {
+      targetVariant = v;
+      break;
+    }
+  }
+  if (!targetVariant) {
+    targetVariant = getActiveVariant(matchedProduct) ||
+                    matchedProduct.variants.find(v => v.unit_size.toLowerCase().includes('1kg')) ||
+                    matchedProduct.variants[0];
+  }
+
+  const patchPayload = {};
+  let actionDescription = '';
+
+  if (isOutOfStockPattern) {
+    patchPayload.is_available = false;
+    patchPayload.stock_quantity = 0;
+    actionDescription = currentLang.value === 'mr'
+      ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) आउट ऑफ स्टॉक केले.`
+      : `${matchedProduct.name} (${targetVariant.unit_size}) marked Out of Stock.`;
+  } else if (isInStockPattern && !isPricePattern && !isStockPattern) {
+    patchPayload.is_available = true;
+    if (!targetVariant.stock_quantity || targetVariant.stock_quantity <= 0) {
+      patchPayload.stock_quantity = 20;
+    }
+    actionDescription = currentLang.value === 'mr'
+      ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) इन स्टॉक केले.`
+      : `${matchedProduct.name} (${targetVariant.unit_size}) marked In Stock.`;
+  } else if (isStockPattern && !isPricePattern) {
+    const stockMatch = text.match(/(?:स्टॉक|शिल्लक|stock|qty)\s*(?:करा|ठेवा|कर|to|is|set)?\s*(\d+)/i) ||
+                       text.match(/(\d+)\s*(?:स्टॉक|stock|नग|packet)/i);
+    if (stockMatch) {
+      const newStock = parseInt(stockMatch[1], 10);
+      patchPayload.stock_quantity = newStock;
+      patchPayload.is_available = newStock > 0;
+      actionDescription = currentLang.value === 'mr'
+        ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) चा स्टॉक ${newStock} केला.`
+        : `${matchedProduct.name} (${targetVariant.unit_size}) stock set to ${newStock}.`;
+    }
+  }
+
+  if (isPricePattern) {
+    const priceMatch = text.match(/(?:भाव|दर|किंमत|रेट|price|rate)\s*(?:करा|ठेवा|कर|to|is|set)?\s*(\d+(?:\.\d+)?)/i) ||
+                       text.match(/(\d+(?:\.\d+)?)\s*(?:रुपये|रुपया|रु|rs|₹|rupees)/i);
+    if (priceMatch) {
+      const newPrice = parseFloat(priceMatch[1]);
+      patchPayload.selling_price = newPrice;
+      if (newPrice > (targetVariant.mrp || 0)) {
+        patchPayload.mrp = newPrice;
+      }
+      actionDescription += (actionDescription ? ' आणि ' : '') + (
+        currentLang.value === 'mr'
+          ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) ची किंमत ₹${newPrice} केली.`
+          : `${matchedProduct.name} (${targetVariant.unit_size}) price set to ₹${newPrice}.`
+      );
+    }
+  }
+
+  if (Object.keys(patchPayload).length === 0) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/variants/${targetVariant.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify(patchPayload)
+    });
+
+    if (res.ok) {
+      Object.assign(targetVariant, patchPayload);
+      if (patchPayload.is_available !== undefined) {
+        targetVariant.is_in_stock = patchPayload.is_available && (targetVariant.stock_quantity > 0);
+      }
+      showToast(`✅ ${actionDescription}`);
+      speakAiSummary(actionDescription, true);
+
+      aiResult.value = {
+        success: true,
+        is_admin_action: true,
+        action_title: currentLang.value === 'mr' ? '👑 दुकानदार व्हॉईस आज्ञा यशस्वी!' : (currentLang.value === 'hi' ? '👑 दुकानदार वॉइस कमांड सफल!' : '👑 Dukandar Voice Command Executed!'),
+        summary_text: actionDescription,
+        product: matchedProduct,
+        variant: targetVariant,
+        updated_fields: patchPayload
+      };
+      return true;
+    }
+  } catch (err) {
+    console.error('Error executing admin voice command:', err);
+  }
+  return false;
+}
+
 // --- ADMIN POS COUNTER BILLING METHODS ---
 function updatePosTierRate() {
   if (!posSelectedProduct.value) return;
@@ -11138,11 +11839,17 @@ function switchAdminTab(tabName) {
     loadRestockAlerts();
   } else if (tabName === 'support') {
     loadAdminSupportTickets();
+  } else if (tabName === 'storefront') {
+    fetchProducts();
   }
   nextTick(() => {
-    const anchor = document.getElementById('admin-tab-content-anchor');
-    if (anchor) {
-      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (tabName !== 'storefront') {
+      const anchor = document.getElementById('admin-tab-content-anchor');
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   });
 }
@@ -12059,6 +12766,7 @@ onMounted(() => {
   if (isAdminLoggedIn.value) {
     loadAdminOrders();
     loadAdminCustomers();
+    loadAdminKhata();
     loadAdminSupportTickets();
   }
 
