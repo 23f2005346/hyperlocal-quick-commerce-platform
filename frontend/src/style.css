@@ -8674,3 +8674,249 @@ a {
     width: 95%;
   }
 }
+
+/* Dukandar Dedicated AI Store Assistant Modal */
+.dukandar-ai-modal-card {
+  border-top: 4px solid #f59e0b;
+  max-width: 620px;
+}
+
+.dukandar-ai-badge {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 4px;
+}
+
+.dukandar-ai-mode-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 6px;
+  margin: 12px 0 16px 0;
+}
+
+.dukandar-mode-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dukandar-mode-tab.active {
+  background: white;
+  color: #064e3b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-weight: 800;
+}
+
+.dukandar-mic-btn {
+  background: linear-gradient(135deg, #059669, #047857) !important;
+}
+
+.dukandar-submit-btn {
+  background: linear-gradient(135deg, #059669, #065f46) !important;
+}
+
+.dukandar-ai-result-section {
+  margin-top: 18px;
+  animation: fadeIn 0.2s ease;
+}
+
+.dukandar-success-box {
+  background: #f0fdf4;
+  border: 2px solid #059669;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.12);
+}
+
+.dukandar-success-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.dukandar-success-badge {
+  background: #064e3b;
+  color: #a7f3d0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.dukandar-success-msg {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #065f46;
+  margin-bottom: 12px;
+}
+
+.dukandar-result-product-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.dukandar-result-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.dukandar-result-info {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.dukandar-result-variant-tag {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #047857;
+  margin-top: 2px;
+}
+
+.dukandar-diff-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.diff-chip {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  color: #064e3b;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.dukandar-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dukandar-undo-btn {
+  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  color: #b45309;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dukandar-undo-btn:hover {
+  background: #fef3c7;
+}
+
+.dukandar-done-btn {
+  background: #059669;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dukandar-another-btn {
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dukandar-query-box {
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.dukandar-query-badge {
+  background: #1e3a8a;
+  color: #bfdbfe;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.dukandar-error-box {
+  background: #fff1f2;
+  border: 2px solid #f43f5e;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.dukandar-error-title {
+  color: #9f1239;
+  font-weight: 800;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.candidates-hint {
+  font-size: 0.84rem;
+  color: #475569;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.candidates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.candidate-chip {
+  background: white;
+  border: 1.5px solid #fda4af;
+  color: #9f1239;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.floating-komal-ai-btn.is-dukandar-ai {
+  background: linear-gradient(135deg, #064e3b 0%, #059669 100%) !important;
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 4px 16px rgba(6, 78, 59, 0.4) !important;
+}
+

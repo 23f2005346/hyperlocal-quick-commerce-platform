@@ -150,8 +150,8 @@
           <button
             type="button"
             class="search-mic-ai-btn"
-            @click="openKomalAiModal"
-            :title="tAi('ai_modal_title') + ' (बोलून सामान मागवा / अपडेट करा)'"
+            @click="openAiModalByRole"
+            :title="isAdminLoggedIn && !adminPreviewAsCustomer ? '👑 कोमल AI दुकानदार सहाय्यक (Store Control)' : (tAi('ai_modal_title') + ' (बोलून सामान मागवा)')"
           >
             🎙️
           </button>
@@ -340,10 +340,10 @@
           <button
             type="button"
             class="dukandar-quick-action-btn"
-            @click="openKomalAiModal"
-            title="Komal AI Voice Assistant"
+            @click="openDukandarAiModal"
+            title="Komal AI Dukandar Assistant (Store Control)"
           >
-            🎙️ AI
+            🎙️ AI Assistant
           </button>
         </div>
       </div>
@@ -6956,14 +6956,14 @@
     <button
       v-if="!isAdminLoggedIn || adminActiveTab === 'storefront'"
       class="floating-komal-ai-btn"
-      :class="{ 'has-floating-cart': cartTotalQuantity > 0 }"
-      @click="openKomalAiModal"
-      aria-label="Komal AI Smart Voice Order"
-      title="Komal AI Voice Assistant"
+      :class="{ 'has-floating-cart': cartTotalQuantity > 0, 'is-dukandar-ai': isAdminLoggedIn && !adminPreviewAsCustomer }"
+      @click="openAiModalByRole"
+      :aria-label="isAdminLoggedIn && !adminPreviewAsCustomer ? 'Dukandar AI Store Assistant' : 'Komal AI Smart Voice Order'"
+      :title="isAdminLoggedIn && !adminPreviewAsCustomer ? '👑 कोमल AI दुकानदार सहाय्यक (Store Control)' : 'Komal AI Voice Assistant'"
     >
-      <span class="ai-sparkle-icon">🎙️</span>
-      <span class="ai-floating-label">{{ t('ai_btn_floating') }}</span>
-      <span class="ai-live-badge">AI</span>
+      <span class="ai-sparkle-icon">{{ isAdminLoggedIn && !adminPreviewAsCustomer ? '👑' : '🎙️' }}</span>
+      <span class="ai-floating-label">{{ isAdminLoggedIn && !adminPreviewAsCustomer ? (currentLang === 'mr' ? 'दुकानदार AI' : 'Dukandar AI') : t('ai_btn_floating') }}</span>
+      <span class="ai-live-badge">{{ isAdminLoggedIn && !adminPreviewAsCustomer ? 'ADMIN' : 'AI' }}</span>
     </button>
 
     <!-- Komal AI Smart Draft Bill Modal -->
@@ -7053,65 +7053,30 @@
 
           <!-- Quick Prompts / Examples -->
           <div class="ai-quick-examples" v-if="!aiResult">
-            <template v-if="isAdminLoggedIn">
-              <span class="quick-examples-title">👑 {{ currentLang === 'mr' ? 'दुकानदार व्हॉईस आज्ञा (टॅप करा):' : (currentLang === 'hi' ? 'दुकानदार वॉइस कमांड (टैप करें):' : 'Dukandar Voice Commands:') }}</span>
-              <div class="quick-chips">
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('तूर डाळ 190 रुपये करा')"
-                >
-                  💰 तूर डाळ 190 रु करा
-                </button>
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('साखर आउट ऑफ स्टॉक करा')"
-                >
-                  🚫 साखर आउट ऑफ स्टॉक
-                </button>
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('चक्की आटा स्टॉक 50 करा')"
-                >
-                  📦 चक्की आटा स्टॉक 50 करा
-                </button>
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('चना डाळ इन स्टॉक करा')"
-                >
-                  🟢 चना डाळ इन स्टॉक
-                </button>
-              </div>
-            </template>
-            <template v-else>
-              <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
-              <div class="quick-chips">
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
-                >
-                  🌾 २kg साखर, ५kg आटा, १kg डाळ
-                </button>
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
-                >
-                  ☕ Tata Tea, Colgate, पोहा
-                </button>
-                <button
-                  type="button"
-                  class="quick-chip"
-                  @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
-                >
-                  🍳 तेल, रवा, मीठ
-                </button>
-              </div>
-            </template>
+            <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
+            <div class="quick-chips">
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
+              >
+                🌾 २kg साखर, ५kg आटा, १kg डाळ
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
+              >
+                ☕ Tata Tea, Colgate, पोहा
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
+              >
+                🍳 तेल, रवा, मीठ
+              </button>
+            </div>
           </div>
 
           <!-- Generate Bill Button -->
@@ -7144,36 +7109,7 @@
             </button>
           </div>
 
-          <!-- DUKANDAR VOICE ACTION CONFIRMATION CARD -->
-          <div v-if="aiResult.is_admin_action" class="komal-ai-admin-result-card">
-            <div class="admin-result-badge">{{ aiResult.action_title }}</div>
-            <div class="admin-result-text">{{ aiResult.summary_text }}</div>
-            <div class="admin-result-details" v-if="aiResult.product && aiResult.variant">
-              <div class="admin-result-prod">
-                <strong>{{ getLocalizedProductName(aiResult.product, currentLang) }}</strong>
-                <span>({{ aiResult.variant.unit_size }})</span>
-              </div>
-              <div class="admin-result-stats">
-                <span>दर: <strong>₹{{ aiResult.variant.selling_price }}</strong></span>
-                <span>स्टॉक: <strong>{{ aiResult.variant.stock_quantity }}</strong></span>
-                <span :style="{ color: aiResult.variant.is_available ? '#059669' : '#dc2626', fontWeight: '800' }">
-                  {{ aiResult.variant.is_available ? '🟢 In Stock' : '🔴 Out of Stock' }}
-                </span>
-              </div>
-            </div>
-            <div class="admin-result-actions">
-              <button type="button" class="admin-result-done-btn" @click="closeKomalAiModal">
-                👍 {{ currentLang === 'mr' ? 'पूर्ण झाले (Done)' : 'Done' }}
-              </button>
-              <button type="button" class="admin-result-again-btn" @click="aiResult = null; aiInputText = ''">
-                🎙️ {{ currentLang === 'mr' ? 'दुसरी वस्तू बदला' : 'Update Another Item' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Customer / POS Bill Details (When not a price/stock update) -->
-          <template v-else>
-            <!-- Bill Header -->
+          <!-- Bill Header -->
             <div class="ai-bill-title-bar">
             <h4>🧾 {{ tAi('ai_draft_bill_title') }}</h4>
             <span class="ai-bill-count">
@@ -7342,7 +7278,6 @@
               </button>
             </div>
           </div>
-        </template>
         </div>
       </div>
     </div>
@@ -7518,6 +7453,360 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- DUKANDAR AI STORE ASSISTANT MODAL (STORE CONTROL & POS BILLING) -->
+    <div
+      class="modal-overlay"
+      v-if="showDukandarAiModal"
+      @click.self="closeDukandarAiModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dukandar-ai-modal-title"
+    >
+      <div class="modal-card komal-ai-modal-card dukandar-ai-modal-card">
+        <!-- Header -->
+        <div class="komal-ai-header dukandar-ai-header">
+          <div class="komal-ai-title-wrap">
+            <div class="dukandar-ai-badge">👑 DUKANDAR AI • दुकानदार सहाय्यक</div>
+            <h3 id="dukandar-ai-modal-title" class="komal-ai-title" style="color: #064e3b;">
+              Komal AI — Store Control
+            </h3>
+            <p class="komal-ai-subtitle">
+              {{ currentLang === 'mr' ? 'बोलून किंवा टाईप करून भाव, स्टॉक किंवा उपलब्धता बदला' : (currentLang === 'hi' ? 'बोलकर या लिखकर दाम, स्टॉक या उपलब्धता बदलें' : 'Voice & text store management: Update prices, stock & availability') }}
+            </p>
+          </div>
+          <button class="close-btn" @click="closeDukandarAiModal">✕</button>
+        </div>
+
+        <!-- Mode Switcher: Store Control vs Walk-in POS Bill -->
+        <div class="dukandar-ai-mode-tabs">
+          <button
+            type="button"
+            class="dukandar-mode-tab"
+            :class="{ active: dukandarAiTab === 'control' }"
+            @click="dukandarAiTab = 'control'"
+          >
+            👑 {{ currentLang === 'mr' ? 'दुकान नियंत्रण (Store Control)' : 'Store Control' }}
+          </button>
+          <button
+            type="button"
+            class="dukandar-mode-tab"
+            :class="{ active: dukandarAiTab === 'pos' }"
+            @click="dukandarAiTab = 'pos'"
+          >
+            🧾 {{ currentLang === 'mr' ? 'काऊंटर POS बिल (Walk-in Bill)' : 'Walk-in POS Bill' }}
+          </button>
+        </div>
+
+        <!-- Language Selector Chips -->
+        <div class="komal-ai-lang-bar">
+          <span class="ai-lang-label">🗣️ {{ currentLang === 'mr' ? 'भाषा:' : (currentLang === 'hi' ? 'भाषा:' : 'Language:') }}</span>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: dukandarAiLang === 'en' }"
+            @click="dukandarAiLang = 'en'"
+          >
+            🇬🇧 English
+          </button>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: dukandarAiLang === 'mr' }"
+            @click="dukandarAiLang = 'mr'"
+          >
+            🇮🇳 मराठी
+          </button>
+          <button
+            type="button"
+            class="ai-lang-chip"
+            :class="{ active: dukandarAiLang === 'hi' }"
+            @click="dukandarAiLang = 'hi'"
+          >
+            🇮🇳 हिंदी
+          </button>
+        </div>
+
+        <!-- Microphone / Input Section -->
+        <div class="komal-ai-input-section">
+          <!-- Voice Button -->
+          <div class="komal-ai-mic-wrapper">
+            <button
+              type="button"
+              class="komal-ai-mic-btn dukandar-mic-btn"
+              :class="{ 'is-recording': isRecording }"
+              @click="toggleSpeechRecognition"
+              :title="isRecording ? tAi('ai_mic_stop') : tAi('ai_mic_start')"
+            >
+              <div v-if="isRecording" class="mic-wave-pulse"></div>
+              <span class="mic-icon">{{ isRecording ? '⏹️' : '🎙️' }}</span>
+            </button>
+            <span class="mic-status-hint">
+              {{ isRecording ? (currentLang === 'mr' ? 'ऐकत आहे... बोला' : 'Listening... speak') : (currentLang === 'mr' ? 'माइक सुरू करा' : 'Tap mic to speak') }}
+            </span>
+          </div>
+
+          <!-- Textarea for spoken / typed command -->
+          <div class="ai-input-group">
+            <textarea
+              v-model="dukandarAiText"
+              rows="3"
+              class="komal-ai-textarea dukandar-ai-textarea"
+              :placeholder="dukandarAiTab === 'control'
+                ? (dukandarAiLang === 'mr'
+                  ? 'उदा. तूर डाळ 195 रुपये करा, साखर स्टॉक 50 करा, चक्की आटा आउट ऑफ स्टॉक करा...'
+                  : (dukandarAiLang === 'hi'
+                    ? 'उदा. तूर दाल का भाव 195 करो, चीनी स्टॉक 50 करो, आटा आउट ऑफ स्टॉक करो...'
+                    : 'e.g. change toor daal price to Rs195/kg, set sugar stock to 50, mark chakki atta out of stock...'))
+                : (dukandarAiLang === 'mr'
+                  ? 'उदा. २ किलो तूर डाळ, ५ किलो चक्की आटा, १ किलो साखर...'
+                  : (dukandarAiLang === 'hi'
+                    ? 'उदा. २ किलो तूर दाल, ५ किलो आटा, १ किलो चीनी...'
+                    : 'e.g. 2kg toor dal, 5kg chakki atta, 1kg sugar...'))"
+              @keydown.enter.prevent="executeDukandarAiCommand()"
+            ></textarea>
+            <div class="ai-textarea-footer">
+              <span class="ai-hint-caption">
+                {{ dukandarAiTab === 'control'
+                  ? (dukandarAiLang === 'mr' ? '💡 भाव, स्टॉक, किंवा इन/आउट ऑफ स्टॉक आज्ञा सांगा.' : (dukandarAiLang === 'hi' ? '💡 भाव, स्टॉक, या इन/आउट ऑफ स्टॉक कमांड बोलें।' : '💡 Speak or type price, stock, or availability commands.'))
+                  : (dukandarAiLang === 'mr' ? '💡 ग्राहकाची किराणा यादी थेट काऊंटर POS मध्ये जोडली जाईल.' : '💡 Customer grocery list will compile directly into In-Store POS.') }}
+              </span>
+              <button
+                v-if="dukandarAiText"
+                type="button"
+                class="ai-clear-btn"
+                @click="dukandarAiText = ''; dukandarAiResult = null"
+              >
+                {{ tAi('ai_clear') }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Prompts / Examples for Store Control -->
+          <div class="ai-quick-examples" v-if="dukandarAiTab === 'control' && !dukandarAiResult">
+            <span class="quick-examples-title">👑 {{ dukandarAiLang === 'mr' ? 'नमुना आज्ञा (टॅप करा):' : (dukandarAiLang === 'hi' ? 'कमांड के उदाहरण (टैप करें):' : 'Sample Commands (Tap to try):') }}</span>
+            <div class="quick-chips">
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('change toor daal price to Rs195/kg')"
+              >
+                💰 toor daal price Rs195/kg
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('तूर डाळ 190 रुपये करा')"
+              >
+                🏷️ तूर डाळ 190 रु करा
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('set sugar stock to 50')"
+              >
+                📦 sugar stock 50
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('साखर आउट ऑफ स्टॉक करा')"
+              >
+                🚫 साखर आउट ऑफ स्टॉक
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('chana dal in stock')"
+              >
+                🟢 chana dal in stock
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('what is the price of toor dal')"
+              >
+                🔍 toor dal price & stock?
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Prompts for Walk-in POS Bill -->
+          <div class="ai-quick-examples" v-if="dukandarAiTab === 'pos' && !dukandarAiResult">
+            <span class="quick-examples-title">⚡ {{ dukandarAiLang === 'mr' ? 'काऊंटर ग्राहक सामान (टॅप करा):' : 'Walk-in Items:' }}</span>
+            <div class="quick-chips">
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('2 kg toor dal, 5 kg chakki atta, 1 kg sugar')"
+              >
+                🌾 2kg Toor Dal, 5kg Atta, 1kg Sugar
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                @click="applyDukandarExample('१ किलो शेंगदाणे, अर्धा किलो बेसन, १ लिटर तेल')"
+              >
+                🍳 शेंगदाणे, बेसन, तेल
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="button"
+            class="komal-ai-generate-btn dukandar-submit-btn"
+            :disabled="dukandarAiLoading || !dukandarAiText.trim()"
+            @click="executeDukandarAiCommand()"
+          >
+            <span v-if="dukandarAiLoading" class="ai-spinner">⏳</span>
+            <span v-else>⚡</span>
+            {{ dukandarAiLoading ? 'प्रक्रिया सुरू आहे...' : (dukandarAiTab === 'control' ? '⚡ आज्ञा लागू करा (Run Store Command)' : '⚡ काऊंटर बिल बनवा (Generate POS Bill)') }}
+          </button>
+        </div>
+
+        <!-- DUKANDAR OUTPUT SECTION -->
+        <div v-if="dukandarAiResult" class="dukandar-ai-result-section">
+          <!-- UPDATE SUCCESS RESULT -->
+          <div v-if="dukandarAiResult.success && dukandarAiResult.type === 'UPDATE'" class="dukandar-success-box">
+            <div class="dukandar-success-header">
+              <span class="dukandar-success-badge">✅ आज्ञा यशस्वी (Action Executed)</span>
+              <button
+                type="button"
+                class="ai-speak-btn"
+                @click="speakAiSummary(dukandarAiResult.summary_text)"
+                title="Play voice"
+              >
+                🔊
+              </button>
+            </div>
+            
+            <p class="dukandar-success-msg">{{ dukandarAiResult.summary_text }}</p>
+
+            <!-- Product Visual Details -->
+            <div class="dukandar-result-product-card" v-if="dukandarAiResult.product && dukandarAiResult.variant">
+              <img
+                :src="dukandarAiResult.product.image_url || '/products/chakki-atta.jpg'"
+                :alt="dukandarAiResult.product.name"
+                class="dukandar-result-thumb"
+                @error="handleImageFallback($event)"
+              />
+              <div class="dukandar-result-info">
+                <div class="dukandar-result-name">
+                  {{ getLocalizedProductName(dukandarAiResult.product, dukandarAiLang) }}
+                </div>
+                <div class="dukandar-result-variant-tag">
+                  📦 {{ dukandarAiResult.variant.unit_size }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Diff Changes Grid -->
+            <div class="dukandar-diff-grid">
+              <div class="dukandar-diff-item" v-for="(chg, ci) in dukandarAiResult.changesSummary" :key="ci">
+                <span class="diff-chip">{{ chg }}</span>
+              </div>
+            </div>
+
+            <!-- Action buttons: Undo & Done -->
+            <div class="dukandar-result-actions">
+              <button
+                type="button"
+                class="dukandar-undo-btn"
+                v-if="dukandarPreviousState"
+                @click="undoDukandarAiAction"
+              >
+                ↩️ बदल पूर्ववत करा (Undo Revert)
+              </button>
+              <button
+                type="button"
+                class="dukandar-done-btn"
+                @click="closeDukandarAiModal"
+              >
+                👍 पूर्ण झाले (Done)
+              </button>
+              <button
+                type="button"
+                class="dukandar-another-btn"
+                @click="dukandarAiResult = null; dukandarAiText = ''"
+              >
+                🎙️ आणखी बदल करा (Next Command)
+              </button>
+            </div>
+          </div>
+
+          <!-- QUERY RESULT -->
+          <div v-else-if="dukandarAiResult.success && dukandarAiResult.type === 'QUERY'" class="dukandar-query-box">
+            <div class="dukandar-success-header">
+              <span class="dukandar-query-badge">🔍 थेट माहिती (Live Product Info)</span>
+              <button
+                type="button"
+                class="ai-speak-btn"
+                @click="speakAiSummary(dukandarAiResult.summary_text)"
+                title="Play voice"
+              >
+                🔊
+              </button>
+            </div>
+            
+            <p class="dukandar-success-msg">{{ dukandarAiResult.summary_text }}</p>
+
+            <div class="dukandar-result-product-card" v-if="dukandarAiResult.product && dukandarAiResult.variant">
+              <img
+                :src="dukandarAiResult.product.image_url || '/products/chakki-atta.jpg'"
+                :alt="dukandarAiResult.product.name"
+                class="dukandar-result-thumb"
+                @error="handleImageFallback($event)"
+              />
+              <div class="dukandar-result-info">
+                <div class="dukandar-result-name">
+                  {{ getLocalizedProductName(dukandarAiResult.product, dukandarAiLang) }}
+                </div>
+                <div class="dukandar-result-variant-tag">
+                  📦 {{ dukandarAiResult.variant.unit_size }} • दर: ₹{{ dukandarAiResult.variant.selling_price }} • शिल्लक: {{ dukandarAiResult.variant.stock_quantity }}
+                </div>
+              </div>
+              <button
+                type="button"
+                class="quick-chip"
+                style="margin-left: auto;"
+                @click="openQuickPriceEdit(dukandarAiResult.product, dukandarAiResult.variant); closeDukandarAiModal()"
+              >
+                ✏️ Edit
+              </button>
+            </div>
+          </div>
+
+          <!-- NOT FOUND OR UNCLEAR RESULT -->
+          <div v-else class="dukandar-error-box">
+            <div class="dukandar-error-title">⚠️ {{ dukandarAiResult.message }}</div>
+            <div v-if="dukandarAiResult.candidates && dukandarAiResult.candidates.length > 0" class="dukandar-candidates-wrap">
+              <span class="candidates-hint">तुम्हाला यापैकी काही बदलायचे आहे का? (Did you mean):</span>
+              <div class="candidates-chips">
+                <button
+                  type="button"
+                  class="candidate-chip"
+                  v-for="cand in dukandarAiResult.candidates"
+                  :key="cand.id"
+                  @click="openQuickPriceEdit(cand); closeDukandarAiModal()"
+                >
+                  ✏️ {{ getLocalizedProductName(cand, dukandarAiLang) }}
+                </button>
+              </div>
+            </div>
+            <div class="dukandar-result-actions" style="margin-top: 12px;">
+              <button
+                type="button"
+                class="dukandar-another-btn"
+                @click="dukandarAiResult = null; dukandarAiText = ''"
+              >
+                🔄 पुन्हा प्रयत्न करा (Try Again)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -8247,6 +8536,15 @@ let recordedAudioMime = 'audio/webm';
 let currentAiAudioPlayer = null;
 const cachedAiAudio = ref(null);
 let speechSessionId = 0;
+
+// Dukandar AI Voice & Store Control State (100% Isolated for Store Management)
+const showDukandarAiModal = ref(false);
+const dukandarAiTab = ref('control'); // 'control' | 'pos'
+const dukandarAiText = ref('');
+const dukandarAiLang = ref('en'); // default 'en', 'mr', 'hi'
+const dukandarAiLoading = ref(false);
+const dukandarAiResult = ref(null);
+const dukandarPreviousState = ref(null); // for 1-click Undo
 
 // Cart State
 const cart = ref([]);
@@ -9754,9 +10052,9 @@ function reorderEntireBill(order) {
 }
 
 // ==========================================
-// Komal AI Voice & Smart Draft Bill Handlers
+// Role-Aware Modal Routing & Dedicated Assistant Handlers
 // ==========================================
-function openKomalAiModal() {
+function openCustomerAiModal() {
   if (!aiLanguage.value) {
     aiLanguage.value = (currentLang.value === 'hi' || currentLang.value === 'mr') ? currentLang.value : 'mr';
   }
@@ -9764,7 +10062,32 @@ function openKomalAiModal() {
   initSpeechRecognition();
 }
 
-function closeKomalAiModal() {
+function openDukandarAiModal() {
+  if (!isAdminLoggedIn.value || adminPreviewAsCustomer.value) {
+    openCustomerAiModal();
+    return;
+  }
+  if (!dukandarAiLang.value) {
+    dukandarAiLang.value = currentLang.value || 'en';
+  }
+  showDukandarAiModal.value = true;
+  dukandarAiResult.value = null;
+  initSpeechRecognition();
+}
+
+function openAiModalByRole() {
+  if (isAdminLoggedIn.value && !adminPreviewAsCustomer.value) {
+    openDukandarAiModal();
+  } else {
+    openCustomerAiModal();
+  }
+}
+
+function openKomalAiModal() {
+  openAiModalByRole();
+}
+
+function closeCustomerAiModal() {
   isUserExplicitStop = true;
   if (speechSilenceTimer) {
     clearTimeout(speechSilenceTimer);
@@ -9775,6 +10098,24 @@ function closeKomalAiModal() {
   }
   isRecording.value = false;
   showKomalAiModal.value = false;
+}
+
+function closeDukandarAiModal() {
+  isUserExplicitStop = true;
+  if (speechSilenceTimer) {
+    clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+  }
+  if (isRecording.value && activeSpeechRecognition) {
+    try { activeSpeechRecognition.stop(); } catch (e) {}
+  }
+  isRecording.value = false;
+  showDukandarAiModal.value = false;
+}
+
+function closeKomalAiModal() {
+  closeCustomerAiModal();
+  closeDukandarAiModal();
 }
 
 function buildLocalizedSummary(result, targetLang) {
@@ -10016,7 +10357,9 @@ function startNewRecognitionInstance(currentSession) {
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
-  const lang = aiLanguage.value || currentLang.value || 'mr';
+  const lang = showDukandarAiModal.value
+    ? (dukandarAiLang.value || currentLang.value || 'en')
+    : (aiLanguage.value || currentLang.value || 'mr');
   recognition.lang = lang === 'mr' ? 'mr-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
 
   recognition.onstart = () => {
@@ -10038,12 +10381,13 @@ function startNewRecognitionInstance(currentSession) {
     }
 
     const sessionText = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+    const activeTextRef = showDukandarAiModal.value ? dukandarAiText : aiInputText;
     if (baseSpeechInput.value) {
       if (sessionText && !baseSpeechInput.value.endsWith(sessionText)) {
-        aiInputText.value = cleanSpokenTranscript(baseSpeechInput.value + ', ' + sessionText);
+        activeTextRef.value = cleanSpokenTranscript(baseSpeechInput.value + ', ' + sessionText);
       }
     } else {
-      aiInputText.value = cleanSpokenTranscript(sessionText);
+      activeTextRef.value = cleanSpokenTranscript(sessionText);
     }
 
     // Generous 30-second silence auto-cutoff timer for elders reciting 20-30 items
@@ -10071,7 +10415,7 @@ function startNewRecognitionInstance(currentSession) {
       isUserExplicitStop = true;
       isRecording.value = false;
       if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      const l = aiLanguage.value || currentLang.value || 'mr';
+      const l = showDukandarAiModal.value ? (dukandarAiLang.value || 'mr') : (aiLanguage.value || currentLang.value || 'mr');
       showToast(
         l === 'mr'
           ? 'मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राउझर सेटिंगमध्ये परवानगी द्या.'
@@ -10085,7 +10429,8 @@ function startNewRecognitionInstance(currentSession) {
   recognition.onend = () => {
     // If not user-stopped, seamlessly cycle recognition to avoid browser session timeout
     if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
-      baseSpeechInput.value = aiInputText.value ? cleanSpokenTranscript(aiInputText.value) : '';
+      const activeTextVal = showDukandarAiModal.value ? dukandarAiText.value : aiInputText.value;
+      baseSpeechInput.value = activeTextVal ? cleanSpokenTranscript(activeTextVal) : '';
       setTimeout(() => {
         if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
           startNewRecognitionInstance(currentSession);
@@ -10111,7 +10456,7 @@ function startNewRecognitionInstance(currentSession) {
 function toggleSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
-    const l = aiLanguage.value || currentLang.value || 'mr';
+    const l = showDukandarAiModal.value ? (dukandarAiLang.value || 'mr') : (aiLanguage.value || currentLang.value || 'mr');
     showToast(
       l === 'mr'
         ? 'तुमच्या ब्राउझरमध्ये व्हॉइस इनपुट सपोर्ट नाही. कृपया खाली टाईप करा.'
@@ -10143,7 +10488,8 @@ function toggleSpeechRecognition() {
   isUserExplicitStop = false;
   speechSessionId++;
   const thisSession = speechSessionId;
-  baseSpeechInput.value = aiInputText.value ? aiInputText.value.trim() : '';
+  const currentActiveVal = showDukandarAiModal.value ? dukandarAiText.value : aiInputText.value;
+  baseSpeechInput.value = currentActiveVal ? currentActiveVal.trim() : '';
 
   // Exclusive mic capture:
   // On Chrome / Edge / Safari / Android, SpeechRecognition handles real-time speech-to-text natively.
@@ -10193,15 +10539,6 @@ async function handleProcessAiOrder() {
 
   isAiLoading.value = true;
   try {
-    // If Storekeeper / Admin is logged in and speaking/typing a command, check if this is an instant Dukandar price/stock action!
-    if (isAdminLoggedIn.value && text) {
-      const handled = await handleDukandarVoiceCommand(text);
-      if (handled) {
-        isAiLoading.value = false;
-        return;
-      }
-    }
-
     const payload = {
       text: text,
       language: aiLanguage.value || currentLang.value || 'mr'
@@ -11057,131 +11394,253 @@ async function saveQuickPriceEdit() {
   }
 }
 
-async function handleDukandarVoiceCommand(rawText) {
-  if (!rawText) return false;
-  let text = rawText.toLowerCase().trim();
-  // Normalize Devanagari numerals to ASCII
-  text = text.replace(/[०-९]/g, d => '०१२३४५६७८९'.indexOf(d));
+function normalizeDukandarSynonyms(str) {
+  return (str || '').toLowerCase()
+    .replace(/[०-९]/g, d => '०१२३४५६७८९'.indexOf(d))
+    .replace(/\bdaal\b/gi, 'dal')
+    .replace(/\baata\b/gi, 'atta')
+    .replace(/\bgehu\s*(?:ka)?\s*atta\b/gi, 'atta')
+    .replace(/\bchini\b/gi, 'sugar')
+    .replace(/\bsakhar\b/gi, 'sugar')
+    .replace(/\btur\b/gi, 'toor')
+    .replace(/\barhar\b/gi, 'toor')
+    .replace(/\btandul\b/gi, 'rice')
+    .replace(/\bchawal\b/gi, 'rice')
+    .replace(/\bshilak\b/gi, 'stock')
+    .replace(/\bkhata\b/gi, 'ledger');
+}
 
-  const isPricePattern = /(?:भाव|दर|किंमत|रेट|रुपये|रुपया|रु|₹|price|rate)/i.test(text);
-  const isStockPattern = /(?:स्टॉक|शिल्लक|stock|quantity|qty)/i.test(text);
-  const isOutOfStockPattern = /(?:आउट\s*ऑफ\s*स्टॉक|आऊट\s*ऑफ\s*स्टॉक|out\s*of\s*stock|संपला|खत्म|बंद)/i.test(text);
-  const isInStockPattern = /(?:इन\s*स्टॉक|इनस्टॉक|in\s*stock|चालू|सुरू|उपलब्ध)/i.test(text);
+function parseDukandarCommand(rawText, loadedProducts) {
+  if (!rawText) return { success: false, reason: 'EMPTY' };
+  const text = normalizeDukandarSynonyms(rawText);
 
-  if (!isPricePattern && !isStockPattern && !isOutOfStockPattern && !isInStockPattern) {
-    return false;
-  }
+  // 1. Detect Intent
+  const isOutOfStock = /(?:out\s*of\s*stock|out-of-stock|आऊट\s*ऑफ\s*स्टॉक|आउट\s*ऑफ\s*स्टॉक|संपला|खत्म|बंद|not\s*available)/i.test(text);
+  const isInStock = /(?:in\s*stock|in-stock|इन\s*स्टॉक|उपलब्ध|सुरू|चालू|available)/i.test(text) && !isOutOfStock;
 
-  // Attempt to find best matching product in loaded products
-  let matchedProduct = null;
-  let highestScore = 0;
+  // Price extraction
+  // Handles: 'price to Rs195/kg', 'price to 195', 'Rs 195', '₹195', '195/kg', '195 rupees', '190 रुपये', 'rate 195'
+  const priceRegex = /(?:price|rate|भाव|दर|किंमत|रेट)\s*(?:is|to|set|of|=|करा|कर|ठेवा|करून)?\s*(?:rs\.?|₹|inr|रुपये|रुपया|रु)?\s*(\d+(?:\.\d+)?)|(?:rs\.?|₹|inr|रुपये|रुपया|रु)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:rs|₹|inr|रुपये|रुपया|रु|rupees|\/kg|per\s*kg)/i;
+  const pm = text.match(priceRegex);
+  const newPrice = pm ? parseFloat(pm[1] || pm[2] || pm[3]) : null;
 
-  for (const prod of products.value) {
-    const pName = (prod.name || '').toLowerCase();
-    const pNameHi = (prod.name_hi || '').toLowerCase();
-    const pBrand = (prod.brand || '').toLowerCase();
+  // Stock extraction
+  const stockRegex = /(?:stock|qty|quantity|शिल्लक|स्टॉक)\s*(?:is|to|set|=|करा|कर|ठेवा|करून)?\s*(\d+)|(\d+)\s*(?:stock|packets?|units?|पॅक|नग|बोरी|units|items)/i;
+  const sm = text.match(stockRegex);
+  const newStock = sm ? parseInt(sm[1] || sm[2], 10) : null;
 
-    // Check direct substring inclusion first
-    if ((pName && text.includes(pName)) || (pNameHi && text.includes(pNameHi))) {
-      matchedProduct = prod;
-      highestScore = 999;
-      break;
-    }
+  // Status Query check
+  const isQuery = /(?:what\s*is|check|show|tell|how\s*much|काय\s*आहे|किती\s*आहे|कितना\s*है)/i.test(text) && !newPrice && newStock === null && !isOutOfStock && !isInStock;
 
-    // Keyword word token matching
-    const prodWords = (pName + ' ' + pNameHi + ' ' + pBrand)
-      .replace(/[()\/,-]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !['loose', 'desi', 'mandi', 'packet', 'gram', 'kilo', 'item'].includes(w));
+  // 2. Product Matching
+  let bestProd = null;
+  let bestScore = 0;
+  const candidates = [];
 
-    let matchCount = 0;
-    for (const w of prodWords) {
-      if (text.includes(w)) {
-        matchCount++;
+  const skipWords = new Set([
+    'change', 'update', 'price', 'rate', 'stock', 'qty', 'set', 'make', 'into', 'with', 'out',
+    'mark', 'what', 'check', 'show', 'tell', 'how', 'much', 'the', 'of', 'to', 'is', 'for',
+    'करा', 'कर', 'आहे', 'किती', 'भाव', 'दर', 'किंमत', 'रेट', 'रुपये', 'रुपया', 'स्टॉक',
+    'करून', 'ठेवा', 'करो', 'देना', 'का', 'की', 'के'
+  ]);
+
+  const tokens = text.replace(/[^a-z0-9\u0900-\u097F\s]/gi, ' ').split(/\s+/).filter(w => w.length >= 2 && !skipWords.has(w));
+
+  for (const p of loadedProducts) {
+    const pNorm = normalizeDukandarSynonyms(p.name + ' ' + (p.name_hi || '') + ' ' + (p.brand || ''));
+    let score = 0;
+
+    for (const t of tokens) {
+      if (pNorm.includes(t)) {
+        score += t.length;
       }
     }
 
-    if (matchCount > highestScore && matchCount >= 1) {
-      highestScore = matchCount;
-      matchedProduct = prod;
+    if (score > 0) {
+      candidates.push({ product: p, score });
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestProd = p;
     }
   }
 
-  if (!matchedProduct || !matchedProduct.variants || matchedProduct.variants.length === 0) {
-    return false;
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (!bestProd) {
+    return {
+      success: false,
+      reason: 'PRODUCT_NOT_FOUND',
+      query: rawText,
+      candidates: candidates.slice(0, 4).map(c => c.product)
+    };
   }
 
-  // Find target variant
+  // 3. Variant Matching
   let targetVariant = null;
-  for (const v of matchedProduct.variants) {
-    const sizeNorm = v.unit_size.toLowerCase().replace(/\s+/g, '');
+  for (const v of (bestProd.variants || [])) {
+    const sizeNorm = (v.unit_size || '').toLowerCase().replace(/\s+/g, '');
     if (text.includes(sizeNorm) ||
-        (sizeNorm === '1kg' && (text.includes('1 किलो') || text.includes('एक किलो') || text.includes('1 kg') || text.includes('1kilo'))) ||
-        (sizeNorm === '500g' && (text.includes('500 ग्राम') || text.includes('पावशेर') || text.includes('आधा किलो') || text.includes('500g'))) ||
-        (sizeNorm === '5kg' && (text.includes('5 किलो') || text.includes('पाच किलो') || text.includes('5 kg') || text.includes('5kilo')))) {
+        (sizeNorm.includes('5kg') && (text.includes('5kg') || text.includes('5 kg') || text.includes('5 किलो') || text.includes('पाच किलो'))) ||
+        (sizeNorm.includes('500g') && (text.includes('500g') || text.includes('500 g') || text.includes('आधा किलो') || text.includes('पावशेर'))) ||
+        (sizeNorm.includes('1kg') && (text.includes('1kg') || text.includes('1 kg') || text.includes('1 किलो') || text.includes('/kg') || text.includes('per kg')))) {
       targetVariant = v;
       break;
     }
   }
+  if (!targetVariant && bestProd.variants && bestProd.variants.length > 0) {
+    targetVariant = getActiveVariant(bestProd) || bestProd.variants.find(v => (v.unit_size || '').toLowerCase().includes('1kg')) || bestProd.variants[0];
+  }
+
   if (!targetVariant) {
-    targetVariant = getActiveVariant(matchedProduct) ||
-                    matchedProduct.variants.find(v => v.unit_size.toLowerCase().includes('1kg')) ||
-                    matchedProduct.variants[0];
+    return { success: false, reason: 'NO_VARIANT', product: bestProd };
   }
 
-  const patchPayload = {};
-  let actionDescription = '';
-
-  if (isOutOfStockPattern) {
-    patchPayload.is_available = false;
-    patchPayload.stock_quantity = 0;
-    actionDescription = currentLang.value === 'mr'
-      ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) आउट ऑफ स्टॉक केले.`
-      : `${matchedProduct.name} (${targetVariant.unit_size}) marked Out of Stock.`;
-  } else if (isInStockPattern && !isPricePattern && !isStockPattern) {
-    patchPayload.is_available = true;
-    if (!targetVariant.stock_quantity || targetVariant.stock_quantity <= 0) {
-      patchPayload.stock_quantity = 20;
+  return {
+    success: true,
+    action: isQuery ? 'QUERY' : 'UPDATE',
+    product: bestProd,
+    variant: targetVariant,
+    patch: {
+      price: newPrice,
+      stock: newStock,
+      isAvailable: isOutOfStock ? false : (isInStock ? true : undefined)
     }
-    actionDescription = currentLang.value === 'mr'
-      ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) इन स्टॉक केले.`
-      : `${matchedProduct.name} (${targetVariant.unit_size}) marked In Stock.`;
-  } else if (isStockPattern && !isPricePattern) {
-    const stockMatch = text.match(/(?:स्टॉक|शिल्लक|stock|qty)\s*(?:करा|ठेवा|कर|to|is|set)?\s*(\d+)/i) ||
-                       text.match(/(\d+)\s*(?:स्टॉक|stock|नग|packet)/i);
-    if (stockMatch) {
-      const newStock = parseInt(stockMatch[1], 10);
-      patchPayload.stock_quantity = newStock;
-      patchPayload.is_available = newStock > 0;
-      actionDescription = currentLang.value === 'mr'
-        ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) चा स्टॉक ${newStock} केला.`
-        : `${matchedProduct.name} (${targetVariant.unit_size}) stock set to ${newStock}.`;
-    }
+  };
+}
+
+function applyDukandarExample(text) {
+  dukandarAiText.value = text;
+  executeDukandarAiCommand(text);
+}
+
+async function executeDukandarAiCommand(rawText) {
+  const input = (rawText || dukandarAiText.value || '').trim();
+  if (!input) {
+    showToast(dukandarAiLang.value === 'mr' ? 'कृपया काहीतरी बोला किंवा आज्ञा टाईप करा.' : (dukandarAiLang.value === 'hi' ? 'कृपया कुछ बोलें या कमांड टाइप करें।' : 'Please speak or enter a store command.'));
+    return;
   }
 
-  if (isPricePattern) {
-    const priceMatch = text.match(/(?:भाव|दर|किंमत|रेट|price|rate)\s*(?:करा|ठेवा|कर|to|is|set)?\s*(\d+(?:\.\d+)?)/i) ||
-                       text.match(/(\d+(?:\.\d+)?)\s*(?:रुपये|रुपया|रु|rs|₹|rupees)/i);
-    if (priceMatch) {
-      const newPrice = parseFloat(priceMatch[1]);
-      patchPayload.selling_price = newPrice;
-      if (newPrice > (targetVariant.mrp || 0)) {
-        patchPayload.mrp = newPrice;
-      }
-      actionDescription += (actionDescription ? ' आणि ' : '') + (
-        currentLang.value === 'mr'
-          ? `${getLocalizedProductName(matchedProduct, 'mr')} (${targetVariant.unit_size}) ची किंमत ₹${newPrice} केली.`
-          : `${matchedProduct.name} (${targetVariant.unit_size}) price set to ₹${newPrice}.`
-      );
-    }
+  if (!isAdminLoggedIn.value || adminPreviewAsCustomer.value) {
+    showToast('Unauthorized: Storekeeper access required.');
+    return;
   }
 
-  if (Object.keys(patchPayload).length === 0) {
-    return false;
-  }
+  dukandarAiLoading.value = true;
+  dukandarAiResult.value = null;
 
   try {
-    const res = await fetch(`${API_BASE}/variants/${targetVariant.id}`, {
+    // Mode: Walk-in POS Bill
+    if (dukandarAiTab.value === 'pos') {
+      await handleDukandarPosVoiceBill(input);
+      return;
+    }
+
+    // Mode: Store Control (Price, Stock, In/Out of stock, Query)
+    const parsed = parseDukandarCommand(input, products.value);
+
+    if (!parsed.success) {
+      if (parsed.reason === 'PRODUCT_NOT_FOUND') {
+        dukandarAiResult.value = {
+          success: false,
+          type: 'NOT_FOUND',
+          query: input,
+          message: dukandarAiLang.value === 'mr'
+            ? `"${input}" या आज्ञेशी जुळणारे उत्पादन सापडले नाही.`
+            : (dukandarAiLang.value === 'hi'
+              ? `"${input}" से मेल खाता उत्पाद नहीं मिला।`
+              : `Could not find a product matching "${input}".`),
+          candidates: parsed.candidates || []
+        };
+      } else {
+        dukandarAiResult.value = {
+          success: false,
+          type: 'UNCLEAR',
+          query: input,
+          message: dukandarAiLang.value === 'mr'
+            ? 'आज्ञा समजली नाही. उदा. "तूर डाळ 195 रुपये करा" किंवा "साखर स्टॉक 50 करा" असे बोला.'
+            : (dukandarAiLang.value === 'hi'
+              ? 'कमांड समझ नहीं आई। उदा. "तूर दाल 195 रु करो" या "चीनी स्टॉक 50 करो" बोलें।'
+              : 'Command unclear. e.g. "change toor daal price to Rs195/kg" or "set sugar stock to 50".')
+        };
+      }
+      return;
+    }
+
+    const { action, product, variant, patch } = parsed;
+
+    // Handle STATUS QUERY (e.g. 'what is the price of toor dal')
+    if (action === 'QUERY') {
+      const pName = getLocalizedProductName(product, dukandarAiLang.value);
+      const msg = dukandarAiLang.value === 'mr'
+        ? `${pName} (${variant.unit_size}): विक्री दर ₹${variant.selling_price} (MRP: ₹${variant.mrp || variant.selling_price}), शिल्लक स्टॉक: ${variant.stock_quantity} (${variant.is_available ? '🟢 इन स्टॉक' : '🔴 आउट ऑफ स्टॉक'}).`
+        : (dukandarAiLang.value === 'hi'
+          ? `${pName} (${variant.unit_size}): बिक्री दर ₹${variant.selling_price} (MRP: ₹${variant.mrp || variant.selling_price}), कुल स्टॉक: ${variant.stock_quantity} (${variant.is_available ? '🟢 इन स्टॉक' : '🔴 आउट ऑफ स्टॉक'})।`
+          : `${product.name} (${variant.unit_size}) is currently ₹${variant.selling_price} (MRP: ₹${variant.mrp || variant.selling_price}) with ${variant.stock_quantity} units in stock (${variant.is_available ? 'In Stock' : 'Out of Stock'}).`);
+
+      dukandarAiResult.value = {
+        success: true,
+        type: 'QUERY',
+        product,
+        variant,
+        summary_text: msg
+      };
+      speakAiSummary(msg, true);
+      return;
+    }
+
+    // Handle UPDATE: Price, Stock, or Availability
+    const patchPayload = {};
+    const beforeState = {
+      variant_id: variant.id,
+      selling_price: variant.selling_price,
+      mrp: variant.mrp,
+      stock_quantity: variant.stock_quantity,
+      is_available: variant.is_available
+    };
+
+    const changesSummary = [];
+
+    if (patch.price !== null && patch.price !== undefined) {
+      patchPayload.selling_price = patch.price;
+      if (patch.price > (variant.mrp || 0)) {
+        patchPayload.mrp = patch.price;
+      }
+      changesSummary.push(`दर: ₹${variant.selling_price} ➔ ₹${patch.price}`);
+    }
+
+    if (patch.stock !== null && patch.stock !== undefined) {
+      patchPayload.stock_quantity = patch.stock;
+      if (patch.stock > 0 && patch.isAvailable === undefined && !variant.is_available) {
+        patchPayload.is_available = true;
+      }
+      changesSummary.push(`स्टॉक: ${variant.stock_quantity} ➔ ${patch.stock}`);
+    }
+
+    if (patch.isAvailable !== undefined) {
+      patchPayload.is_available = patch.isAvailable;
+      if (!patch.isAvailable) {
+        patchPayload.stock_quantity = 0;
+        changesSummary.push(`उपलब्धता: 🔴 Out of Stock`);
+      } else {
+        if (!variant.stock_quantity || variant.stock_quantity <= 0) {
+          patchPayload.stock_quantity = 20;
+        }
+        changesSummary.push(`उपलब्धता: 🟢 In Stock`);
+      }
+    }
+
+    if (Object.keys(patchPayload).length === 0) {
+      dukandarAiResult.value = {
+        success: false,
+        type: 'NO_CHANGES',
+        message: 'No changes detected in command.'
+      };
+      return;
+    }
+
+    // PATCH variant via backend
+    const res = await fetch(`${API_BASE}/variants/${variant.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -11191,28 +11650,123 @@ async function handleDukandarVoiceCommand(rawText) {
     });
 
     if (res.ok) {
-      Object.assign(targetVariant, patchPayload);
+      // 0ms Reactive state update
+      Object.assign(variant, patchPayload);
       if (patchPayload.is_available !== undefined) {
-        targetVariant.is_in_stock = patchPayload.is_available && (targetVariant.stock_quantity > 0);
+        variant.is_in_stock = patchPayload.is_available && (variant.stock_quantity > 0);
       }
-      showToast(`✅ ${actionDescription}`);
-      speakAiSummary(actionDescription, true);
 
-      aiResult.value = {
+      // Save previous state for 1-click Undo
+      dukandarPreviousState.value = beforeState;
+
+      const pName = getLocalizedProductName(product, dukandarAiLang.value);
+      const spokenText = dukandarAiLang.value === 'mr'
+        ? `${pName} (${variant.unit_size}) चे ${changesSummary.join(', ')} यशस्वीपणे अपडेट केले आहे.`
+        : (dukandarAiLang.value === 'hi'
+          ? `${pName} (${variant.unit_size}) का ${changesSummary.join(', ')} सफलतापूर्वक अपडेट कर दिया गया है।`
+          : `Successfully updated ${product.name} (${variant.unit_size}): ${changesSummary.join(', ')}.`);
+
+      dukandarAiResult.value = {
         success: true,
-        is_admin_action: true,
-        action_title: currentLang.value === 'mr' ? '👑 दुकानदार व्हॉईस आज्ञा यशस्वी!' : (currentLang.value === 'hi' ? '👑 दुकानदार वॉइस कमांड सफल!' : '👑 Dukandar Voice Command Executed!'),
-        summary_text: actionDescription,
-        product: matchedProduct,
-        variant: targetVariant,
-        updated_fields: patchPayload
+        type: 'UPDATE',
+        product,
+        variant,
+        beforeState,
+        patchPayload,
+        changesSummary,
+        summary_text: spokenText
       };
-      return true;
+
+      showToast(`✅ ${spokenText}`);
+      speakAiSummary(spokenText, true);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`❌ ${err.error || 'Update failed'}`);
     }
   } catch (err) {
-    console.error('Error executing admin voice command:', err);
+    console.error('executeDukandarAiCommand error:', err);
+    showToast('❌ नेटवर्क त्रुटी आली. कृपया पुन्हा प्रयत्न करा.');
+  } finally {
+    dukandarAiLoading.value = false;
   }
-  return false;
+}
+
+async function undoDukandarAiAction() {
+  if (!dukandarPreviousState.value) return;
+  const prev = dukandarPreviousState.value;
+  try {
+    const res = await fetch(`${API_BASE}/variants/${prev.variant_id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify({
+        selling_price: prev.selling_price,
+        mrp: prev.mrp,
+        stock_quantity: prev.stock_quantity,
+        is_available: prev.is_available
+      })
+    });
+    if (res.ok) {
+      for (const p of products.value) {
+        const v = (p.variants || []).find(vr => vr.id === prev.variant_id);
+        if (v) {
+          Object.assign(v, {
+            selling_price: prev.selling_price,
+            mrp: prev.mrp,
+            stock_quantity: prev.stock_quantity,
+            is_available: prev.is_available,
+            is_in_stock: prev.is_available && prev.stock_quantity > 0
+          });
+          break;
+        }
+      }
+      dukandarPreviousState.value = null;
+      dukandarAiResult.value = null;
+      showToast('↩️ मागील बदल पूर्ववत केला (Changes reverted successfully)');
+    }
+  } catch (e) {
+    console.error('Undo failed:', e);
+  }
+}
+
+async function handleDukandarPosVoiceBill(text) {
+  const payload = {
+    text: text,
+    language: dukandarAiLang.value || currentLang.value || 'mr'
+  };
+  const res = await fetch(`${API_BASE}/ai/parse-order`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (res.ok && data.success && data.items) {
+    const matched = data.items.filter(it => it.match_status === 'matched');
+    let addedCount = 0;
+    for (const it of matched) {
+      const prod = products.value.find(p => p.id === it.product_id);
+      if (!prod) continue;
+      const variant = (prod.variants || []).find(v => v.id === it.variant_id) || prod.variants[0];
+      if (!variant) continue;
+      
+      addToPosCart(prod, variant, it.quantity || 1, it.unit_price || variant.selling_price);
+      addedCount++;
+    }
+    dukandarAiResult.value = {
+      success: true,
+      type: 'POS_BILL',
+      items: matched,
+      summary_text: `${addedCount} सामान काऊंटर POS बिलामध्ये जोडले गेले!`
+    };
+    showToast(`🧾 ${addedCount} सामान थेट काऊंटर POS मध्ये जोडले!`);
+    switchAdminTab('pos');
+  }
+}
+
+async function handleDukandarVoiceCommand(rawText) {
+  return executeDukandarAiCommand(rawText);
 }
 
 // --- ADMIN POS COUNTER BILLING METHODS ---
