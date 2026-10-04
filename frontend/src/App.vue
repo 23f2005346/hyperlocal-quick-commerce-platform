@@ -7433,6 +7433,17 @@
             </div>
           </div>
 
+          <!-- Proportional Weight Auto-Sync Toggle -->
+          <div v-if="quickEditProduct?.is_loose || hasWeightVariants(quickEditProduct)" class="quick-proportional-section" style="margin-top: 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 14px;">
+            <label class="quick-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #15803d; margin: 0;">
+              <input type="checkbox" v-model="quickEditForm.sync_proportional" style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;" />
+              <span>⚖️ {{ currentLang === 'mr' ? 'सर्व वजनांचे दर आपोआप बदला (500g, 2kg, 5kg)' : (currentLang === 'hi' ? 'सभी वजन के दाम अपने आप बदलें (500g, 2kg, 5kg)' : 'Auto-scale all weight variants (500g, 2kg, 5kg)') }}</span>
+            </label>
+            <div style="font-size: 0.78rem; color: #166534; margin-top: 4px; padding-left: 26px; line-height: 1.35;">
+              {{ currentLang === 'mr' ? 'प्रति किलो (1kg) दरावरून इतर पॅकेटचे दर आपोआप हिशोब करून बदलले जातील.' : (currentLang === 'hi' ? 'प्रति किलो (1kg) दाम के हिसाब से अन्य पैकेट के दाम अपने आप अपडेट होंगे।' : 'Sibling package prices will automatically recalculate proportionally.') }}
+            </div>
+          </div>
+
           <!-- Action Buttons -->
           <div class="quick-edit-actions">
             <button
@@ -8041,6 +8052,7 @@ const quickEditForm = reactive({
   is_available: true,
   is_clearance: false,
   clearance_price: null,
+  sync_proportional: true,
   isSaving: false
 });
 const adminSearch = ref('');
@@ -11257,8 +11269,25 @@ async function saveVariantPrice(variant) {
     });
 
     if (res.ok) {
+      const resData = await res.json().catch(() => ({}));
+      if (resData.sibling_variants && Array.isArray(resData.sibling_variants)) {
+        for (const p of products.value) {
+          if (p.id === variant.product_id) {
+            for (const sv of resData.sibling_variants) {
+              const sib = (p.variants || []).find(vr => vr.id === sv.id);
+              if (sib) Object.assign(sib, sv);
+            }
+            break;
+          }
+        }
+      }
       const clearanceMsg = variant.is_clearance ? ` (🔥 सेल दर: ₹${variant.clearance_price})` : '';
-      showToast(`✅ ${variant.unit_size} दर ₹${variant.selling_price}${clearanceMsg} SQLite मध्ये सेव्ह झाली!`);
+      let msg = `✅ ${variant.unit_size} दर ₹${variant.selling_price}${clearanceMsg} सेव्ह झाली!`;
+      if (resData.sibling_variants && resData.sibling_variants.length > 0) {
+        const sibSummary = resData.sibling_variants.map(sv => `${sv.unit_size}: ₹${sv.selling_price}`).join(', ');
+        msg = `✅ ${variant.unit_size} दर ₹${variant.selling_price}! इतर वजने: ${sibSummary}`;
+      }
+      showToast(msg);
     } else {
       const err = await res.json();
       alert(err.error || 'त्रुटि हुई');
@@ -11315,6 +11344,18 @@ async function quickRestockVariant(variant, amount = 10) {
 }
 
 // --- DUKANDAR STOREKEEPER RAPID PRICE & STOCK EDIT METHODS ---
+function hasWeightVariants(prod) {
+  if (!prod || !prod.variants || prod.variants.length < 2) return false;
+  let cnt = 0;
+  for (const v of prod.variants) {
+    const s = (v.unit_size || '').toLowerCase();
+    if (/(?:\d+(?:\.\d+)?)\s*(?:g|gm|gms|kg|kilo|l|litre|liter|ml)/i.test(s) && !s.includes('₹') && !s.includes('rs') && !s.includes('pack of')) {
+      cnt++;
+    }
+  }
+  return cnt >= 2;
+}
+
 function openQuickPriceEdit(product, variant = null) {
   if (!product) return;
   quickEditProduct.value = product;
@@ -11327,6 +11368,7 @@ function openQuickPriceEdit(product, variant = null) {
     quickEditForm.is_available = v.is_available !== false;
     quickEditForm.is_clearance = Boolean(v.is_clearance);
     quickEditForm.clearance_price = v.clearance_price || null;
+    quickEditForm.sync_proportional = true;
   }
   showQuickPriceEditModal.value = true;
 }
@@ -11340,6 +11382,7 @@ function selectQuickEditVariant(v) {
   quickEditForm.is_available = v.is_available !== false;
   quickEditForm.is_clearance = Boolean(v.is_clearance);
   quickEditForm.clearance_price = v.clearance_price || null;
+  quickEditForm.sync_proportional = true;
 }
 
 async function saveQuickPriceEdit() {
@@ -11352,7 +11395,8 @@ async function saveQuickPriceEdit() {
       stock_quantity: parseInt(quickEditForm.stock_quantity, 10),
       is_available: Boolean(quickEditForm.is_available),
       is_clearance: Boolean(quickEditForm.is_clearance),
-      clearance_price: quickEditForm.clearance_price ? parseFloat(quickEditForm.clearance_price) : null
+      clearance_price: quickEditForm.clearance_price ? parseFloat(quickEditForm.clearance_price) : null,
+      sync_proportional: quickEditForm.sync_proportional !== false
     };
 
     const res = await fetch(`${API_BASE}/variants/${quickEditSelectedVariantId.value}`, {
@@ -11365,6 +11409,7 @@ async function saveQuickPriceEdit() {
     });
 
     if (res.ok) {
+      const resData = await res.json().catch(() => ({}));
       // Immediately reflect updates in reactive products state
       const prod = products.value.find(p => p.id === quickEditProduct.value.id);
       if (prod && prod.variants) {
@@ -11373,17 +11418,41 @@ async function saveQuickPriceEdit() {
           Object.assign(v, payload);
           v.is_in_stock = payload.is_available && payload.stock_quantity > 0;
         }
+        if (resData.sibling_variants && Array.isArray(resData.sibling_variants)) {
+          for (const sv of resData.sibling_variants) {
+            const sib = prod.variants.find(vr => vr.id === sv.id);
+            if (sib) {
+              Object.assign(sib, sv);
+            }
+          }
+        }
       }
+      if (quickEditProduct.value && quickEditProduct.value.variants && resData.sibling_variants) {
+        for (const sv of resData.sibling_variants) {
+          const sib = quickEditProduct.value.variants.find(vr => vr.id === sv.id);
+          if (sib) {
+            Object.assign(sib, sv);
+          }
+        }
+      }
+
       const prodName = getLocalizedProductName(quickEditProduct.value, currentLang.value);
       const varSize = prod?.variants?.find(vr => vr.id === quickEditSelectedVariantId.value)?.unit_size || '';
-      showToast(
-        currentLang.value === 'mr'
-          ? `✅ ${prodName} (${varSize}) अपडेट झाले: ₹${payload.selling_price}, शिल्लक: ${payload.stock_quantity}`
-          : `✅ ${prodName} (${varSize}) updated: ₹${payload.selling_price}, Stock: ${payload.stock_quantity}`
-      );
+      let toastMsg = currentLang.value === 'mr'
+        ? `✅ ${prodName} (${varSize}) अपडेट झाले: ₹${payload.selling_price}, शिल्लक: ${payload.stock_quantity}`
+        : `✅ ${prodName} (${varSize}) updated: ₹${payload.selling_price}, Stock: ${payload.stock_quantity}`;
+
+      if (resData.sibling_variants && resData.sibling_variants.length > 0) {
+        const sibSummary = resData.sibling_variants.map(sv => `${sv.unit_size}: ₹${sv.selling_price}`).join(', ');
+        toastMsg = currentLang.value === 'mr'
+          ? `✅ ${prodName} (${varSize}) दर ₹${payload.selling_price}! इतर वजने: ${sibSummary}`
+          : `✅ ${prodName} (${varSize}) ₹${payload.selling_price}! Scaled: ${sibSummary}`;
+      }
+
+      showToast(toastMsg);
       showQuickPriceEditModal.value = false;
     } else {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       showToast(`❌ ${err.error || 'अपडेट अयशस्वी'}`);
     }
   } catch (err) {
@@ -11599,6 +11668,17 @@ async function executeDukandarAiCommand(rawText) {
       is_available: variant.is_available
     };
 
+    const siblingBeforeStates = (product.variants || [])
+      .filter(v => v.id !== variant.id)
+      .map(v => ({
+        variant_id: v.id,
+        unit_size: v.unit_size,
+        selling_price: v.selling_price,
+        mrp: v.mrp,
+        stock_quantity: v.stock_quantity,
+        is_available: v.is_available
+      }));
+
     const changesSummary = [];
 
     if (patch.price !== null && patch.price !== undefined) {
@@ -11606,7 +11686,8 @@ async function executeDukandarAiCommand(rawText) {
       if (patch.price > (variant.mrp || 0)) {
         patchPayload.mrp = patch.price;
       }
-      changesSummary.push(`दर: ₹${variant.selling_price} ➔ ₹${patch.price}`);
+      patchPayload.sync_proportional = true;
+      changesSummary.push(`दर (${variant.unit_size}): ₹${variant.selling_price} ➔ ₹${patch.price}`);
     }
 
     if (patch.stock !== null && patch.stock !== undefined) {
@@ -11650,21 +11731,57 @@ async function executeDukandarAiCommand(rawText) {
     });
 
     if (res.ok) {
+      const resData = await res.json().catch(() => ({}));
       // 0ms Reactive state update
       Object.assign(variant, patchPayload);
       if (patchPayload.is_available !== undefined) {
         variant.is_in_stock = patchPayload.is_available && (variant.stock_quantity > 0);
       }
 
-      // Save previous state for 1-click Undo
-      dukandarPreviousState.value = beforeState;
+      // Update sibling variants reactively in product.variants and products.value
+      const scaledSiblings = [];
+      if (resData.sibling_variants && Array.isArray(resData.sibling_variants)) {
+        for (const sv of resData.sibling_variants) {
+          const sib = (product.variants || []).find(v => v.id === sv.id);
+          if (sib) {
+            Object.assign(sib, sv);
+            scaledSiblings.push(sib);
+          }
+          const pInStore = products.value.find(p => p.id === product.id);
+          if (pInStore && pInStore !== product) {
+            const pSib = (pInStore.variants || []).find(v => v.id === sv.id);
+            if (pSib) Object.assign(pSib, sv);
+          }
+        }
+      }
+
+      if (scaledSiblings.length > 0) {
+        const sibSummary = scaledSiblings.map(s => `${s.unit_size}: ₹${s.selling_price}`).join(', ');
+        changesSummary.push(`⚖️ इतर वजने आपोआप: ${sibSummary}`);
+      }
+
+      // Save previous state for 1-click Undo (including all siblings)
+      dukandarPreviousState.value = {
+        ...beforeState,
+        siblings: siblingBeforeStates
+      };
 
       const pName = getLocalizedProductName(product, dukandarAiLang.value);
-      const spokenText = dukandarAiLang.value === 'mr'
-        ? `${pName} (${variant.unit_size}) चे ${changesSummary.join(', ')} यशस्वीपणे अपडेट केले आहे.`
-        : (dukandarAiLang.value === 'hi'
-          ? `${pName} (${variant.unit_size}) का ${changesSummary.join(', ')} सफलतापूर्वक अपडेट कर दिया गया है।`
-          : `Successfully updated ${product.name} (${variant.unit_size}): ${changesSummary.join(', ')}.`);
+      let spokenText = '';
+      if (scaledSiblings.length > 0) {
+        const sibSpeak = scaledSiblings.map(s => `${s.unit_size} चा दर ₹${s.selling_price}`).join(', ');
+        spokenText = dukandarAiLang.value === 'mr'
+          ? `${pName} (${variant.unit_size}) चा दर ₹${patch.price} केला, आणि इतर वजने (${sibSpeak}) आपोआप अपडेट झाली.`
+          : (dukandarAiLang.value === 'hi'
+            ? `${pName} (${variant.unit_size}) का दाम ₹${patch.price} किया, और बाकी वजन (${sibSpeak}) अपने आप अपडेट हो गए।`
+            : `Updated ${product.name} (${variant.unit_size}) to ₹${patch.price}, and scaled ${scaledSiblings.map(s => `${s.unit_size}: ₹${s.selling_price}`).join(', ')}.`);
+      } else {
+        spokenText = dukandarAiLang.value === 'mr'
+          ? `${pName} (${variant.unit_size}) चे ${changesSummary.join(', ')} यशस्वीपणे अपडेट केले आहे.`
+          : (dukandarAiLang.value === 'hi'
+            ? `${pName} (${variant.unit_size}) का ${changesSummary.join(', ')} सफलतापूर्वक अपडेट कर दिया गया है।`
+            : `Successfully updated ${product.name} (${variant.unit_size}): ${changesSummary.join(', ')}.`);
+      }
 
       dukandarAiResult.value = {
         success: true,
@@ -11674,6 +11791,7 @@ async function executeDukandarAiCommand(rawText) {
         beforeState,
         patchPayload,
         changesSummary,
+        scaledSiblings,
         summary_text: spokenText
       };
 
@@ -11705,7 +11823,8 @@ async function undoDukandarAiAction() {
         selling_price: prev.selling_price,
         mrp: prev.mrp,
         stock_quantity: prev.stock_quantity,
-        is_available: prev.is_available
+        is_available: prev.is_available,
+        sync_proportional: false
       })
     });
     if (res.ok) {
@@ -11722,6 +11841,35 @@ async function undoDukandarAiAction() {
           break;
         }
       }
+
+      if (prev.siblings && prev.siblings.length > 0) {
+        for (const sibPrev of prev.siblings) {
+          await fetch(`${API_BASE}/variants/${sibPrev.variant_id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken.value}`
+            },
+            body: JSON.stringify({
+              selling_price: sibPrev.selling_price,
+              mrp: sibPrev.mrp,
+              sync_proportional: false
+            })
+          }).catch(() => {});
+
+          for (const p of products.value) {
+            const sv = (p.variants || []).find(vr => vr.id === sibPrev.variant_id);
+            if (sv) {
+              Object.assign(sv, {
+                selling_price: sibPrev.selling_price,
+                mrp: sibPrev.mrp
+              });
+              break;
+            }
+          }
+        }
+      }
+
       dukandarPreviousState.value = null;
       dukandarAiResult.value = null;
       showToast('↩️ मागील बदल पूर्ववत केला (Changes reverted successfully)');

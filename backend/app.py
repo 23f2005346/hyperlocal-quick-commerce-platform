@@ -648,6 +648,52 @@ def get_tiered_unit_price(product_id, qty):
         print(f"[TIER PRICE ERROR] {e}")
     return None
 
+def parse_unit_weight_in_kg(unit_size):
+    """
+    Parses unit strings (e.g. '500g', '1kg', '2kg', '5kg', '30kg Bori', '250g', '100g', '1L', '5L', '500ml')
+    into standardized weight/volume in kg or liters.
+    Returns None for fixed cash denomination packs ('₹10 Pouch') or non-weight units.
+    """
+    if not unit_size:
+        return None
+    s = str(unit_size).strip().lower()
+    if '₹' in s or 'rs' in s or 'pack of' in s or 'sachet' in s or 'bar' in s or 'tube' in s:
+        return None
+
+    # Match kg / kilo
+    m_kg = re.search(r'(\d+(?:\.\d+)?)\s*(?:kg|kilo|किलो|कि\.ग्रॅ)', s)
+    if m_kg:
+        try:
+            return float(m_kg.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    # Match g / gm / gram
+    m_g = re.search(r'(\d+(?:\.\d+)?)\s*(?:g|gm|gms|gram|grams|ग्रॅम|ग्राम)', s)
+    if m_g:
+        try:
+            return float(m_g.group(1)) / 1000.0
+        except (ValueError, TypeError):
+            pass
+
+    # Match liter / L
+    m_l = re.search(r'(\d+(?:\.\d+)?)\s*(?:l|litre|liter|लीटर|लिटर)', s)
+    if m_l:
+        try:
+            return float(m_l.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    # Match ml
+    m_ml = re.search(r'(\d+(?:\.\d+)?)\s*(?:ml|मि\.ली)', s)
+    if m_ml:
+        try:
+            return float(m_ml.group(1)) / 1000.0
+        except (ValueError, TypeError):
+            pass
+
+    return None
+
 def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_data=None, mime_type='audio/webm'):
     """
     Parses natural language grocery order text or recorded audio (Hindi, Marathi, English, or mixed)
@@ -3590,11 +3636,15 @@ def create_app():
         data = request.get_json() or {}
 
         was_out_of_stock = (variant.stock_quantity is None or variant.stock_quantity <= 0 or not variant.is_available)
+        is_selling_price_changed = 'selling_price' in data
 
         if 'selling_price' in data:
             variant.selling_price = float(data['selling_price'])
         if 'mrp' in data:
             variant.mrp = float(data['mrp'])
+        elif is_selling_price_changed and variant.mrp and variant.selling_price > variant.mrp:
+            variant.mrp = variant.selling_price
+
         if 'stock_quantity' in data:
             variant.stock_quantity = int(data['stock_quantity'])
         if 'is_available' in data:
@@ -3604,6 +3654,61 @@ def create_app():
         if 'clearance_price' in data:
             val = data['clearance_price']
             variant.clearance_price = float(val) if (val is not None and str(val).strip() != '') else None
+
+        # Proportional weight variant auto-scaling for loose Mandi commodities
+        synced_siblings = []
+        sync_proportional = data.get('sync_proportional')
+        should_sync = False
+        if sync_proportional is True:
+            should_sync = True
+        elif sync_proportional is None and is_selling_price_changed:
+            # By default, automatically scale loose Mandi commodities
+            if variant.product and variant.product.is_loose:
+                should_sync = True
+
+        if should_sync and is_selling_price_changed:
+            target_weight = parse_unit_weight_in_kg(variant.unit_size)
+            if target_weight and target_weight > 0:
+                base_sell_rate = variant.selling_price / target_weight
+                base_mrp_rate = (variant.mrp or variant.selling_price) / target_weight
+
+                prod = variant.product
+                if prod and prod.variants:
+                    for sib in prod.variants:
+                        if sib.id == variant.id:
+                            continue
+                        sib_weight = parse_unit_weight_in_kg(sib.unit_size)
+                        if not sib_weight or sib_weight <= 0:
+                            continue
+
+                        # Preserve bulk wholesale tier discount differential per kg (e.g. 5kg sack)
+                        prev_disc_per_kg = 0.0
+                        if sib.mrp and sib.selling_price and sib.mrp > sib.selling_price:
+                            prev_disc_per_kg = max(0.0, (sib.mrp - sib.selling_price) / sib_weight)
+
+                        new_sib_mrp = round(base_mrp_rate * sib_weight, 2)
+                        if new_sib_mrp == int(new_sib_mrp):
+                            new_sib_mrp = float(int(new_sib_mrp))
+
+                        new_sib_sell = round(max(0.5, (base_sell_rate - prev_disc_per_kg) * sib_weight), 2)
+                        if new_sib_sell == int(new_sib_sell):
+                            new_sib_sell = float(int(new_sib_sell))
+
+                        new_sib_mrp = max(new_sib_mrp, new_sib_sell)
+
+                        sib.selling_price = new_sib_sell
+                        sib.mrp = new_sib_mrp
+                        synced_siblings.append(sib)
+
+                    # Sync bulk TieredPricing slab rates if defined
+                    if prod.tiered_prices:
+                        for tp in prod.tiered_prices:
+                            matching_sib = next((s for s in prod.variants if parse_unit_weight_in_kg(s.unit_size) == tp.min_qty), None)
+                            if matching_sib:
+                                tp.unit_price = round(matching_sib.selling_price / tp.min_qty, 2)
+                            else:
+                                tp_disc = max(0.0, base_sell_rate - (tp.unit_price if tp.unit_price else base_sell_rate))
+                                tp.unit_price = round(max(0.5, base_sell_rate - tp_disc), 2)
 
         is_now_in_stock = (variant.stock_quantity is not None and variant.stock_quantity > 0 and variant.is_available)
         notified_count = 0
@@ -3625,9 +3730,13 @@ def create_app():
 
         db.session.commit()
         invalidate_catalog_cache()
+        msg = 'Variant updated successfully in SQLite!'
+        if synced_siblings:
+            msg = f'Variant and {len(synced_siblings)} sibling weight variants updated proportionally!'
         return jsonify({
-            'message': 'Variant updated successfully in SQLite!',
+            'message': msg,
             'variant': variant.to_dict(),
+            'sibling_variants': [s.to_dict() for s in synced_siblings],
             'notified_count': notified_count
         })
 
