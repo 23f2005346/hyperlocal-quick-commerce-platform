@@ -41,5 +41,5 @@ ENV FLASK_ENV=production
 # Expose default port
 EXPOSE 5000
 
-# Run with Gunicorn WSGI server
-CMD ["sh", "-c", "gunicorn --chdir backend -w 2 --threads 4 -b 0.0.0.0:${PORT:-5000} 'app:create_app()'"]
+# Run with Gunicorn WSGI server (Single-worker + 8 concurrent threads guarantees unified in-memory state & lowers RAM)
+CMD ["sh", "-c", "gunicorn --chdir backend -w 1 --threads 8 -b 0.0.0.0:${PORT:-5000} 'app:create_app()'"]

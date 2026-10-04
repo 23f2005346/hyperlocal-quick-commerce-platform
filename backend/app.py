@@ -10,6 +10,8 @@ import urllib.request
 import urllib.error
 import urllib.parse
 import base64
+import hashlib
+import hmac
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -1727,9 +1729,16 @@ def create_app():
 
             # Generate 6-digit OTP
             otp = f"{random.randint(100000, 999999)}"
-            temp_token = serializer.dumps({'email': user.email, 'purpose': 'admin_2fa'}, salt='admin-2fa-salt')
+            otp_hash = hashlib.sha256(f"{otp}:{SECRET_KEY}".encode()).hexdigest()
+            temp_token = serializer.dumps({
+                'email': user.email,
+                'otp_hash': otp_hash,
+                'user_id': user.id,
+                'purpose': 'admin_2fa'
+            }, salt='admin-2fa-salt')
             ADMIN_2FA_STORE[user.email] = {
                 'otp': otp,
+                'otp_hash': otp_hash,
                 'expires_at': time.time() + 300, # 5 minutes
                 'user_id': user.id
             }
@@ -1780,24 +1789,34 @@ def create_app():
         try:
             payload = serializer.loads(temp_token, salt='admin-2fa-salt', max_age=300)
             email = payload.get('email')
+            token_otp_hash = payload.get('otp_hash')
+            token_user_id = payload.get('user_id')
         except (SignatureExpired, BadSignature, Exception):
             return jsonify({'error': '२-स्टेप पडताळणी सत्र संपले आहे. कृपया पुन्हा लॉगिन करा.', 'code': 'SESSION_EXPIRED'}), 401
 
-        record = ADMIN_2FA_STORE.get(email)
-        if not record:
-            return jsonify({'error': 'कोणताही सक्रिय OTP सापडला नाही. कृपया पुन्हा लॉगिन करा.', 'code': 'OTP_NOT_FOUND'}), 400
-
-        if time.time() > record['expires_at']:
-            ADMIN_2FA_STORE.pop(email, None)
-            return jsonify({'error': 'OTP कोडची मुदत संपली आहे. कृपया नवीन OTP मागवा.', 'code': 'OTP_EXPIRED'}), 400
-
         MASTER_ADMIN_PIN = os.environ.get('MASTER_ADMIN_PIN', '202699')
-        if record['otp'] != otp_input and otp_input != MASTER_ADMIN_PIN:
+        is_master_pin = (otp_input == MASTER_ADMIN_PIN)
+
+        # 1. Stateless verification via cryptographic signed HMAC token (worker-independent)
+        is_valid_otp = False
+        if token_otp_hash:
+            input_hash = hashlib.sha256(f"{otp_input}:{SECRET_KEY}".encode()).hexdigest()
+            if hmac.compare_digest(token_otp_hash, input_hash):
+                is_valid_otp = True
+
+        # 2. In-memory record verification fallback
+        record = ADMIN_2FA_STORE.get(email)
+        if not is_valid_otp and record:
+            if time.time() <= record.get('expires_at', 0) and record.get('otp') == otp_input:
+                is_valid_otp = True
+
+        if not is_valid_otp and not is_master_pin:
             return jsonify({'error': 'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका.', 'code': 'INVALID_OTP'}), 400
 
         # OTP valid! Issue Admin JWT Token
         ADMIN_2FA_STORE.pop(email, None)
-        user = db.session.get(User, record['user_id'])
+        target_uid = token_user_id or (record.get('user_id') if record else None)
+        user = db.session.get(User, target_uid) if target_uid else User.query.filter_by(email=email).first()
         if not user or user.role != 'admin':
             return jsonify({'error': 'Unauthorized admin account', 'code': 'UNAUTHORIZED_ADMIN'}), 403
 

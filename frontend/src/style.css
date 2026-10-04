@@ -8273,6 +8273,29 @@ a {
   transform: translateY(-1px);
 }
 
+.dukandar-btn-photos {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dukandar-btn-photos:hover {
+  background: #bae6fd;
+  color: #0369a1;
+  transform: translateY(-1px);
+}
+
 .dukandar-btn-toggle {
   background: #fee2e2;
   border: 1px solid #fca5a5;

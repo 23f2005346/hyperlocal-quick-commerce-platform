@@ -647,6 +647,15 @@
 
                 <button
                   type="button"
+                  class="dukandar-btn-photos"
+                  @click.stop="openEditPhotosModal(prod)"
+                  :title="currentLang === 'mr' ? 'फोटो बदला (3-Angle Photos)' : (currentLang === 'hi' ? 'फोटो बदलें (3-Angle Photos)' : 'Edit Photos')"
+                >
+                  📸 {{ currentLang === 'mr' ? 'फोटो' : 'Photo' }}
+                </button>
+
+                <button
+                  type="button"
                   class="dukandar-btn-toggle"
                   :class="{ 'is-in-stock': getActiveVariant(prod).is_available }"
                   @click.stop="toggleVariantStock(getActiveVariant(prod))"
@@ -7297,10 +7306,22 @@
             <h3 id="quick-edit-modal-title" class="quick-edit-title">
               ✏️ {{ currentLang === 'mr' ? 'किंमत व स्टॉक तात्काळ बदला' : (currentLang === 'hi' ? 'दाम व स्टॉक तुरंत बदलें' : 'Rapid Price & Stock Editor') }}
             </h3>
-            <p class="quick-edit-subtitle" v-if="quickEditProduct">
-              <strong>{{ getLocalizedProductName(quickEditProduct, currentLang) }}</strong>
-              <span v-if="quickEditProduct.name_hi && currentLang !== 'hi'" style="color: #64748b; margin-left: 6px;">({{ quickEditProduct.name_hi }})</span>
-            </p>
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+              <p class="quick-edit-subtitle" v-if="quickEditProduct" style="margin: 0;">
+                <strong>{{ getLocalizedProductName(quickEditProduct, currentLang) }}</strong>
+                <span v-if="quickEditProduct.name_hi && currentLang !== 'hi'" style="color: #64748b; margin-left: 6px;">({{ quickEditProduct.name_hi }})</span>
+              </p>
+              <!-- 📸 Direct Photo Edit Button -->
+              <button
+                type="button"
+                class="quick-photos-launch-btn"
+                @click="openEditPhotosModal(quickEditProduct)"
+                :title="currentLang === 'mr' ? '३-कोनी फोटो बदला' : 'Edit 3-Angle Photos'"
+                style="background: #e0f2fe; color: #0284c7; border: 1.5px solid #7dd3fc; border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+              >
+                📸 {{ currentLang === 'mr' ? 'फोटो बदला (Edit Photos)' : (currentLang === 'hi' ? 'फोटो बदलें (Edit Photos)' : 'Edit Photos (3-Angle)') }}
+              </button>
+            </div>
           </div>
           <button class="close-btn" @click="showQuickPriceEditModal = false" aria-label="Close modal">✕</button>
         </div>
@@ -7441,6 +7462,63 @@
             </label>
             <div style="font-size: 0.78rem; color: #166534; margin-top: 4px; padding-left: 26px; line-height: 1.35;">
               {{ currentLang === 'mr' ? 'प्रति किलो (1kg) दरावरून इतर पॅकेटचे दर आपोआप हिशोब करून बदलले जातील.' : (currentLang === 'hi' ? 'प्रति किलो (1kg) दाम के हिसाब से अन्य पैकेट के दाम अपने आप अपडेट होंगे।' : 'Sibling package prices will automatically recalculate proportionally.') }}
+            </div>
+          </div>
+
+          <!-- Optional Collapsible Product Details (Name, Brand, Description) -->
+          <div class="quick-details-accordion" style="margin-top: 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <button
+              type="button"
+              class="quick-details-toggle-btn"
+              @click="quickEditForm.showDetailsSection = !quickEditForm.showDetailsSection"
+              style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: none; padding: 10px 14px; font-size: 0.88rem; font-weight: 700; color: #334155; cursor: pointer;"
+            >
+              <span style="display: flex; align-items: center; gap: 6px;">
+                📝 {{ currentLang === 'mr' ? 'उत्पादनाचे नाव व ब्रँड बदला (Edit Details)' : (currentLang === 'hi' ? 'उत्पाद का नाम व ब्रांड बदलें (Edit Details)' : 'Edit Product Name & Details') }}
+              </span>
+              <span style="font-size: 0.75rem; color: #64748b;">{{ quickEditForm.showDetailsSection ? '▲ मिटवा' : '▼ उघडा' }}</span>
+            </button>
+
+            <div v-if="quickEditForm.showDetailsSection" style="padding: 14px; background: white; border-top: 1px solid #e2e8f0;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    {{ currentLang === 'mr' ? 'इंग्रजी नाव (English Name)' : 'Name (English)' }} *
+                  </label>
+                  <input type="text" v-model="quickEditForm.name" class="quick-input" placeholder="e.g. Toor Dal" required />
+                </div>
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    {{ currentLang === 'mr' ? 'मराठी / हिंदी नाव' : 'Vernacular Name' }}
+                  </label>
+                  <input type="text" v-model="quickEditForm.name_hi" class="quick-input" placeholder="उदा. तूर डाळ" />
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    {{ currentLang === 'mr' ? 'ब्रँड (Brand)' : 'Brand' }}
+                  </label>
+                  <input type="text" v-model="quickEditForm.brand" class="quick-input" placeholder="e.g. Mandi Staples" />
+                </div>
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    {{ currentLang === 'mr' ? 'प्रकार (Type)' : 'Type' }}
+                  </label>
+                  <select v-model="quickEditForm.is_loose" class="quick-input" style="height: 38px;">
+                    <option :value="true">🌾 {{ currentLang === 'mr' ? 'मोकळे / धान्य (Loose Mandi)' : 'Loose Mandi' }}</option>
+                    <option :value="false">📦 {{ currentLang === 'mr' ? 'पॅकबंद ब्रँडेड (Packaged FMCG)' : 'Packaged FMCG' }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size: 0.78rem; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                  {{ currentLang === 'mr' ? 'तपशील / माहिती (Description)' : 'Description' }}
+                </label>
+                <textarea v-model="quickEditForm.description" rows="2" class="quick-input" placeholder="उदा. अस्सल गावरान चवदार डाळ..."></textarea>
+              </div>
             </div>
           </div>
 
@@ -8053,6 +8131,12 @@ const quickEditForm = reactive({
   is_clearance: false,
   clearance_price: null,
   sync_proportional: true,
+  name: '',
+  name_hi: '',
+  brand: '',
+  is_loose: false,
+  description: '',
+  showDetailsSection: false,
   isSaving: false
 });
 const adminSearch = ref('');
@@ -11369,6 +11453,12 @@ function openQuickPriceEdit(product, variant = null) {
     quickEditForm.is_clearance = Boolean(v.is_clearance);
     quickEditForm.clearance_price = v.clearance_price || null;
     quickEditForm.sync_proportional = true;
+    quickEditForm.name = product.name || '';
+    quickEditForm.name_hi = product.name_hi || '';
+    quickEditForm.brand = product.brand || '';
+    quickEditForm.is_loose = Boolean(product.is_loose);
+    quickEditForm.description = product.description || '';
+    quickEditForm.showDetailsSection = false;
   }
   showQuickPriceEditModal.value = true;
 }
@@ -11434,6 +11524,35 @@ async function saveQuickPriceEdit() {
             Object.assign(sib, sv);
           }
         }
+      }
+
+      // Check if product details (name, brand, description, is_loose) were also modified
+      const isNameChanged = quickEditForm.name && quickEditForm.name.trim() !== quickEditProduct.value.name;
+      const isNameHiChanged = quickEditForm.name_hi !== (quickEditProduct.value.name_hi || '');
+      const isBrandChanged = quickEditForm.brand !== (quickEditProduct.value.brand || '');
+      const isLooseChanged = quickEditForm.is_loose !== Boolean(quickEditProduct.value.is_loose);
+      const isDescChanged = quickEditForm.description !== (quickEditProduct.value.description || '');
+
+      if (isNameChanged || isNameHiChanged || isBrandChanged || isLooseChanged || isDescChanged) {
+        const prodPayload = {
+          name: quickEditForm.name.trim(),
+          name_hi: quickEditForm.name_hi.trim(),
+          brand: quickEditForm.brand.trim(),
+          is_loose: Boolean(quickEditForm.is_loose),
+          description: quickEditForm.description.trim()
+        };
+        await fetch(`${API_BASE}/products/${quickEditProduct.value.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken.value}`
+          },
+          body: JSON.stringify(prodPayload)
+        }).catch(e => console.error('Product details update error:', e));
+
+        Object.assign(quickEditProduct.value, prodPayload);
+        const storeProd = products.value.find(p => p.id === quickEditProduct.value.id);
+        if (storeProd) Object.assign(storeProd, prodPayload);
       }
 
       const prodName = getLocalizedProductName(quickEditProduct.value, currentLang.value);
