@@ -713,6 +713,8 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         'gemini-flash-lite-latest',
         'gemini-flash-latest',
         'gemini-3.8-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite'
     ]
@@ -936,7 +938,7 @@ def call_gemini_tts(text, voice='Kore', language='mr'):
     if os.environ.get('ENABLE_GEMINI_STUDIO_TTS', '0') == '1':
         api_key = os.environ.get('GEMINI_API_KEY', '').strip()
         if api_key and text:
-            models = ['gemini-2.0-flash', 'gemini-1.5-flash']
+            models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
             payload = {
                 "contents": [{"parts": [{"text": text.strip()}]}],
                 "generationConfig": {
