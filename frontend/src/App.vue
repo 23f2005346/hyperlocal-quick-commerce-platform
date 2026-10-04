@@ -8623,6 +8623,8 @@ const aiResult = ref(null);
 const speechSupported = ref(false);
 let activeSpeechRecognition = null;
 const baseSpeechInput = ref('');
+let sessionFinalTranscript = '';
+let sessionInterimTranscript = '';
 let speechSilenceTimer = null;
 let isUserExplicitStop = false;
 let mediaRecorder = null;
@@ -10437,6 +10439,8 @@ function cleanSpokenTranscript(text) {
   let str = text;
   // Convert vernacular pauna / paun phonetic misrecognitions (e.g. "पन पन पन किलो" -> "पाऊण किलो")
   str = str.replace(/(?:(?:पन|पान|पोन)\s*(?:किलो|kg)?\s*)+/gi, 'पाऊण किलो ');
+  // Deduplicate consecutive identical numbers like "9 9 kilo" or "9 9 9" -> "9 kilo"
+  str = str.replace(/\b(\d+(?:\.\d+)?)(?:\s+\1)+\b/gi, '$1');
   // Deduplicate consecutive identical 2-word phrases like "आधा किलो आधा किलो" -> "आधा किलो"
   str = str.replace(/(\b[\w\u0900-\u097F]+\s+[\w\u0900-\u097F]+)(?:\s*,?\s*\1)+/gi, '$1');
   // Deduplicate consecutive identical words/numbers like "1 1 1 किलो" -> "1 किलो"
@@ -10463,27 +10467,38 @@ function startNewRecognitionInstance(currentSession) {
   };
 
   recognition.onresult = (event) => {
-    let finalTranscript = '';
-    let interimTranscript = '';
-    for (let i = 0; i < event.results.length; ++i) {
+    // Maintain separate buffers per Claude's guidance:
+    // finalTranscript is ONLY accumulated when res.isFinal is true.
+    // interimTranscript is overwritten fresh each event, never appended or compounded.
+    let newFinalChunks = '';
+    let interimChunk = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
       const res = event.results[i];
       if (res && res[0]) {
+        const textChunk = (res[0].transcript || '').trim();
         if (res.isFinal) {
-          finalTranscript += (finalTranscript ? ' ' : '') + res[0].transcript.trim();
+          newFinalChunks += (newFinalChunks ? ' ' : '') + textChunk;
         } else {
-          interimTranscript += (interimTranscript ? ' ' : '') + res[0].transcript.trim();
+          interimChunk += (interimChunk ? ' ' : '') + textChunk;
         }
       }
     }
 
-    const sessionText = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+    if (newFinalChunks) {
+      sessionFinalTranscript += (sessionFinalTranscript ? ' ' : '') + newFinalChunks;
+    }
+    sessionInterimTranscript = interimChunk;
+
+    // Combine base text, accumulated final segments, and active transient interim segment
+    const combinedSession = [sessionFinalTranscript, sessionInterimTranscript].filter(Boolean).join(' ').trim();
     const activeTextRef = showDukandarAiModal.value ? dukandarAiText : aiInputText;
+
     if (baseSpeechInput.value) {
-      if (sessionText && !baseSpeechInput.value.endsWith(sessionText)) {
-        activeTextRef.value = cleanSpokenTranscript(baseSpeechInput.value + ', ' + sessionText);
-      }
+      const prefix = baseSpeechInput.value.trim();
+      activeTextRef.value = combinedSession ? cleanSpokenTranscript(prefix + ', ' + combinedSession) : prefix;
     } else {
-      activeTextRef.value = cleanSpokenTranscript(sessionText);
+      activeTextRef.value = cleanSpokenTranscript(combinedSession);
     }
 
     // Generous 30-second silence auto-cutoff timer for elders reciting 20-30 items
@@ -10523,10 +10538,14 @@ function startNewRecognitionInstance(currentSession) {
   };
 
   recognition.onend = () => {
-    // If not user-stopped, seamlessly cycle recognition to avoid browser session timeout
+    // If recognition cycled naturally without user stopping, finalize any remaining interim into sessionFinalTranscript
+    if (sessionInterimTranscript) {
+      sessionFinalTranscript += (sessionFinalTranscript ? ' ' : '') + sessionInterimTranscript;
+      sessionInterimTranscript = '';
+    }
+
+    // If not user-stopped, seamlessly cycle recognition instance
     if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
-      const activeTextVal = showDukandarAiModal.value ? dukandarAiText.value : aiInputText.value;
-      baseSpeechInput.value = activeTextVal ? cleanSpokenTranscript(activeTextVal) : '';
       setTimeout(() => {
         if (!isUserExplicitStop && isRecording.value && currentSession === speechSessionId) {
           startNewRecognitionInstance(currentSession);
@@ -10583,6 +10602,8 @@ function toggleSpeechRecognition() {
   isRecording.value = true;
   isUserExplicitStop = false;
   speechSessionId++;
+  sessionFinalTranscript = '';
+  sessionInterimTranscript = '';
   const thisSession = speechSessionId;
   const currentActiveVal = showDukandarAiModal.value ? dukandarAiText.value : aiInputText.value;
   baseSpeechInput.value = currentActiveVal ? currentActiveVal.trim() : '';
