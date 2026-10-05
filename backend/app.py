@@ -61,6 +61,22 @@ REGISTRATION_OTP_STORE = {} # { phone: { 'otp': '123456', 'expires_at': ts, 'att
 RESET_RATE_LIMIT_STORE = {} # { key: [timestamps] }
 RESET_COOLDOWN_STORE = {}   # { key: last_request_timestamp }
 LOGIN_ATTEMPTS_STORE = {}   # { key: { 'attempts': int, 'locked_until': ts, 'first_attempt': ts } }
+AI_SCAN_RATE_LIMIT_STORE = {} # { key: [timestamps] }
+
+def check_ai_scan_rate_limit(client_ip: str, max_scans: int = 10, window_sec: int = 3600):
+    """
+    Sliding window rate limit for AI handwritten list image scanning:
+    Allows max 10 image scan operations per IP/account per hour.
+    Guards Gemini Vision API quota and prevents abusive spam.
+    """
+    now = time.time()
+    history = [t for t in AI_SCAN_RATE_LIMIT_STORE.get(client_ip, []) if now - t < window_sec]
+    if len(history) >= max_scans:
+        wait_sec = int(window_sec - (now - history[0]))
+        return False, wait_sec
+    history.append(now)
+    AI_SCAN_RATE_LIMIT_STORE[client_ip] = history
+    return True, 0
 
 def check_login_rate_limit(key):
     """
@@ -696,14 +712,15 @@ def parse_unit_weight_in_kg(unit_size):
 
     return None
 
-def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_data=None, mime_type='audio/webm'):
+def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_data=None, mime_type='audio/webm', images_data=None):
     """
-    Parses natural language grocery order text or recorded audio (Hindi, Marathi, English, or mixed)
-    against the active Komal Mart catalog using Google Gemini AI Studio API.
+    Parses natural language grocery order text, recorded audio, or uploaded handwritten list photos
+    (Hindi, Marathi, English, or mixed) against the active Komal Mart catalog using Google Gemini AI Studio API.
     Implements a resilient model fallback cascade:
-    1. gemini-flash-lite-latest (fastest, lowest token overhead, 500 RPD)
-    2. gemini-3.8-flash (flagship speed and accuracy)
-    3. gemini-2.5-flash (stable production fallback)
+    1. gemini-flash-lite-latest (fastest, lowest token overhead)
+    2. gemini-flash-latest
+    3. gemini-3.8-flash (flagship multimodal speed and accuracy)
+    4. gemini-3.7-flash / gemini-3.6-flash / gemini-3.5-flash
     """
     api_key = os.environ.get('GEMINI_API_KEY', '').strip()
     if not api_key:
@@ -727,8 +744,9 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
     system_instruction = (
         "You are Komal, the intelligent grocery order parsing assistant for Komal Mart (कोमल मार्ट), "
         "a hyperlocal neighborhood general store (kirana) in Wadala, Mumbai.\n"
-        "Your task: Parse customer spoken or typed grocery orders (in Marathi, Hindi, English, or Hinglish) "
-        "and accurately match each requested grocery commodity to the provided Komal Mart catalog snapshot.\n\n"
+        "Your task: Parse customer spoken, typed, or photographed handwritten grocery order lists "
+        "(in Marathi, Hindi, English, or Hinglish) and accurately match each requested grocery commodity "
+        "to the provided Komal Mart catalog snapshot.\n\n"
         "Rules & Invariants:\n"
         "1. Quantities, Vernacular Units & Compound Fractions:\n"
         "   - 'aadha kilo' / 'ardha kilo' / 'half kg' -> 0.5 kg or 500g\n"
@@ -772,7 +790,12 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         "   - Quantity Updates / Corrections: When customer updates an item's quantity (e.g. 'aata 12kg, 2 kilo nahi' or 'pehla 2 kilo bola tha ab 12 kilo kardo'): use ONLY the final corrected quantity (12kg, NOT 2kg)! Emit only ONE entry for that commodity with quantity=12.\n"
         "   - Item Cancellations / Negations: When customer cancels or removes an item (e.g. 'X nahi chahiye', 'X mat lo', 'X cancel', 'X nako', 'hata do', 'remove X'): do NOT include X in the items array! Exclude canceled items completely.\n"
         "   - Deduplicate stuttered speech & repeated numbers: If speech recognition repeats a number or word (e.g., '9 9 kilo maida', '5 5 kg chawal', 'sugar... 2 kilo chini'), treat it as a single quantity ('9 kilo maida', '5 kg chawal', '2 kilo chini'). NEVER add or multiply duplicated stuttered numbers! Emit only ONE entry for that commodity with the intended quantity.\n"
-        "6. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
+        "6. Handwritten Slip / Photo Invariants (CRITICAL FOR VISION SCANS):\n"
+        "   - Crossed-out / Struck-through Items: If any word or line on a handwritten paper slip is struck through, crossed out with a pen line (e.g., ~~साखर~~ or scribbled over), EXCLUDE it completely. Do not include canceled items in the items array.\n"
+        "   - Ignore Customer Handwritten Prices: Customers often write estimated prices or previous bill amounts next to items (e.g., 'चावल 60', 'तेल ₹140', 'दाल 120'). IGNORE any handwritten currency numbers or estimated rupee prices completely! Extract ONLY the commodity name and requested weight or quantity. Prices are assigned strictly by the store catalog.\n"
+        "   - Multi-Page / Multi-Photo Slips: When multiple images are provided, combine all items across all pages into a single consolidated grocery list without repeating headers.\n"
+        "   - Irrelevant or Unreadable Photos: If the attached image does NOT contain a readable grocery or shopping list (e.g., random selfie, vehicle, meme, scenery, or completely illegible/blank photo), set transcript to 'या फोटोमध्ये किराणा सामानाची यादी आढळली नाही.' and return an EMPTY items array: [] with summary_text explaining that a clear photo of the grocery list is needed.\n"
+        "7. Kirana Commodity & Grain Disambiguation (CRITICAL):\n"
         "   - 'wheat' / 'gehun' / 'gahu' / 'whole wheat' refers to WHOLE GRAIN WHEAT ('गहू' / 'Sharbati Whole Wheat Grain' or 'Lokwan Whole Wheat Grain'), NOT wheat flour.\n"
         "   - 'atta' / 'aata' / 'pith' / 'peeth' / 'chakki atta' / 'flour' refers to WHEAT FLOUR ('आटा' / 'पीठ' / 'Chakki Fresh Wheat Atta').\n"
         "   - When a customer orders BOTH wheat grain and flour (e.g., '6 kilo wheat and 3 kilo aata'), they are TWO DISTINCT items: match wheat to Whole Wheat Grain and aata to Wheat Atta. NEVER combine or drop either.\n"
@@ -784,22 +807,29 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
         "   - 'masala' / 'garam masala' / 'khada masala' -> Desi Khada Garam Masala or Everest Garam Masala.\n"
         "   - 'soyabean' / 'soya dana' / 'सोयाबीन' -> Whole Soyabean Grain for Flour Mixing.\n"
         "   - 'pisai' / 'dalwan' / 'chakki pisai' -> Chakki Pisai Grinding Service.\n"
-        "7. Customer Preferences & Ambiguity Rules:\n"
+        "8. Customer Preferences & Ambiguity Rules:\n"
         "   - If customer asks for 'sasta wala' / 'swasta' / 'kam daam' / 'regular': choose the variant with the lowest price.\n"
         "   - If customer asks for 'mehnga wala' / 'accha' / 'premium' / 'gavran' / 'unpolished': choose the higher quality/price variant.\n"
         "   - STRICT AMBIGUITY RULE: ONLY set match_status to 'ambiguous' if the customer named a commodity WITHOUT stating ANY quantity, weight, rupee amount, or size at all (e.g. customer literally said only 'aata' or 'oil' with zero quantity). If any quantity or rupee budget was stated, it is NEVER ambiguous!\n"
-        "8. Out-of-Stock / Unavailable Items:\n"
+        "9. Out-of-Stock / Unavailable Items:\n"
         "   - If an item is not found in the catalog or has stock_quantity <= 0, set match_status to 'unavailable'. Preserve the customer's grocery item name in 'product_name' and 'query_term'. If there is a similar item in the same category, suggest it in 'suggested_alternative'.\n"
-        "9. Exact Match:\n"
+        "10. Exact Match:\n"
         "   - If product and variant are identified, set match_status to 'matched'.\n"
-        "10. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English.\n"
-        "11. Long-Form Monthly Kirana Recitation (20 to 30+ Items):\n"
-        "   - Real household customers recite long 20 to 30 item ration lists in a single turn.\n"
-        "   - You MUST parse every single commodity spoken across the entire speech. Never stop or truncate after a few items.\n"
+        "11. Output Format: Return strictly JSON matching the required schema with summary_text in Marathi, Hindi, and English.\n"
+        "12. Long-Form Monthly Kirana Lists (20 to 30+ Items):\n"
+        "   - Real household customers write or recite long 20 to 30 item ration lists in a single turn.\n"
+        "   - You MUST parse every single commodity written across the entire list. Never stop or truncate after a few items.\n"
         "   - Support full grocery baskets: flours, rice, dals, oils, ghee, sugar, tea, spices, bath soaps, dish soaps, detergents, toothpastes, dry fruits, snacks."
     )
 
-    if audio_data and not raw_text:
+    if images_data and len(images_data) > 0:
+        customer_input_desc = (
+            f"Customer Handwritten Grocery List ({len(images_data)} image(s) attached):\n"
+            "Carefully examine the attached photo(s) of handwritten or printed grocery list slips (in Marathi, Hindi, or English). "
+            "Transcribe all readable grocery items and their written quantities verbatim into the 'transcript' field. "
+            "Match every item accurately to the Komal Mart catalog snapshot."
+        )
+    elif audio_data and not raw_text:
         customer_input_desc = "Customer Order Speech (Audio Recording Attached):\nListen to the customer's spoken grocery recitation in audio. Transcribe the customer's spoken words into the 'transcript' field (in the language spoken: Marathi, Hindi, or English), and match all items to the catalog snapshot."
     elif audio_data and raw_text:
         customer_input_desc = f"Customer Order Speech Transcript:\n\"{raw_text}\"\n(Raw audio recording is also attached for acoustic clarity. Transcribe full speech into 'transcript' field if any words were omitted.)"
@@ -813,7 +843,7 @@ def call_gemini_order_parser(raw_text, catalog_snapshot, language='mr', audio_da
 
 Return JSON matching this exact structure:
 {{
-  "transcript": "string (verbatim customer speech transcript)",
+  "transcript": "string (verbatim customer speech or transcribed handwritten list)",
   "items": [
     {{
       "query_term": "string (what customer called it)",
@@ -848,6 +878,15 @@ Return JSON matching this exact structure:
                     "data": audio_data
                 }
             })
+        if images_data:
+            for img_obj in images_data:
+                if isinstance(img_obj, dict) and img_obj.get('data'):
+                    parts.append({
+                        "inlineData": {
+                            "mimeType": img_obj.get('mimeType', 'image/jpeg'),
+                            "data": img_obj.get('data')
+                        }
+                    })
 
         payload = {
             "contents": [
@@ -2478,6 +2517,7 @@ def create_app():
         raw_text = (data.get('text') or '').strip()
         audio_b64 = (data.get('audio') or '').strip()
         mime_type = (data.get('mime_type') or 'audio/webm').strip()
+        images_input = data.get('images') or [] # list of { data: base64, mimeType: str }
         lang = (data.get('language') or 'mr').lower()
 
         # Automatic Language Detection: If customer spoke or typed in Marathi or Hindi, respect that language
@@ -2492,8 +2532,70 @@ def create_app():
         if raw_text:
             raw_text = raw_text.translate(str.maketrans('०१२३४५६७८९', '0123456789'))
 
-        if not raw_text and not audio_b64:
-            return jsonify({'error': 'कृपया काहीतरी बोला किंवा किराणा सामानाची यादी टाईप करा.', 'code': 'EMPTY_TEXT'}), 400
+        # Validate images if provided
+        validated_images = []
+        if images_input:
+            if not isinstance(images_input, list):
+                return jsonify({'error': 'अवैध फोटो स्वरूप.', 'code': 'INVALID_IMAGES'}), 400
+            if len(images_input) > 5:
+                return jsonify({'error': 'एका वेळी जास्तीत जास्त ५ फोटो स्कॅन करता येतील.', 'code': 'TOO_MANY_IMAGES'}), 400
+
+            # Rate Limiting Guard on Image Scanning (10 scans per hour per IP)
+            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+            allowed, wait_sec = check_ai_scan_rate_limit(client_ip, max_scans=10, window_sec=3600)
+            if not allowed:
+                wait_min = max(1, round(wait_sec / 60))
+                err_msg = (
+                    f"फोटो स्कॅन मर्यादा संपली आहे. कृपया {wait_min} मिनिटे प्रतीक्षा करा किंवा टाईप करा."
+                    if lang == 'mr'
+                    else (f"फोटो स्कैन लिमिट पूरी हो गई है। कृपया {wait_min} मिनट प्रतीक्षा करें।" if lang == 'hi' else f"Photo scan rate limit reached. Please wait {wait_min} minutes.")
+                )
+                return jsonify({'error': err_msg, 'code': 'RATE_LIMIT_EXCEEDED', 'wait_seconds': wait_sec}), 429
+
+            for idx, img_item in enumerate(images_input):
+                if not isinstance(img_item, dict):
+                    continue
+                b64_str = (img_item.get('data') or '').strip()
+                m_type = (img_item.get('mimeType') or 'image/jpeg').lower().strip()
+                if not b64_str:
+                    continue
+
+                # Strip potential data URL prefix if present
+                if ',' in b64_str:
+                    b64_str = b64_str.split(',', 1)[1].strip()
+
+                try:
+                    img_bytes = base64.b64decode(b64_str)
+                except Exception:
+                    return jsonify({'error': f'फोटो #{idx + 1} डिकोड करण्यात त्रुटी.', 'code': 'INVALID_IMAGE_BASE64'}), 400
+
+                # Server-Side Max File Size: Hard cap at 1.5MB per image (compressed client image is ~80-120KB)
+                if len(img_bytes) > 1572864:
+                    return jsonify({'error': f'फोटो #{idx + 1} खूप मोठा आहे (कमाल 1.5MB परवानगी आहे).', 'code': 'IMAGE_TOO_LARGE'}), 400
+
+                # Server-Side Magic Byte Verification
+                is_valid_magic = False
+                detected_mime = 'image/jpeg'
+                if img_bytes.startswith(b'\xff\xd8\xff'): # JPEG
+                    is_valid_magic = True
+                    detected_mime = 'image/jpeg'
+                elif img_bytes.startswith(b'\x89PNG\r\n\x1a\n'): # PNG
+                    is_valid_magic = True
+                    detected_mime = 'image/png'
+                elif img_bytes.startswith(b'RIFF') and b'WEBP' in img_bytes[:16]: # WEBP
+                    is_valid_magic = True
+                    detected_mime = 'image/webp'
+
+                if not is_valid_magic:
+                    return jsonify({'error': f'फोटो #{idx + 1} अवैध फाईल फॉरमॅट आहे. फक्त JPG, PNG किंवा WebP चालतील.', 'code': 'INVALID_IMAGE_TYPE'}), 400
+
+                validated_images.append({
+                    'data': b64_str,
+                    'mimeType': detected_mime
+                })
+
+        if not raw_text and not audio_b64 and not validated_images:
+            return jsonify({'error': 'कृपया काहीतरी बोला, यादीचा फोटो जोडा, किंवा सामान टाईप करा.', 'code': 'EMPTY_INPUT'}), 400
 
         # Query all active products with variants
         all_products = Product.query.all()
@@ -2518,9 +2620,9 @@ def create_app():
                     'variants': variants_info
                 })
 
-        # Step 1: Attempt Gemini cascade (supports text + direct audio recording)
+        # Step 1: Attempt Gemini cascade (supports text + audio + multimodal handwritten list photos)
         success, ai_data, engine_used = call_gemini_order_parser(
-            raw_text, catalog_snapshot, language=lang, audio_data=audio_b64, mime_type=mime_type
+            raw_text, catalog_snapshot, language=lang, audio_data=audio_b64, mime_type=mime_type, images_data=validated_images
         )
         if success and ai_data and ai_data.get('transcript') and not raw_text:
             raw_text = ai_data.get('transcript').strip()
@@ -2532,7 +2634,12 @@ def create_app():
                 ai_data = fallback_heuristic_order_parser(raw_text, all_products)
                 engine_used = 'local-kirana-heuristic'
             else:
-                return jsonify({'error': 'आवाज ओळखता आला नाही. कृपया पुन्हा बोला किंवा टाईप करा.', 'code': 'AUDIO_UNRECOGNIZED'}), 400
+                fail_msg = (
+                    'फोटोमधील यादी ओळखता आली नाही. कृपया स्पष्ट फोटो काढा किंवा व्हॉइस वापरा.'
+                    if validated_images
+                    else 'आवाज ओळखता आला नाही. कृपया पुन्हा बोला किंवा टाईप करा.'
+                )
+                return jsonify({'error': fail_msg, 'code': 'INPUT_UNRECOGNIZED'}), 400
 
         # Step 3: Sanitize, cross-verify against DB and calculate pricing
         verified_items = []

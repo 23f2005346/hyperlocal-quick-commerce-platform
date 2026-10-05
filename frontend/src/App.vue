@@ -7018,86 +7018,190 @@
           </button>
         </div>
 
+        <!-- Mode Switcher: Voice / Typed vs Scan Handwritten Slip -->
+        <div class="komal-ai-mode-tabs">
+          <button
+            type="button"
+            class="ai-mode-tab-btn"
+            :class="{ active: aiScanMode === 'voice' }"
+            @click="aiScanMode = 'voice'"
+          >
+            🎙️ {{ (aiLanguage || currentLang) === 'mr' ? 'बोलून / टाईप करून' : ((aiLanguage || currentLang) === 'hi' ? 'बोलकर / टाइप करके' : 'Voice / Text') }}
+          </button>
+          <button
+            type="button"
+            class="ai-mode-tab-btn"
+            :class="{ active: aiScanMode === 'photo' }"
+            @click="aiScanMode = 'photo'"
+          >
+            📷 {{ (aiLanguage || currentLang) === 'mr' ? 'हाताने लिहिलेली यादी स्कॅन करा' : ((aiLanguage || currentLang) === 'hi' ? 'हाथ से लिखी पर्ची स्कैन करें' : 'Scan Handwritten List') }}
+          </button>
+        </div>
+
         <!-- Microphone / Input Section -->
         <div class="komal-ai-input-section">
-          <!-- Voice Button -->
-          <div class="komal-ai-mic-wrapper">
-            <button
-              type="button"
-              class="komal-ai-mic-btn"
-              :class="{ 'is-recording': isRecording }"
-              @click="toggleSpeechRecognition"
-              :title="isRecording ? tAi('ai_mic_stop') : tAi('ai_mic_start')"
-            >
-              <div v-if="isRecording" class="mic-wave-pulse"></div>
-              <span class="mic-icon">{{ isRecording ? '⏹️' : '🎙️' }}</span>
-            </button>
-            <span class="mic-status-hint">
-              {{ isRecording ? tAi('ai_mic_listening') : tAi('ai_mic_start') }}
-            </span>
-          </div>
-
-          <!-- Textarea for spoken / typed list -->
-          <div class="ai-input-group">
-            <textarea
-              v-model="aiInputText"
-              rows="3"
-              class="komal-ai-textarea"
-              :placeholder="(aiLanguage || currentLang) === 'mr' ? 'उदा. कोमल २ किलो साखर, ५ किलो चक्की आटा, आणि तूर डाळ स्वस्त वाली १ किलो...' : ((aiLanguage || currentLang) === 'hi' ? 'उदा. कोमल २ किलो चीनी, ५ किलो आटा, और १ किलो तूर दाल सस्ती वाली...' : 'e.g. 2kg sugar, 5kg chakki atta, and 1kg cheapest toor dal...')"
-            ></textarea>
-            <div class="ai-textarea-footer">
-              <span class="ai-hint-caption">
-                {{ (aiLanguage || currentLang) === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू किंवा टाईप करू शकता.' : ((aiLanguage || currentLang) === 'hi' ? '💡 आप हिंदी, मराठी या इंग्लिश में बोल या टाइप कर सकते हैं।' : '💡 You can speak or type freely in Marathi, Hindi, or English.') }}
+          <!-- Voice Mode Controls -->
+          <template v-if="aiScanMode === 'voice'">
+            <!-- Voice Button -->
+            <div class="komal-ai-mic-wrapper">
+              <button
+                type="button"
+                class="komal-ai-mic-btn"
+                :class="{ 'is-recording': isRecording }"
+                @click="toggleSpeechRecognition"
+                :title="isRecording ? tAi('ai_mic_stop') : tAi('ai_mic_start')"
+              >
+                <div v-if="isRecording" class="mic-wave-pulse"></div>
+                <span class="mic-icon">{{ isRecording ? '⏹️' : '🎙️' }}</span>
+              </button>
+              <span class="mic-status-hint">
+                {{ isRecording ? tAi('ai_mic_listening') : tAi('ai_mic_start') }}
               </span>
-              <button
-                v-if="aiInputText"
-                type="button"
-                class="ai-clear-btn"
-                @click="aiInputText = ''; aiResult = null"
-              >
-                {{ tAi('ai_clear') }}
-              </button>
             </div>
-          </div>
 
-          <!-- Quick Prompts / Examples -->
-          <div class="ai-quick-examples" v-if="!aiResult">
-            <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
-            <div class="quick-chips">
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
-              >
-                🌾 २kg साखर, ५kg आटा, १kg डाळ
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
-              >
-                ☕ Tata Tea, Colgate, पोहा
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
-              >
-                🍳 तेल, रवा, मीठ
-              </button>
+            <!-- Textarea for spoken / typed list -->
+            <div class="ai-input-group">
+              <textarea
+                v-model="aiInputText"
+                rows="3"
+                class="komal-ai-textarea"
+                :placeholder="(aiLanguage || currentLang) === 'mr' ? 'उदा. कोमल २ किलो साखर, ५ किलो चक्की आटा, आणि तूर डाळ स्वस्त वाली १ किलो...' : ((aiLanguage || currentLang) === 'hi' ? 'उदा. कोमल २ किलो चीनी, ५ किलो आटा, और १ किलो तूर दाल सस्ती वाली...' : 'e.g. 2kg sugar, 5kg chakki atta, and 1kg cheapest toor dal...')"
+              ></textarea>
+              <div class="ai-textarea-footer">
+                <span class="ai-hint-caption">
+                  {{ (aiLanguage || currentLang) === 'mr' ? '💡 तुम्ही मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू किंवा टाईप करू शकता.' : ((aiLanguage || currentLang) === 'hi' ? '💡 आप हिंदी, मराठी या इंग्लिश में बोल या टाइप कर सकते हैं।' : '💡 You can speak or type freely in Marathi, Hindi, or English.') }}
+                </span>
+                <button
+                  v-if="aiInputText"
+                  type="button"
+                  class="ai-clear-btn"
+                  @click="aiInputText = ''; aiResult = null"
+                >
+                  {{ tAi('ai_clear') }}
+                </button>
+              </div>
             </div>
-          </div>
+
+            <!-- Quick Prompts / Examples -->
+            <div class="ai-quick-examples" v-if="!aiResult">
+              <span class="quick-examples-title">⚡ {{ (aiLanguage || currentLang) === 'mr' ? 'उदाहरणे (टॅप करा):' : ((aiLanguage || currentLang) === 'hi' ? 'उदाहरण (टैप करें):' : 'Try examples:') }}</span>
+              <div class="quick-chips">
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('२ किलो साखर, ५ किलो चक्की आटा, १ किलो तूर डाळ स्वस्त वाली')"
+                >
+                  🌾 २kg साखर, ५kg आटा, १kg डाळ
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('1 packet Tata Tea Gold, 1 Colgate MaxFresh, 2 kg Poha')"
+                >
+                  ☕ Tata Tea, Colgate, पोहा
+                </button>
+                <button
+                  type="button"
+                  class="quick-chip"
+                  @click="applyAiExample('१ लिटर मोहरीचे तेल, आधा किलो सुजी, १ किलो मीठ')"
+                >
+                  🍳 तेल, रवा, मीठ
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Photo Slip Mode Controls -->
+          <template v-else>
+            <div class="ai-photo-upload-box">
+              <div class="ai-photo-prompt">
+                <span class="ai-photo-main-icon">📝</span>
+                <div class="ai-photo-prompt-text">
+                  <strong>{{ (aiLanguage || currentLang) === 'mr' ? 'हाताने लिहिलेल्या किराणा यादीचा फोटो काढा' : ((aiLanguage || currentLang) === 'hi' ? 'हाथ से लिखी राशन पर्ची की फोटो खींचें' : 'Take a photo of your handwritten grocery list') }}</strong>
+                  <p>{{ (aiLanguage || currentLang) === 'mr' ? 'कॅमेऱ्याने थेट फोटो काढा किंवा गॅलरीतून निवडा (जास्तीत जास्त ५ फोटो). आमचा AI आपोआप ड्राफ्ट बिल तयार करेल.' : ((aiLanguage || currentLang) === 'hi' ? 'सीधे कैमरे से फोटो लें या गैलरी से चुनें (अधिकतम 5 फोटो)। AI अपने आप ड्राफ्ट बिल तैयार कर देगा।' : 'Snap directly with camera or upload from gallery (max 5 photos). AI will generate your draft bill.') }}</p>
+                </div>
+              </div>
+
+              <!-- Upload Buttons: Camera & Gallery -->
+              <div class="ai-photo-actions-row">
+                <!-- Camera Snap Button -->
+                <label class="ai-photo-btn ai-photo-camera-btn">
+                  📷 {{ (aiLanguage || currentLang) === 'mr' ? 'कॅमेऱ्याने फोटो काढा' : ((aiLanguage || currentLang) === 'hi' ? 'कैमरे से फोटो लें' : 'Take Photo (Camera)') }}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                    @change="handleSlipImageUpload"
+                    :disabled="aiImageCompressing || aiUploadedImages.length >= 5"
+                  />
+                </label>
+
+                <!-- Gallery Upload Button -->
+                <label class="ai-photo-btn ai-photo-gallery-btn">
+                  🖼️ {{ (aiLanguage || currentLang) === 'mr' ? 'गॅलरीतून निवडा' : ((aiLanguage || currentLang) === 'hi' ? 'गैलरी से चुनें' : 'Upload from Gallery') }}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style="display: none;"
+                    @change="handleSlipImageUpload"
+                    :disabled="aiImageCompressing || aiUploadedImages.length >= 5"
+                  />
+                </label>
+              </div>
+
+              <!-- Compression Loading Spinner -->
+              <div v-if="aiImageCompressing" class="ai-photo-compressing-msg">
+                <span>⏳</span> {{ (aiLanguage || currentLang) === 'mr' ? 'फोटो ऑप्टिमाइझ करत आहे...' : ((aiLanguage || currentLang) === 'hi' ? 'फोटो ऑप्टिमाइज़ हो रही है...' : 'Optimizing photo...') }}
+              </div>
+
+              <!-- Image Previews Grid -->
+              <div v-if="aiUploadedImages.length > 0" class="ai-uploaded-previews-grid">
+                <div
+                  v-for="(img, imgIdx) in aiUploadedImages"
+                  :key="img.id"
+                  class="ai-uploaded-thumb-card"
+                >
+                  <img :src="img.preview" :alt="'Slip ' + (imgIdx + 1)" class="ai-uploaded-thumb-img" />
+                  <div class="ai-uploaded-thumb-meta">
+                    <span class="ai-thumb-num">#{{ imgIdx + 1 }}</span>
+                    <span class="ai-thumb-size">{{ img.sizeKb }} KB</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="ai-uploaded-remove-btn"
+                    @click="removeSlipImage(imgIdx)"
+                    title="Remove this photo"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="aiUploadedImages.length > 0" class="ai-photo-count-info">
+                <span>✓ {{ aiUploadedImages.length }}/5 {{ (aiLanguage || currentLang) === 'mr' ? 'फोटो जोडले' : ((aiLanguage || currentLang) === 'hi' ? 'फोटो जोड़े गए' : 'photos added') }}</span>
+                <button
+                  type="button"
+                  class="ai-photo-clear-all"
+                  @click="aiUploadedImages = []"
+                >
+                  {{ (aiLanguage || currentLang) === 'mr' ? 'सर्व काढून टाका' : ((aiLanguage || currentLang) === 'hi' ? 'सभी हटाएं' : 'Clear All') }}
+                </button>
+              </div>
+            </div>
+          </template>
 
           <!-- Generate Bill Button -->
           <button
             type="button"
             class="komal-ai-generate-btn"
-            :disabled="isAiLoading || !aiInputText.trim()"
+            :disabled="isAiLoading || (aiScanMode === 'voice' && !aiInputText.trim()) || (aiScanMode === 'photo' && aiUploadedImages.length === 0)"
             @click="handleProcessAiOrder"
           >
             <span v-if="isAiLoading" class="ai-spinner">⏳</span>
             <span v-else>⚡</span>
-            {{ isAiLoading ? tAi('ai_analyzing') : tAi('ai_submit_btn') }}
+            {{ isAiLoading ? tAi('ai_analyzing') : (aiScanMode === 'photo' ? ((aiLanguage || currentLang) === 'mr' ? 'यादीतून ड्राफ्ट बिल तयार करा' : ((aiLanguage || currentLang) === 'hi' ? 'पर्ची से ड्राफ्ट बिल बनाएं' : 'Generate Bill from Slip')) : tAi('ai_submit_btn')) }}
           </button>
         </div>
 
@@ -8634,6 +8738,9 @@ let recordedAudioMime = 'audio/webm';
 let currentAiAudioPlayer = null;
 const cachedAiAudio = ref(null);
 let speechSessionId = 0;
+const aiScanMode = ref('voice'); // 'voice' | 'photo'
+const aiUploadedImages = ref([]); // Array of { id, data, mimeType, preview, sizeKb }
+const aiImageCompressing = ref(false);
 
 // Dukandar AI Voice & Store Control State (100% Isolated for Store Management)
 const showDukandarAiModal = ref(false);
@@ -10434,6 +10541,98 @@ function startAudioMediaRecorder() {
   });
 }
 
+/**
+ * Invisible Client-Side Canvas Compression:
+ * Downscales handwritten receipt images to max 1000px and exports JPEG at 72% quality.
+ * Shrinks raw 5-10MB camera photos to ~70-110KB in <200ms with zero customer effort.
+ */
+function compressImageSlip(file, maxDimension = 1000, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Export as JPEG at targeted quality
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const commaIdx = dataUrl.indexOf(',');
+        const b64 = commaIdx >= 0 ? dataUrl.substring(commaIdx + 1) : dataUrl;
+        const sizeBytes = Math.round((b64.length * 3) / 4);
+
+        resolve({
+          data: b64,
+          mimeType: 'image/jpeg',
+          preview: dataUrl,
+          sizeKb: Math.round(sizeBytes / 1024)
+        });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleSlipImageUpload(event) {
+  const files = Array.from(event.target.files || []);
+  if (!files || files.length === 0) return;
+
+  const currentCount = aiUploadedImages.value.length;
+  if (currentCount + files.length > 5) {
+    const l = aiLanguage.value || currentLang.value || 'mr';
+    showToast(
+      l === 'mr'
+        ? 'एका वेळी जास्तीत जास्त ५ फोटो स्कॅन करता येतील.'
+        : (l === 'hi' ? 'एक बार में अधिकतम 5 फोटो स्कैन कर सकते हैं।' : 'Maximum 5 photos allowed per bill scan.')
+    );
+    event.target.value = '';
+    return;
+  }
+
+  aiImageCompressing.value = true;
+  try {
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const compressed = await compressImageSlip(file);
+      aiUploadedImages.value.push({
+        id: Date.now() + Math.random().toString(36).substring(2, 7),
+        ...compressed
+      });
+    }
+  } catch (err) {
+    console.warn('Image slip compression error:', err);
+    showToast('फोटो प्रोसेस करताना त्रुटी. कृपया पुन्हा प्रयत्न करा.');
+  } finally {
+    aiImageCompressing.value = false;
+    event.target.value = '';
+  }
+}
+
+function removeSlipImage(index) {
+  aiUploadedImages.value.splice(index, 1);
+}
+
 function cleanSpokenTranscript(text) {
   if (!text) return '';
   let str = text;
@@ -10622,14 +10821,16 @@ function toggleSpeechRecognition() {
 
 async function handleProcessAiOrder() {
   const text = (aiInputText.value || '').trim();
-  if (!text && !recordedAudioBase64) {
+  const hasImages = aiUploadedImages.value && aiUploadedImages.value.length > 0;
+
+  if (!text && !recordedAudioBase64 && !hasImages) {
     const l = aiLanguage.value || currentLang.value || 'mr';
     showToast(
       l === 'mr'
-        ? 'कृपया काहीतरी बोला किंवा सामानाची नावे टाका.'
+        ? 'कृपया काहीतरी बोला, यादीचा फोटो जोडा, किंवा सामानाची नावे टाका.'
         : (l === 'hi'
-          ? 'कृपया कुछ बोलें या राशन का नाम दर्ज करें।'
-          : 'Please speak or enter your grocery list.')
+          ? 'कृपया कुछ बोलें, पर्ची की फोटो जोड़ें, या राशन का नाम दर्ज करें।'
+          : 'Please speak, upload a handwritten list photo, or type your grocery list.')
     );
     return;
   }
@@ -10663,6 +10864,12 @@ async function handleProcessAiOrder() {
     if (recordedAudioBase64) {
       payload.audio = recordedAudioBase64;
       payload.mime_type = recordedAudioMime || 'audio/webm';
+    }
+    if (hasImages) {
+      payload.images = aiUploadedImages.value.map(img => ({
+        data: img.data,
+        mimeType: img.mimeType || 'image/jpeg'
+      }));
     }
 
     const res = await fetch(`${API_BASE}/ai/parse-order`, {
