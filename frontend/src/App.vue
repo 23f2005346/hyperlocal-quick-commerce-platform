@@ -11967,6 +11967,16 @@ function shareOrderOnWhatsApp(order) {
   const creditUsedLine = order.credit_used > 0 ? `\n💳 *स्टोअर क्रेडिट सूट:* -₹${order.credit_used}` : '';
   const creditEarnedLine = order.credit_earned > 0 ? `\n🎉 *मिळवलेले स्टोअर क्रेडिट:* +₹${order.credit_earned}` : '';
 
+  const payStatusDesc = order.payment_status === 'Paid'
+    ? '🟢 चुकता (Paid)'
+    : (order.payment_status === 'Partially Paid'
+        ? `🟡 अर्धवट भरले (बाकी: ₹${order.balance_due || (order.final_amount - (order.amount_paid || 0))})`
+        : (order.payment_status === 'Pending Verification' ? '⏳ UPI पडताळणी बाकी' : '🔴 बाकी उधारी'));
+
+  const partialBreakdown = (order.amount_paid > 0 && (order.balance_due || (order.final_amount - order.amount_paid)) > 0)
+    ? `\n💵 *आधी जमा (Advance Paid):* -₹${order.amount_paid}\n🔴 *घरी देय बाकी (Balance to Collect):* *₹${order.balance_due || (order.final_amount - order.amount_paid)}*`
+    : '';
+
   const text = 
 `🌾 *कोमल मार्ट (Komal Mart) - ऑर्डर पावती / बिल*
 ━━━━━━━━━━━━━━━━━━━━
@@ -11974,14 +11984,14 @@ function shareOrderOnWhatsApp(order) {
 📅 *दिनांक:* ${order.created_at}
 👤 *ग्राहक:* ${order.customer_name} (📞 ${order.customer_phone})
 📍 *पता:* ${order.customer_address}
-💳 *भुगतान:* ${order.payment_method} (${order.payment_status === 'Paid' ? '🟢 चुकता' : '🔴 बाकी उधारी'})
+💳 *भुगतान:* ${order.payment_method} (${payStatusDesc})
 
 📦 *सामान सूची:*
 ${itemsText}
 ━━━━━━━━━━━━━━━━━━━━
 💵 *कुल एमआरपी:* ₹${order.total_mrp}
 🎉 *किराना बचत:* -₹${order.total_savings}${creditUsedLine}
-💰 *कुल देय राशि:* *₹${order.final_amount}*${creditEarnedLine}
+💰 *कुल देय राशि:* *₹${order.final_amount}*${partialBreakdown}${creditEarnedLine}
 
 🙏 धन्यवाद! फिर पधारें!`;
 
@@ -13335,12 +13345,19 @@ function sendAdminWhatsAppStatus(order, statusType) {
   // Base URL for 1-tap availability confirmation
   const checkLink = `${window.location.origin}/?order=${encodeURIComponent(orderNum)}&check=1`;
 
+  const bal = Number(order.balance_due || (order.amount_paid > 0 ? (order.final_amount - order.amount_paid) : 0)).toFixed(2);
+  const paid = Number(order.amount_paid || 0).toFixed(2);
+  const isPart = order.payment_status === 'Partially Paid' && Number(bal) > 0;
+  const balNoticeMr = isPart ? `\n\n💵 *पेमेंट सूचना:* आधी ₹${paid} जमा आहेत, उर्वरित *₹${bal}* कृपया डिलिव्हरी पार्टनरकडे रोख किंवा UPI ने द्यावे.` : '';
+  const balNoticeEn = isPart ? `\n\n💵 *Payment Notice:* ₹${paid} was paid in advance. Please pay the remaining balance *₹${bal}* to our delivery partner via Cash or UPI.` : '';
+  const balNoticeHi = isPart ? `\n\n💵 *भुगतान सूचना:* पहले ₹${paid} जमा हैं, बकाया *₹${bal}* कृपया डिलीवरी बॉय को नकद या UPI द्वारा दें।` : '';
+
   let msg = '';
   if (lang === 'mr') {
     if (statusType === 'confirmed') {
       msg = `नमस्ते ${custName} जी, कोमल मार्टकडून तुमचा ऑर्डर #${orderNum} (₹${amount}) कन्फर्म झाला आहे आणि सामान पॅक केले जात आहे. 📦\nलवकरच आपल्या पत्त्यावर पोहोचेल. धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
     } else if (statusType === 'out_for_delivery') {
-      msg = `नमस्ते ${custName} जी, तुमचा कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलिव्हरीसाठी निघाला आहे! 🛵💨\n\nआमचा डिलिव्हरी पार्टनर पुढील 10-15 मिनिटांत आपल्या घरी पोहोचत आहे.\n\n👉 *तुम्ही घरी उपलब्ध आहात का?*\nकृपया डिलिव्हरी कन्फर्म करण्यासाठी खालील लिंकवर १-टॅप करा:\n🔗 ${checkLink}\n\nमदत किंवा पत्त्यासाठी कॉल करा: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाळा`;
+      msg = `नमस्ते ${custName} जी, तुमचा कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलिव्हरीसाठी निघाला आहे! 🛵💨\n\nआमचा डिलिव्हरी पार्टनर पुढील 10-15 मिनिटांत आपल्या घरी पोहोचत आहे.${balNoticeMr}\n\n👉 *तुम्ही घरी उपलब्ध आहात का?*\nकृपया डिलिव्हरी कन्फर्म करण्यासाठी खालील लिंकवर १-टॅप करा:\n🔗 ${checkLink}\n\nमदत किंवा पत्त्यासाठी कॉल करा: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाळा`;
     } else if (statusType === 'delivered') {
       msg = `नमस्ते ${custName} जी, तुमचा ऑर्डर #${orderNum} यशस्वीरित्या पोहोचवला गेला आहे. ✅\nकोमल मार्टमधून खरेदी केल्याबद्दल मनःपूर्वक धन्यवाद! 🌾✨`;
     } else if (statusType === 'verified') {
@@ -13354,7 +13371,7 @@ function sendAdminWhatsAppStatus(order, statusType) {
     if (statusType === 'confirmed') {
       msg = `Hello ${custName}, your Komal Mart order #${orderNum} (₹${amount}) is confirmed and being packed! 📦\nIt will reach your doorstep shortly. Thank you! 🙏\n- Komal Mart (91420-52967)`;
     } else if (statusType === 'out_for_delivery') {
-      msg = `Hello ${custName}, your Komal Mart order #${orderNum} (₹${amount}) is OUT FOR DELIVERY! 🛵💨\n\nOur delivery partner will reach your address in the next 10-15 minutes.\n\n👉 *Are you available right now?*\nPlease tap below to confirm delivery availability:\n🔗 ${checkLink}\n\nFor directions or support, call: 91420-52967.\nThank you! 🙏\n- Komal Mart, Wadala`;
+      msg = `Hello ${custName}, your Komal Mart order #${orderNum} (₹${amount}) is OUT FOR DELIVERY! 🛵💨\n\nOur delivery partner will reach your address in the next 10-15 minutes.${balNoticeEn}\n\n👉 *Are you available right now?*\nPlease tap below to confirm delivery availability:\n🔗 ${checkLink}\n\nFor directions or support, call: 91420-52967.\nThank you! 🙏\n- Komal Mart, Wadala`;
     } else if (statusType === 'delivered') {
       msg = `Hello ${custName}, your order #${orderNum} has been successfully delivered! ✅\nThank you for shopping with Komal Mart! 🌾✨`;
     } else if (statusType === 'verified') {
@@ -13369,7 +13386,7 @@ function sendAdminWhatsAppStatus(order, statusType) {
     if (statusType === 'confirmed') {
       msg = `नमस्ते ${custName} जी, कोमल मार्ट से आपका ऑर्डर #${orderNum} (₹${amount}) कन्फर्म हो गया है और सामान पैक किया जा रहा है। 📦\nजल्द ही आपके पते पर पहुंचेगा। धन्यवाद! 🙏\n- कोमल मार्ट (91420-52967)`;
     } else if (statusType === 'out_for_delivery') {
-      msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलीवरी के लिए निकल चुका है! 🛵💨\n\nहमारा डिलीवरी पार्टनर अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।\n\n👉 *क्या आप घर पर उपलब्ध हैं?*\nकृपया डिलीवरी कन्फर्म करने के लिए नीचे दिए गए लिंक पर टैप करें:\n🔗 ${checkLink}\n\nसहायता या निर्देश के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाला`;
+      msg = `नमस्ते ${custName} जी, आपका कोमल मार्ट ऑर्डर #${orderNum} (₹${amount}) डिलीवरी के लिए निकल चुका है! 🛵💨\n\nहमारा डिलीवरी पार्टनर अगले 10-15 मिनट में आपके पते पर पहुँच रहा है।${balNoticeHi}\n\n👉 *क्या आप घर पर उपलब्ध हैं?*\nकृपया डिलीवरी कन्फर्म करने के लिए नीचे दिए गए लिंक पर टैप करें:\n🔗 ${checkLink}\n\nसहायता या निर्देश के लिए कॉल करें: 91420-52967\nधन्यवाद! 🙏\n- कोमल मार्ट, वडाला`;
     } else if (statusType === 'delivered') {
       msg = `नमस्ते ${custName} जी, आपका ऑर्डर #${orderNum} सफलतापूर्वक डिलीवर हो चुका है। ✅\nकोमल मार्ट से खरीदारी करने के लिए आपका बहुत-बहुत धन्यवाद! 🌾✨`;
     } else if (statusType === 'verified') {
