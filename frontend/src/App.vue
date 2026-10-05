@@ -2077,8 +2077,11 @@
                     </span>
                   </div>
                 </div>
-                <div class="admin-order-ticket-amount">
-                  ₹{{ ord.final_amount }}
+                <div class="admin-order-ticket-amount" style="text-align: right;">
+                  <div>₹{{ ord.final_amount }}</div>
+                  <div v-if="ord.payment_status === 'Partially Paid'" style="font-size: 0.76rem; color: #b91c1c; font-weight: 800;">
+                    (₹{{ ord.balance_due || (ord.final_amount - (ord.amount_paid || 0)) }} बाकी)
+                  </div>
                 </div>
               </div>
 
@@ -2101,9 +2104,10 @@
                     v-model="ord.payment_status"
                     @change="updateAdminOrderStatus(ord)"
                     class="admin-order-select"
-                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : (ord.payment_status === 'Payment Failed' ? 'color: #c2410c; background: #ffedd5;' : 'color: #991b1b; background: #fee2e2;'))"
+                    :style="ord.payment_status === 'Paid' ? 'color: #14532d; background: #dcfce7;' : (ord.payment_status === 'Partially Paid' ? 'color: #854d0e; background: #fef9c3;' : (ord.payment_status === 'Pending Verification' ? 'color: #92400e; background: #fef3c7;' : (ord.payment_status === 'Payment Failed' ? 'color: #c2410c; background: #ffedd5;' : 'color: #991b1b; background: #fee2e2;')))"
                   >
                     <option value="Paid">{{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}</option>
+                    <option value="Partially Paid">{{ currentLang === 'en' ? '🟡 Partially Paid' : (currentLang === 'mr' ? '🟡 अर्धवट भरले (Partially Paid)' : '🟡 आंशिक भुगतान (Partially Paid)') }}</option>
                     <option value="Pending Verification">{{ currentLang === 'en' ? '⏳ Pending Verification' : (currentLang === 'mr' ? '⏳ UPI पडताळणी बाकी' : '⏳ UPI सत्यापन बाकी') }}</option>
                     <option value="Payment Failed">{{ currentLang === 'en' ? '⚠️ Payment Failed / Stuck' : (currentLang === 'mr' ? '⚠️ पेमेंट अयशस्वी / अडकले' : '⚠️ पेमेंट विफल / अटका') }}</option>
                     <option value="Unpaid">{{ currentLang === 'en' ? '🔴 Unpaid Khata' : (currentLang === 'mr' ? '🔴 बाकी उधारी (Unpaid)' : '🔴 बाकी उधारी (Unpaid)') }}</option>
@@ -2115,11 +2119,14 @@
                   v-if="ord.payment_status !== 'Paid'"
                   @click="markOrderAsPaid(ord)"
                   class="admin-mark-paid-btn"
-                  :style="ord.payment_status === 'Pending Verification' ? 'background: #059669; color: white;' : ''"
-                  :title="ord.payment_status === 'Pending Verification' ? 'Verify bank SMS/App and mark as Paid' : 'Mark order as paid upon cash receipt'"
+                  :style="ord.payment_status === 'Pending Verification' ? 'background: #059669; color: white;' : (ord.payment_status === 'Partially Paid' ? 'background: #d97706; color: white;' : '')"
+                  :title="ord.payment_status === 'Pending Verification' ? 'Verify bank SMS/App and mark as Paid' : (ord.payment_status === 'Partially Paid' ? 'Collect remaining balance and mark as Paid' : 'Mark order as paid upon cash receipt')"
                 >
                   <span v-if="ord.payment_status === 'Pending Verification'">
                     ✅ {{ currentLang === 'en' ? 'Verify & Mark Paid' : (currentLang === 'mr' ? 'UPI तपासून चुकता करा' : 'UPI चेक कर चुकता करें') }}
+                  </span>
+                  <span v-else-if="ord.payment_status === 'Partially Paid'">
+                    ✅ {{ currentLang === 'en' ? `Collect ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} & Mark Paid` : (currentLang === 'mr' ? `बाकी ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} जमा करून चुकता करा` : `बाकी ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} जमा कर चुकता करें`) }}
                   </span>
                   <span v-else>
                     ✅ {{ currentLang === 'en' ? 'Mark Paid' : (currentLang === 'mr' ? 'रोख मिळाली (Mark Paid)' : 'नकद मिला (Mark Paid)') }}
@@ -3690,9 +3697,12 @@
                   <span class="status-badge" :class="ord.status.toLowerCase().replace(/\s+/g, '')">
                     📦 {{ ord.status }}
                   </span>
-                  <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : (ord.payment_status === 'Pending Verification' ? 'pending' : (ord.payment_status === 'Payment Failed' ? 'warning' : 'unpaid'))">
+                  <span class="pay-badge" :class="ord.payment_status === 'Paid' ? 'paid' : (ord.payment_status === 'Partially Paid' ? 'warning' : (ord.payment_status === 'Pending Verification' ? 'pending' : (ord.payment_status === 'Payment Failed' ? 'warning' : 'unpaid')))">
                     <template v-if="ord.payment_status === 'Paid'">
                       {{ currentLang === 'en' ? '🟢 Paid' : (currentLang === 'mr' ? '🟢 चुकता (Paid)' : '🟢 चुकता (Paid)') }}
+                    </template>
+                    <template v-else-if="ord.payment_status === 'Partially Paid'">
+                      🟡 {{ currentLang === 'en' ? `Partially Paid (₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} Due)` : (currentLang === 'mr' ? `🟡 अर्धवट भरले (₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} बाकी)` : `🟡 आंशिक भुगतान (₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} शेष)`) }}
                     </template>
                     <template v-else-if="ord.payment_status === 'Pending Verification'">
                       ⏳ {{ t('status_pending_verification') }}
@@ -3715,11 +3725,11 @@
                     ⚡ {{ t('active_addon_btn') }}
                   </button>
                   <button
-                    v-if="ord.payment_status === 'Unpaid' || ord.payment_status === 'Payment Failed'"
+                    v-if="ord.payment_status === 'Unpaid' || ord.payment_status === 'Payment Failed' || ord.payment_status === 'Partially Paid'"
                     @click="openUpiPayForCustomerOrder(ord)"
                     style="background: #047857; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer;"
                   >
-                    💳 {{ currentLang === 'en' ? 'Pay via UPI' : (currentLang === 'mr' ? 'UPI ने भरा' : 'UPI से भुगतान करें') }}
+                    💳 {{ ord.payment_status === 'Partially Paid' ? (currentLang === 'en' ? `Pay Balance ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))}` : (currentLang === 'mr' ? `उर्वरित ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} UPI ने भरा` : `बाकी ₹${ord.balance_due || (ord.final_amount - (ord.amount_paid || 0))} UPI से भरें`)) : (currentLang === 'en' ? 'Pay via UPI' : (currentLang === 'mr' ? 'UPI ने भरा' : 'UPI से भुगतान करें')) }}
                   </button>
                   <button
                     v-else-if="ord.payment_status === 'Pending Verification'"
@@ -5086,7 +5096,7 @@
             <div><strong>पता:</strong> {{ lastOrderReceipt.customer_address }}</div>
             <div>
               <strong>भुगतान:</strong> {{ lastOrderReceipt.payment_method }}
-              ({{ lastOrderReceipt.payment_status === 'Paid' ? '🟢 चुकता (Paid)' : (lastOrderReceipt.payment_status === 'Pending Verification' ? '⏳ UPI सत्यापन बाकी (Store Verification Pending)' : '🔴 बाकी उधारी') }})
+              ({{ lastOrderReceipt.payment_status === 'Paid' ? '🟢 चुकता (Paid)' : (lastOrderReceipt.payment_status === 'Partially Paid' ? '🟡 अर्धवट भरले (Partially Paid)' : (lastOrderReceipt.payment_status === 'Pending Verification' ? '⏳ UPI सत्यापन बाकी (Store Verification Pending)' : '🔴 बाकी उधारी')) }})
             </div>
           </div>
 
@@ -5128,6 +5138,20 @@
             <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 900; margin-top: 6px; border-top: 2px solid #000; padding-top: 4px;">
               <span>{{ t('payable_amount') }}:</span>
               <span>₹{{ lastOrderReceipt.final_amount }}</span>
+            </div>
+            <!-- Advance Paid & Doorstep Balance Due Breakdown -->
+            <div v-if="lastOrderReceipt.amount_paid > 0 && lastOrderReceipt.balance_due > 0" style="margin-top: 8px; background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 10px;">
+              <div style="display: flex; justify-content: space-between; color: #047857; font-weight: 700; font-size: 0.95rem;">
+                <span>आधी जमा (Advance Paid):</span>
+                <span>- ₹{{ lastOrderReceipt.amount_paid }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #b91c1c; font-weight: 900; font-size: 1.15rem; margin-top: 4px; border-top: 1px dashed #d97706; padding-top: 4px;">
+                <span>बाकी देय (To Collect at Doorstep):</span>
+                <span>₹{{ lastOrderReceipt.balance_due }}</span>
+              </div>
+              <div style="margin-top: 6px; font-size: 0.8rem; color: #92400e; font-weight: 700;">
+                ⚠️ डिलिव्हरी पार्टनर सूचना: ग्राहकाकडून ₹{{ lastOrderReceipt.balance_due }} रोख किंवा UPI ने घ्यावे!
+              </div>
             </div>
             <div v-if="lastOrderReceipt.credit_earned > 0 && lastOrderReceipt.payment_status === 'Paid'" style="margin-top: 6px; background: #ecfdf5; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; color: #064e3b; font-weight: bold; text-align: center;">
               🎉 {{ t('store_credit_earned') }}: +₹{{ lastOrderReceipt.credit_earned }}!
@@ -6332,7 +6356,7 @@
 
           <!-- Mobile 1-Tap Pay Direct App Link -->
           <a
-            :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Raushan%20Raj&am=${pendingUpiOrder.final_amount}&cu=INR&tn=KomalMart_${pendingUpiOrder.order_number}`"
+            :href="`upi://pay?pa=thisisroushan01@okaxis&pn=Raushan%20Raj&am=${(pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount}&cu=INR&tn=KomalMart_${pendingUpiOrder.order_number}`"
             class="upi-intent-app-btn"
           >
             {{ t('upi_app_pay_btn') }}
@@ -6347,15 +6371,31 @@
               <div class="upi-id-row" style="margin: 4px 0; font-size: 0.9rem;">
                 <span>UPI ID:</span> <code style="font-weight: 800; color: #047857; background: #ecfdf5; padding: 3px 8px; border-radius: 6px;">thisisroushan01@okaxis</code>
               </div>
-              <div class="upi-amount-row" style="margin-top: 4px;">
+
+              <div v-if="pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.amount_paid > 0" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 0.85rem; text-align: left;">
+                <div style="display: flex; justify-content: space-between; color: #64748b;">
+                  <span>एकूण बिल (Total):</span>
+                  <span>₹{{ pendingUpiOrder.final_amount }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #047857; font-weight: 700; margin-top: 2px;">
+                  <span>आधी जमा (Advance Paid):</span>
+                  <span>- ₹{{ pendingUpiOrder.amount_paid }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #b91c1c; font-weight: 900; font-size: 1.1rem; border-top: 1px dashed #cbd5e1; margin-top: 4px; padding-top: 4px;">
+                  <span>बाकी देय (To Pay Now):</span>
+                  <span>₹{{ pendingUpiOrder.balance_due }}</span>
+                </div>
+              </div>
+              <div v-else class="upi-amount-row" style="margin-top: 4px;">
                 <span style="font-size: 0.9rem; color: #475569;">बकाया राशि:</span>
                 <strong style="color: #b91c1c; font-size: 1.35rem; margin-left: 6px;">₹{{ pendingUpiOrder.final_amount }}</strong>
               </div>
+
               <!-- Soundbox micro-paise matching instruction -->
               <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: 0.8rem; color: #854d0e; text-align: left; line-height: 1.4;">
                 🔊 <strong>{{ currentLang === 'en' ? 'Pay EXACT amount (do not round off):' : (currentLang === 'mr' ? 'अचूक पैशांसहित रक्कम भरा (राऊंड ऑफ करू नका):' : 'सटीक पैसे सहित भुगतान करें (राउंड ऑफ न करें):') }}</strong>
                 <span style="display: block; margin-top: 3px; font-size: 0.78rem;">
-                  {{ currentLang === 'en' ? `Pay precisely ₹${pendingUpiOrder.final_amount}. Shop Soundbox announces paise (.${getSoundboxPaise(pendingUpiOrder.final_amount)}) to verify your order instantly!` : (currentLang === 'mr' ? `कृपया अचूक ₹${pendingUpiOrder.final_amount} भरा. दुकानातील साऊंडबॉक्स .${getSoundboxPaise(pendingUpiOrder.final_amount)} पैसे घोषित करतो, ज्यामुळे तुमचे बिल त्वरित कन्फर्म होते!` : `कृपया सटीक ₹${pendingUpiOrder.final_amount} भरें। दुकान का साउंडबॉक्स .${getSoundboxPaise(pendingUpiOrder.final_amount)} पैसे बोलकर आपका ऑर्डर तुरंत कन्फर्म करता है!`) }}
+                  {{ currentLang === 'en' ? `Pay precisely ₹${(pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount}. Shop Soundbox announces paise (.${getSoundboxPaise((pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount)}) to verify your order instantly!` : (currentLang === 'mr' ? `कृपया अचूक ₹${(pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount} भरा. दुकानातील साऊंडबॉक्स .${getSoundboxPaise((pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount)} पैसे घोषित करतो, ज्यामुळे तुमचे बिल त्वरित कन्फर्म होते!` : `कृपया सटीक ₹${(pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount} भरें। दुकान का साउंडबॉक्स .${getSoundboxPaise((pendingUpiOrder.payment_status === 'Partially Paid' && pendingUpiOrder.balance_due > 0) ? pendingUpiOrder.balance_due : pendingUpiOrder.final_amount)} पैसे बोलकर आपका ऑर्डर तुरंत कन्फर्म करता है!`) }}
                 </span>
               </div>
               <div class="upi-apps-icons" style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Google Pay • PhonePe • Paytm • BHIM UPI</div>

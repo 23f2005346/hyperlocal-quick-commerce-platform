@@ -1537,6 +1537,11 @@ def create_app():
                 if 'tracking_token' not in order_cols:
                     cur.execute("ALTER TABLE orders ADD COLUMN tracking_token VARCHAR(64) DEFAULT NULL")
                     conn.commit()
+                if 'amount_paid' not in order_cols:
+                    cur.execute("ALTER TABLE orders ADD COLUMN amount_paid FLOAT DEFAULT 0.0")
+                    conn.commit()
+                cur.execute("UPDATE orders SET amount_paid = final_amount WHERE payment_status = 'Paid' AND (amount_paid IS NULL OR amount_paid = 0.0)")
+                conn.commit()
 
                 # Ensure all orders have a cryptographically secure tracking_token
                 cur.execute("SELECT id FROM orders WHERE tracking_token IS NULL OR tracking_token = ''")
@@ -3465,6 +3470,8 @@ def create_app():
         # Generate cryptographically unguessable tracking token for public tracking links
         tracking_token = uuid.uuid4().hex
 
+        amount_paid = round(final_amount, 2) if payment_status == 'Paid' else 0.0
+
         new_order = Order(
             order_number=order_number,
             tracking_token=tracking_token,
@@ -3476,6 +3483,7 @@ def create_app():
             pincode=pincode if pincode else ('400031' if delivery_type == 'store_pickup' else '400031'),
             total_mrp=round(total_mrp, 2),
             final_amount=round(final_amount, 2),
+            amount_paid=amount_paid,
             total_savings=savings,
             credit_used=round(credit_used, 2),
             credit_earned=round(credit_earned, 2),
@@ -3664,15 +3672,35 @@ def create_app():
             db.session.add(new_item)
             order.items.append(new_item)
 
-        # Update order totals
+        # Update order totals & reconcile payment state transitions
         order.total_mrp = round((order.total_mrp or 0.0) + item_mrp_total, 2)
-        order.final_amount = round((order.final_amount or 0.0) + subtotal, 2)
+        old_final = float(order.final_amount or 0.0)
+        new_final = round(old_final + subtotal, 2)
+
+        if order.payment_status == 'Paid':
+            order.amount_paid = old_final
+            order.final_amount = new_final
+            order.payment_status = 'Partially Paid'
+        elif order.payment_status == 'Partially Paid':
+            order.amount_paid = float(order.amount_paid or 0.0)
+            order.final_amount = new_final
+        else:
+            order.amount_paid = float(order.amount_paid or 0.0)
+            order.final_amount = new_final
+
         order.total_savings = round(max(0.0, order.total_mrp - order.final_amount), 2)
 
-        # Recalculate unique paise offset for Paytm soundbox if paying via UPI and unpaid
+        # Recalculate unique paise offset for Paytm soundbox if paying via UPI and unpaid/partially paid
         is_upi = 'upi' in (order.payment_method or '').lower() or 'qr' in (order.payment_method or '').lower()
-        if is_upi and order.payment_status != 'Paid':
-            order.final_amount = assign_unique_soundbox_paise(order.final_amount, order.order_number)
+        if is_upi and order.payment_status in ['Unpaid', 'Pending Verification', 'Partially Paid']:
+            balance_due = round(max(0.0, order.final_amount - (order.amount_paid or 0.0)), 2)
+            if balance_due > 0 and int(balance_due) == balance_due:
+                offset_balance = assign_unique_soundbox_paise(balance_due, order.order_number)
+                order.final_amount = round((order.amount_paid or 0.0) + offset_balance, 2)
+
+        # Recalculate credit_earned across all items in order
+        items_payload = [{'variant_id': it.variant_id, 'quantity': it.quantity} for it in order.items if it.variant_id]
+        order.credit_earned = calculate_order_credit(items_payload)
 
         # Deduct inventory stock
         if variant.stock_quantity is not None:
@@ -3812,16 +3840,26 @@ def create_app():
         if 'delivery_availability' in data:
             order.delivery_availability = data['delivery_availability']
             order.delivery_availability_time = get_ist_time()
+        if 'amount_paid' in data:
+            order.amount_paid = round(float(data['amount_paid'] or 0.0), 2)
+            if order.amount_paid >= (order.final_amount or 0.0):
+                order.payment_status = 'Paid'
+            elif order.amount_paid > 0:
+                order.payment_status = 'Partially Paid'
+
         if 'payment_status' in data:
             prev_pay_status = order.payment_status
             new_pay_status = data['payment_status']
             order.payment_status = new_pay_status
             if prev_pay_status != 'Paid' and new_pay_status == 'Paid':
+                order.amount_paid = float(order.final_amount or 0.0)
                 if order.user_id and order.credit_earned and order.credit_earned > 0:
                     cust_user = db.session.get(User, order.user_id)
                     if cust_user:
                         cust_user.wallet_balance = round((cust_user.wallet_balance or 0.0) + order.credit_earned, 2)
             elif prev_pay_status == 'Paid' and new_pay_status != 'Paid':
+                if new_pay_status != 'Partially Paid':
+                    order.amount_paid = 0.0
                 if order.user_id and order.credit_earned and order.credit_earned > 0:
                     cust_user = db.session.get(User, order.user_id)
                     if cust_user:
@@ -4480,6 +4518,8 @@ def create_app():
         if payment_method in ['UPI Instant', 'UPI / QR Code', 'UPI / QR']:
             final_amount = assign_unique_soundbox_paise(final_amount, order_number)
 
+        amount_paid = round(final_amount, 2) if payment_status == 'Paid' else 0.0
+
         new_order = Order(
             order_number=order_number,
             user_id=linked_user.id if linked_user else None,
@@ -4488,6 +4528,7 @@ def create_app():
             customer_address=customer_address,
             total_mrp=round(total_mrp, 2),
             final_amount=round(final_amount, 2),
+            amount_paid=amount_paid,
             total_savings=savings,
             credit_used=round(credit_used, 2),
             credit_earned=round(credit_earned, 2),
@@ -4816,22 +4857,34 @@ def create_app():
             val = (m or '').lower()
             return 'khata' in val or 'udhaar' in val or 'credit' in val
 
-        # Breakdowns by payment method & status
-        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status == 'Paid']
-        cash_paid_amount = sum(o.final_amount for o in cash_paid_orders)
+        # Breakdowns by payment method & status (accurately reconciles partial and full payments)
+        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and (o.payment_status == 'Paid' or (o.amount_paid or 0.0) > 0)]
+        cash_paid_amount = sum(
+            (o.final_amount if o.payment_status == 'Paid' else (o.amount_paid or 0.0))
+            for o in cash_paid_orders
+        )
 
         cash_unpaid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status != 'Paid']
-        cash_unpaid_amount = sum(o.final_amount for o in cash_unpaid_orders)
+        cash_unpaid_amount = sum(
+            max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0))
+            for o in cash_unpaid_orders
+        )
 
-        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status == 'Paid']
-        upi_paid_amount = sum(o.final_amount for o in upi_paid_orders)
+        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and (o.payment_status == 'Paid' or (o.amount_paid or 0.0) > 0)]
+        upi_paid_amount = sum(
+            (o.final_amount if o.payment_status == 'Paid' else (o.amount_paid or 0.0))
+            for o in upi_paid_orders
+        )
 
         upi_unpaid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status != 'Paid']
-        upi_unpaid_amount = sum(o.final_amount for o in upi_unpaid_orders)
+        upi_unpaid_amount = sum(
+            max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0))
+            for o in upi_unpaid_orders
+        )
 
         # New Udhaar orders issued today
         khata_new_orders = [o for o in orders if is_khata(o.payment_method) or (o.payment_status != 'Paid' and not is_cash(o.payment_method) and not is_upi(o.payment_method))]
-        khata_new_amount = sum(o.final_amount for o in khata_new_orders)
+        khata_new_amount = sum(max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0)) for o in khata_new_orders)
 
         # Repayments received today
         khata_cash_recovered = sum(p.amount for p in repayments if is_cash(p.payment_method))
@@ -4848,8 +4901,8 @@ def create_app():
         total_liquid_collected = round(total_cash_in_drawer + total_upi_received, 2)
 
         # Total market udhaar balance across entire store
-        all_unpaid_orders = Order.query.filter(Order.payment_status == 'Unpaid').all()
-        total_unpaid_orders_sum = sum(o.final_amount for o in all_unpaid_orders)
+        all_unpaid_orders = Order.query.filter(Order.payment_status != 'Paid').all()
+        total_unpaid_orders_sum = sum(max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0)) for o in all_unpaid_orders)
         all_repayments_sum = db.session.query(db.func.sum(KhataPayment.amount)).scalar() or 0.0
         total_market_udhaar = max(0.0, round(total_unpaid_orders_sum - all_repayments_sum, 2))
 
@@ -4914,14 +4967,20 @@ def create_app():
             val = (m or '').lower()
             return 'khata' in val or 'udhaar' in val or 'credit' in val
 
-        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and o.payment_status == 'Paid']
-        cash_paid_amount = sum(o.final_amount for o in cash_paid_orders)
+        cash_paid_orders = [o for o in orders if is_cash(o.payment_method) and (o.payment_status == 'Paid' or (o.amount_paid or 0.0) > 0)]
+        cash_paid_amount = sum(
+            (o.final_amount if o.payment_status == 'Paid' else (o.amount_paid or 0.0))
+            for o in cash_paid_orders
+        )
 
-        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and o.payment_status == 'Paid']
-        upi_paid_amount = sum(o.final_amount for o in upi_paid_orders)
+        upi_paid_orders = [o for o in orders if is_upi(o.payment_method) and (o.payment_status == 'Paid' or (o.amount_paid or 0.0) > 0)]
+        upi_paid_amount = sum(
+            (o.final_amount if o.payment_status == 'Paid' else (o.amount_paid or 0.0))
+            for o in upi_paid_orders
+        )
 
         khata_new_orders = [o for o in orders if is_khata(o.payment_method) or (o.payment_status != 'Paid' and not is_cash(o.payment_method) and not is_upi(o.payment_method))]
-        khata_new_amount = sum(o.final_amount for o in khata_new_orders)
+        khata_new_amount = sum(max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0)) for o in khata_new_orders)
 
         khata_cash_recovered = sum(p.amount for p in repayments if is_cash(p.payment_method))
         khata_upi_recovered = sum(p.amount for p in repayments if not is_cash(p.payment_method))
@@ -4932,8 +4991,8 @@ def create_app():
         total_liquid_collected = round(total_cash_in_drawer + total_upi_received, 2)
 
         # Total market udhaar across store
-        all_unpaid_orders = Order.query.filter(Order.payment_status == 'Unpaid').all()
-        total_unpaid_orders_sum = sum(o.final_amount for o in all_unpaid_orders)
+        all_unpaid_orders = Order.query.filter(Order.payment_status != 'Paid').all()
+        total_unpaid_orders_sum = sum(max(0.0, (o.final_amount or 0.0) - (o.amount_paid or 0.0)) for o in all_unpaid_orders)
         all_repayments_sum = db.session.query(db.func.sum(KhataPayment.amount)).scalar() or 0.0
         total_market_udhaar = max(0.0, round(total_unpaid_orders_sum - all_repayments_sum, 2))
 

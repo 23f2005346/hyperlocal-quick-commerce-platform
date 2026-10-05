@@ -451,6 +451,42 @@ with app.app_context():
         test_ord.status = orig_st
         db.session.commit()
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST & ADD-TO-DELIVERY TESTS PASSED 100%!")
+# 20. Paid Order Add-on Partial Payment & Balance Reconciliation Test
+with app.app_context():
+    test_ord = Order.query.first()
+    test_var = ProductVariant.query.filter(ProductVariant.stock_quantity > 5).first()
+    if test_ord and test_var:
+        test_ord.status = 'Placed'
+        test_ord.payment_status = 'Paid'
+        test_ord.amount_paid = float(test_ord.final_amount or 0.0)
+        orig_amount_paid = test_ord.amount_paid
+        db.session.commit()
+
+        addon_res = client.post(f'/api/orders/{test_ord.order_number}/add-item', json={
+            'variant_id': test_var.id,
+            'quantity': 1,
+            'token': test_ord.tracking_token
+        })
+        assert addon_res.status_code == 200
+        ord_payload = addon_res.get_json()['order']
+        assert ord_payload['payment_status'] == 'Partially Paid'
+        assert ord_payload['amount_paid'] == orig_amount_paid
+        assert ord_payload['balance_due'] > 0
+        assert round(ord_payload['amount_paid'] + ord_payload['balance_due'], 2) == round(ord_payload['final_amount'], 2)
+        print("Paid Order Add-on Partial Reconciliation: 200 (payment_status: Partially Paid, balance_due:", ord_payload['balance_due'], ")")
+
+        admin_settle = client.patch(
+            f'/api/admin/orders/{test_ord.id}/status',
+            headers={'Authorization': f'Bearer {admin_token}'},
+            json={'payment_status': 'Paid'}
+        )
+        assert admin_settle.status_code == 200
+        settled_ord = admin_settle.get_json()['order']
+        assert settled_ord['payment_status'] == 'Paid'
+        assert settled_ord['balance_due'] == 0.0
+        assert settled_ord['amount_paid'] == settled_ord['final_amount']
+        print("Admin Full Balance Settlement: 200 (payment_status: Paid, balance_due: 0.0)")
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & PARTIAL-PAY TESTS PASSED 100%!")
 
 

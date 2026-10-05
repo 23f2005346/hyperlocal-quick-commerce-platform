@@ -156,9 +156,10 @@ class Order(db.Model):
     pincode = db.Column(db.String(10), default='400031')
     total_mrp = db.Column(db.Float, default=0.0)
     final_amount = db.Column(db.Float, nullable=False)
+    amount_paid = db.Column(db.Float, default=0.0)
     total_savings = db.Column(db.Float, default=0.0)
     payment_method = db.Column(db.String(50), default='Cash on Delivery')
-    payment_status = db.Column(db.String(30), default='Unpaid') # 'Paid' or 'Unpaid / Khata'
+    payment_status = db.Column(db.String(30), default='Unpaid') # 'Paid', 'Partially Paid', 'Pending Verification', or 'Unpaid / Khata'
     status = db.Column(db.String(30), default='Placed') # Placed, Packed, Out for Delivery, Delivered
     delivery_availability = db.Column(db.String(30), default='pending') # 'pending', 'available', 'reschedule'
     delivery_availability_time = db.Column(db.DateTime, nullable=True)
@@ -170,6 +171,9 @@ class Order(db.Model):
     items = db.relationship('OrderItem', backref='order', lazy='selectin', cascade="all, delete-orphan")
 
     def to_dict(self):
+        paid_val = round(float(self.amount_paid or 0.0), 2)
+        final_val = round(float(self.final_amount or 0.0), 2)
+        balance = round(max(0.0, final_val - paid_val), 2)
         return {
             'id': self.id,
             'order_number': self.order_number,
@@ -182,6 +186,8 @@ class Order(db.Model):
             'pincode': self.pincode or '400031',
             'total_mrp': self.total_mrp,
             'final_amount': self.final_amount,
+            'amount_paid': paid_val,
+            'balance_due': balance,
             'total_savings': self.total_savings,
             'credit_used': round(self.credit_used or 0.0, 2),
             'credit_earned': round(self.credit_earned or 0.0, 2),
