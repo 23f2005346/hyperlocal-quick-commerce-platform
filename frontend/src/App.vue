@@ -515,6 +515,49 @@
         </div>
       </section>
 
+      <!-- 🌾 1-TAP REPEAT LAST MONTH'S RATION BANNER -->
+      <div
+        v-if="currentUser && lastDeliveredCustomerOrder"
+        class="repeat-ration-banner"
+        style="margin: 0 0 16px 0; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); border: 1.5px solid #10b981; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);"
+      >
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
+          <div style="font-size: 1.8rem; background: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06); flex-shrink: 0;">
+            🌾
+          </div>
+          <div>
+            <div style="font-size: 0.96rem; font-weight: 800; color: #064e3b; display: flex; align-items: center; gap: 6px;">
+              <span>{{ currentLang === 'en' ? "Repeat Last Month's Ration" : (currentLang === 'mr' ? 'मागील महिन्याचे रेशन पुन्हा मागवा' : 'पिछले महीने का राशन दोबारा मंगाएं') }}</span>
+              <span style="font-size: 0.7rem; background: #059669; color: white; padding: 2px 6px; border-radius: 10px; font-weight: 700;">1-Tap</span>
+            </div>
+            <div style="font-size: 0.8rem; color: #047857; margin-top: 2px;">
+              {{ currentLang === 'en'
+                  ? `Order #${lastDeliveredCustomerOrder.order_number} (${lastDeliveredCustomerOrder.items?.length || 0} staples, ₹${lastDeliveredCustomerOrder.final_amount}) • Tap to fill cart instantly!`
+                  : (currentLang === 'mr'
+                      ? `ऑर्डर #${lastDeliveredCustomerOrder.order_number} (${lastDeliveredCustomerOrder.items?.length || 0} वस्तू, ₹${lastDeliveredCustomerOrder.final_amount}) • एका क्लिकमध्ये कार्टमध्ये भरा!`
+                      : `ऑर्डर #${lastDeliveredCustomerOrder.order_number} (${lastDeliveredCustomerOrder.items?.length || 0} सामान, ₹${lastDeliveredCustomerOrder.final_amount}) • एक क्लिक में कार्ट में भरें!`)
+              }}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button
+            @click="reorderEntireBill(lastDeliveredCustomerOrder)"
+            style="background: #047857; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(4, 120, 87, 0.2);"
+          >
+            🛒 {{ currentLang === 'en' ? 'Add All to Cart' : (currentLang === 'mr' ? 'सर्व वस्तू कार्टमध्ये जोडा' : 'सभी सामान कार्ट में जोड़ें') }}
+          </button>
+          <button
+            @click="viewOrderReceipt(lastDeliveredCustomerOrder)"
+            style="background: white; border: 1px solid #a7f3d0; color: #047857; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
+            title="View Previous Bill"
+          >
+            🧾 {{ currentLang === 'en' ? 'View Bill' : (currentLang === 'mr' ? 'पर्चा पहा' : 'पर्चा देखें') }}
+          </button>
+        </div>
+      </div>
+
       <!-- Secondary Filter Row -->
       <div class="filter-row">
         <div class="sub-filter-group">
@@ -8511,6 +8554,12 @@ const customerOrders = ref([]);
 const customerOrdersLoading = ref(false);
 const profileForm = ref({ name: '', email: '', phone: '', address: '' });
 
+const lastDeliveredCustomerOrder = computed(() => {
+  if (!currentUser.value || !customerOrders.value || customerOrders.value.length === 0) return null;
+  if (isAdminLoggedIn.value && !adminPreviewAsCustomer.value) return null;
+  return customerOrders.value.find(o => o.status === 'Delivered') || customerOrders.value[0];
+});
+
 // Customer Support & Feedback State
 const supportTicketType = ref('complaint'); // 'complaint' | 'feedback'
 const supportCategory = ref('');
@@ -9625,6 +9674,8 @@ async function checkAuth() {
           loadAdminKhata();
           loadAdminSupportTickets();
           fetchAiMetrics();
+        } else if (data.user.role !== 'admin') {
+          loadCustomerOrders();
         }
       }
     } else {
@@ -9731,6 +9782,8 @@ async function handleLogin() {
         loadAdminOrders();
         loadAdminCustomers();
         loadAdminKhata();
+      } else {
+        loadCustomerOrders();
       }
     } else {
       authError.value = formatAuthError(data, currentLang.value === 'mr' ? 'लॉगिन अयशस्वी. कृपया पुन्हा प्रयत्न करा.' : (currentLang.value === 'hi' ? 'लॉगिन असफल। कृपया पुन: प्रयास करें।' : 'Login failed. Please try again.'));
@@ -14359,6 +14412,8 @@ onMounted(() => {
     loadAdminCustomers();
     loadAdminKhata();
     loadAdminSupportTickets();
+  } else if (currentUser.value && authToken.value && currentUser.value.role !== 'admin') {
+    loadCustomerOrders();
   }
 
   checkAuth();

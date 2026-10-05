@@ -3791,6 +3791,7 @@ def create_app():
                 pincode=ord_dict.get('pincode', '400031'),
                 total_mrp=float(ord_dict.get('total_mrp') or 0.0),
                 final_amount=float(ord_dict.get('final_amount') or 0.0),
+                amount_paid=float(ord_dict.get('amount_paid') or (ord_dict.get('final_amount') if ord_dict.get('payment_status') == 'Paid' else 0.0)),
                 total_savings=float(ord_dict.get('total_savings') or 0.0),
                 credit_used=float(ord_dict.get('credit_used') or 0.0),
                 credit_earned=float(ord_dict.get('credit_earned') or 0.0),
