@@ -3661,6 +3661,29 @@
                 </div>
               </div>
 
+              <!-- Active Delivery Add-on Banner (Plugs "Bhaiya, ek tel bhejwa dena" Margin Leak) -->
+              <div
+                v-if="canAddToActiveOrder(ord)"
+                style="margin-top: 12px; background: #f0fdf4; border: 1.5px dashed #16a34a; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"
+              >
+                <div style="flex: 1; min-width: 220px;">
+                  <div style="font-weight: 900; color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                    ⚡ <span>{{ t('active_addon_title') }}</span>
+                  </div>
+                  <div style="font-size: 0.78rem; color: #15803d; margin-top: 3px;">
+                    {{ t('active_addon_sub') }}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  @click="openAddActiveItemModal(ord)"
+                  style="background: #16a34a; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25); white-space: nowrap;"
+                >
+                  <span>➕</span>
+                  <span>{{ t('active_addon_btn') }}</span>
+                </button>
+              </div>
+
               <!-- Statuses Row -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.85rem;">
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -3684,6 +3707,13 @@
                 </div>
 
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button
+                    v-if="canAddToActiveOrder(ord)"
+                    @click="openAddActiveItemModal(ord)"
+                    style="background: #ecfdf5; border: 1px solid #10b981; color: #047857; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                  >
+                    ⚡ {{ t('active_addon_btn') }}
+                  </button>
                   <button
                     v-if="ord.payment_status === 'Unpaid' || ord.payment_status === 'Payment Failed'"
                     @click="openUpiPayForCustomerOrder(ord)"
@@ -4942,6 +4972,27 @@
           </div>
         </div>
 
+        <!-- Active Delivery Add-on Banner in Delivery Check Modal -->
+        <div
+          v-if="canAddToActiveOrder(deliveryCheckOrder)"
+          style="background: #f0fdf4; border: 1.5px dashed #16a34a; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: left;"
+        >
+          <div style="font-weight: 900; color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+            ⚡ <span>{{ t('active_addon_title') }}</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #15803d; margin: 4px 0 10px;">
+            {{ t('active_addon_sub') }}
+          </div>
+          <button
+            type="button"
+            @click="openAddActiveItemModal(deliveryCheckOrder)"
+            style="width: 100%; background: #16a34a; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);"
+          >
+            <span>➕</span>
+            <span>{{ t('active_addon_btn') }}</span>
+          </button>
+        </div>
+
         <!-- 1-Tap Action Buttons -->
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <button
@@ -4980,6 +5031,30 @@
         <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <span style="font-size: 0.88rem; font-weight: 800; color: #047857;">✅ {{ t('parcha_generated_title') }}</span>
           <button class="close-btn" @click="lastOrderReceipt = null">✕</button>
+        </div>
+
+        <!-- Active Delivery Add-on Banner in Parcha Modal -->
+        <div
+          class="no-print"
+          v-if="canAddToActiveOrder(lastOrderReceipt)"
+          style="background: #f0fdf4; border: 1.5px dashed #16a34a; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"
+        >
+          <div style="flex: 1; min-width: 200px;">
+            <div style="font-weight: 900; color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+              ⚡ <span>{{ t('active_addon_title') }}</span>
+            </div>
+            <div style="font-size: 0.78rem; color: #15803d; margin-top: 3px;">
+              {{ t('active_addon_sub') }}
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="openAddActiveItemModal(lastOrderReceipt)"
+            style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);"
+          >
+            <span>➕</span>
+            <span>{{ t('active_addon_btn') }}</span>
+          </button>
         </div>
 
         <div class="parcha-receipt" id="printable-parcha-slip">
@@ -5091,10 +5166,214 @@
             📥 {{ t('parcha_pdf_btn') || 'PDF बिल' }}
           </button>
           <button
+            v-if="canAddToActiveOrder(lastOrderReceipt)"
+            @click="openAddActiveItemModal(lastOrderReceipt)"
+            style="padding: 11px 16px; background: #ecfdf5; border: 1.5px solid #10b981; color: #047857; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+          >
+            ⚡ {{ t('active_addon_btn') }}
+          </button>
+          <button
             @click="lastOrderReceipt = null"
             style="padding: 11px 18px; background: #e7e2d9; color: #1c1917; border: none; border-radius: 10px; font-weight: 800; cursor: pointer;"
           >
             {{ t('parcha_close_btn') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ADD ITEM TO ACTIVE DELIVERY MODAL                        -->
+    <!-- (Plugs "Bhaiya, ek tel bhejwa dena" Kirana Margin Leak)  -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showAddActiveItemModal && activeOrderForAddon" @click.self="showAddActiveItemModal = false">
+      <div class="modal-card" style="max-width: 520px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 20px; border-radius: 16px;">
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.4rem;">⚡</span>
+              <h3 style="font-size: 1.15rem; font-weight: 900; color: #064e3b; margin: 0;">
+                {{ t('active_addon_title') }}
+              </h3>
+            </div>
+            <p style="font-size: 0.8rem; color: #166534; margin: 4px 0 0; font-weight: 700;">
+              📦 {{ currentLang === 'en' ? 'Order' : 'ऑर्डर' }} #{{ activeOrderForAddon.order_number }} • 
+              <span style="background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 6px; font-weight: 800;">
+                {{ t('active_addon_free_badge') }}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            class="close-btn"
+            @click="showAddActiveItemModal = false"
+            style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 1rem; cursor: pointer; color: #475569;"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Success Toast Alert inside Modal -->
+        <div
+          v-if="addonSuccessItem"
+          style="background: #ecfdf5; border: 1.5px solid #6ee7b7; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;"
+        >
+          <div style="font-size: 0.84rem; color: #065f46; font-weight: 700;">
+            🎉 <strong>{{ addonSuccessItem.name }} ({{ addonSuccessItem.unit_size }})</strong> 
+            {{ currentLang === 'en' ? 'successfully added to active delivery!' : (currentLang === 'mr' ? 'चालू डिलिव्हरीमध्ये जोडले गेले!' : 'चालू डिलीवरी में जुड़ गया!') }}
+            <div style="font-size: 0.76rem; color: #047857; margin-top: 2px;">
+              {{ currentLang === 'en' ? 'Updated Total Bill:' : (currentLang === 'mr' ? 'नवीन एकूण बिल:' : 'अपडेटेड कुल बिल:') }} <strong>₹{{ activeOrderForAddon.final_amount }}</strong>
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="addonSuccessItem = null"
+            style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer;"
+          >
+            ✓ OK
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div style="position: relative; margin-bottom: 10px;">
+          <input
+            type="text"
+            v-model="addonSearchQuery"
+            :placeholder="t('active_addon_search')"
+            style="width: 100%; padding: 10px 36px 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; outline: none; box-sizing: border-box;"
+          />
+          <button
+            v-if="addonSearchQuery"
+            type="button"
+            @click="addonSearchQuery = ''"
+            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; font-size: 1rem; cursor: pointer;"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Quick Filter Pills for Common Pantry Forgetful Items -->
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; scrollbar-width: none;">
+          <button
+            v-for="chip in quickAddonChips"
+            :key="chip.tag"
+            type="button"
+            @click="setAddonQuickChip(chip.tag)"
+            :style="{
+              background: addonSearchQuery === chip.tag ? '#059669' : '#f8fafc',
+              color: addonSearchQuery === chip.tag ? '#ffffff' : '#334155',
+              border: addonSearchQuery === chip.tag ? '1px solid #059669' : '1px solid #cbd5e1',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontSize: '0.76rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }"
+          >
+            {{ chip.icon }} {{ chip.label[currentLang] || chip.label.en }}
+          </button>
+        </div>
+
+        <!-- Scrollable Product List -->
+        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; min-height: 220px; max-height: 48vh;">
+          <div v-if="addonFilteredProducts.length === 0" style="text-align: center; padding: 30px 10px; color: var(--text-muted);">
+            <div style="font-size: 2rem; margin-bottom: 6px;">🔍</div>
+            <p style="font-weight: 700; font-size: 0.9rem; margin: 0;">
+              {{ currentLang === 'en' ? 'No matching products found.' : (currentLang === 'mr' ? 'कोणतेही उत्पादन आढळले नाही.' : 'कोई उत्पाद नहीं मिला।') }}
+            </p>
+          </div>
+
+          <div
+            v-for="prod in addonFilteredProducts"
+            :key="prod.id"
+            style="border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white;"
+          >
+            <!-- Product Info & Thumb -->
+            <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+              <img
+                :src="prod.image_url || (prod.images && prod.images[0]) || '/products/chakki-atta.jpg'"
+                :alt="prod.name"
+                style="width: 48px; height: 48px; object-fit: contain; border-radius: 6px; border: 1px solid #f1f5f9; background: #fff; flex-shrink: 0;"
+                loading="lazy"
+              />
+              <div style="min-width: 0;">
+                <h4 style="margin: 0; font-size: 0.88rem; font-weight: 800; color: #1c1917; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  {{ getLocalizedProductName(prod, currentLang) }}
+                </h4>
+
+                <!-- Variant Selector -->
+                <div v-if="prod.variants && prod.variants.length > 1" style="margin-top: 4px;">
+                  <select
+                    :value="getAddonSelectedVariant(prod)?.id"
+                    @change="onAddonVariantChange(prod, $event.target.value)"
+                    style="font-size: 0.74rem; font-weight: 700; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; color: #334155; outline: none;"
+                  >
+                    <option v-for="v in prod.variants" :key="v.id" :value="v.id">
+                      {{ v.unit_size }} — ₹{{ v.selling_price }}
+                    </option>
+                  </select>
+                </div>
+                <div v-else-if="prod.variants && prod.variants[0]" style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                  {{ prod.variants[0].unit_size }} • <strong style="color: #065f46;">₹{{ prod.variants[0].selling_price }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Price & Add Stepper / Button -->
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+              <!-- Quantity Stepper -->
+              <div style="display: inline-flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #f8fafc;">
+                <button
+                  type="button"
+                  @click="changeAddonQuantity(prod, -1)"
+                  style="border: none; background: transparent; padding: 4px 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #475569;"
+                >
+                  −
+                </button>
+                <span style="font-size: 0.82rem; font-weight: 800; min-width: 20px; text-align: center; color: #1c1917;">
+                  {{ getAddonQuantity(prod) }}
+                </span>
+                <button
+                  type="button"
+                  @click="changeAddonQuantity(prod, 1)"
+                  style="border: none; background: transparent; padding: 4px 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #475569;"
+                >
+                  +
+                </button>
+              </div>
+
+              <!-- Submit Button -->
+              <button
+                type="button"
+                :disabled="addonSubmitting"
+                @click="submitAddItemToActiveOrder(prod)"
+                style="background: #059669; color: white; border: none; padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);"
+              >
+                <span>{{ addonSubmitting ? '⏳' : '➕' }}</span>
+                <span>₹{{ Math.round((getAddonSelectedVariant(prod)?.selling_price || 0) * getAddonQuantity(prod)) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer: Order Summary & Done Button -->
+        <div style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 0.78rem; color: #64748b;">
+              {{ currentLang === 'en' ? 'Current Order Bill:' : (currentLang === 'mr' ? 'सध्याचे एकूण बिल:' : 'वर्तमान कुल बिल:') }}
+            </div>
+            <div style="font-weight: 900; font-size: 1.15rem; color: #064e3b;">
+              ₹{{ activeOrderForAddon.final_amount }}
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="showAddActiveItemModal = false"
+            style="background: #1c1917; color: white; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; font-size: 0.86rem; cursor: pointer;"
+          >
+            ✓ {{ t('active_addon_done') }}
           </button>
         </div>
       </div>
@@ -8766,6 +9045,178 @@ const useStoreCredit = ref(false);
 const showDeliveryCheckModal = ref(false);
 const deliveryCheckOrder = ref(null);
 const deliveryCheckSubmitting = ref(false);
+
+// Add to Active Delivery State (Plugs "Bhaiya, ek tel bhejwa dena" Margin Leak)
+const showAddActiveItemModal = ref(false);
+const activeOrderForAddon = ref(null);
+const addonSearchQuery = ref('');
+const addonSelectedVariant = ref({});
+const addonQuantities = ref({});
+const addonSubmitting = ref(false);
+const addonSuccessItem = ref(null);
+
+const quickAddonChips = [
+  { tag: '', icon: '🌟', label: { mr: 'सर्व लोकप्रिय', hi: 'सभी आवश्यक', en: 'All Essentials' } },
+  { tag: 'तेल', icon: '🌻', label: { mr: 'तेल', hi: 'तेल', en: 'Cooking Oil' } },
+  { tag: 'मीठ', icon: '🧂', label: { mr: 'मीठ व साखर', hi: 'नमक व चीनी', en: 'Salt & Sugar' } },
+  { tag: 'साबण', icon: '🧼', label: { mr: 'साबण व सर्फ', hi: 'साबुन व सर्फ', en: 'Soaps' } },
+  { tag: 'चहा', icon: '☕', label: { mr: 'चहा व कॉफी', hi: 'चाय व कॉफी', en: 'Tea & Coffee' } },
+  { tag: 'बिस्किट', icon: '🍪', label: { mr: 'बिस्किटे', hi: 'बिस्कुट', en: 'Biscuits' } },
+  { tag: 'डाळ', icon: '🌾', label: { mr: 'डाळी', hi: 'दालें', en: 'Dals' } },
+];
+
+function canAddToActiveOrder(ord) {
+  if (!ord) return false;
+  const status = (ord.status || '').trim().toLowerCase();
+  return ['placed', 'processing', 'packing', 'accepted'].includes(status);
+}
+
+function openAddActiveItemModal(order) {
+  if (!order) return;
+  activeOrderForAddon.value = order;
+  addonSearchQuery.value = '';
+  addonSuccessItem.value = null;
+  showAddActiveItemModal.value = true;
+}
+
+function setAddonQuickChip(tag) {
+  addonSearchQuery.value = tag;
+}
+
+function getAddonSelectedVariant(prod) {
+  if (!prod) return null;
+  if (addonSelectedVariant.value[prod.id]) return addonSelectedVariant.value[prod.id];
+  if (prod.variants && prod.variants.length > 0) return prod.variants[0];
+  return null;
+}
+
+function onAddonVariantChange(prod, variantId) {
+  const v = (prod.variants || []).find(item => item.id == variantId);
+  if (v) {
+    addonSelectedVariant.value[prod.id] = v;
+  }
+}
+
+function getAddonQuantity(prod) {
+  return addonQuantities.value[prod.id] || 1;
+}
+
+function changeAddonQuantity(prod, delta) {
+  const cur = getAddonQuantity(prod);
+  const next = Math.max(1, Math.min(10, cur + delta));
+  addonQuantities.value[prod.id] = next;
+}
+
+const addonFilteredProducts = computed(() => {
+  if (!products.value || !products.value.length) return [];
+  const q = (addonSearchQuery.value || '').trim().toLowerCase();
+  if (!q) {
+    return products.value.filter(p => {
+      const cat = (p.category_name || '').toLowerCase();
+      const n = (p.name || '').toLowerCase();
+      return n.includes('oil') || n.includes('तेल') || n.includes('salt') || n.includes('मीठ') ||
+             n.includes('sugar') || n.includes('साखर') || n.includes('tea') || n.includes('चहा') ||
+             n.includes('soap') || n.includes('साबण') || n.includes('atta') || n.includes('पीठ') ||
+             cat.includes('oil') || cat.includes('spice') || cat.includes('cleaning');
+    }).slice(0, 15);
+  }
+  return products.value.filter(p => {
+    const n = (p.name || '').toLowerCase();
+    const cat = (p.category_name || '').toLowerCase();
+    const mr = (p.name_mr || '').toLowerCase();
+    const hi = (p.name_hi || '').toLowerCase();
+    return n.includes(q) || cat.includes(q) || mr.includes(q) || hi.includes(q);
+  }).slice(0, 20);
+});
+
+async function submitAddItemToActiveOrder(prod) {
+  if (!activeOrderForAddon.value || addonSubmitting.value) return;
+  const variant = getAddonSelectedVariant(prod);
+  if (!variant) return;
+  const qty = getAddonQuantity(prod);
+
+  addonSubmitting.value = true;
+  try {
+    const orderNum = activeOrderForAddon.value.order_number;
+    const token = activeOrderForAddon.value.tracking_token || '';
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken.value) {
+      headers['Authorization'] = `Bearer ${authToken.value}`;
+    }
+    if (token) {
+      headers['X-Tracking-Token'] = token;
+    }
+
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNum)}/add-item`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        variant_id: variant.id,
+        quantity: qty,
+        token: token
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.code === 'DISPATCH_WINDOW_CLOSED') {
+        alert(t('active_addon_dispatched'));
+        showAddActiveItemModal.value = false;
+        if (activeOrderForAddon.value) {
+          activeOrderForAddon.value.status = 'Out for Delivery';
+        }
+      } else {
+        alert(data.error || 'सामान जोडता आले नाही');
+      }
+      return;
+    }
+
+    // Success! Update active order and all synced references
+    activeOrderForAddon.value = data.order;
+    addonSuccessItem.value = data.added_item;
+
+    // Update in customerOrders array and persistence vault
+    if (customerOrders.value && customerOrders.value.length) {
+      const idx = customerOrders.value.findIndex(o => o.order_number === data.order.order_number);
+      if (idx !== -1) {
+        customerOrders.value[idx] = data.order;
+        try {
+          localStorage.setItem('komal_cached_customer_orders', JSON.stringify(customerOrders.value));
+          saveToCustomerOrderVault(customerOrders.value);
+        } catch (e) {}
+      }
+    }
+
+    // Update in lastOrderReceipt if open
+    if (lastOrderReceipt.value && lastOrderReceipt.value.order_number === data.order.order_number) {
+      lastOrderReceipt.value = data.order;
+    }
+
+    // Update in deliveryCheckOrder if open
+    if (deliveryCheckOrder.value && deliveryCheckOrder.value.order_number === data.order.order_number) {
+      deliveryCheckOrder.value = data.order;
+    }
+
+    // Update pendingUpiOrder if open
+    if (pendingUpiOrder.value && pendingUpiOrder.value.order_number === data.order.order_number) {
+      pendingUpiOrder.value = data.order;
+    }
+
+    showToast(
+      currentLang.value === 'en'
+        ? `✅ Added ${data.added_item.name} (${data.added_item.unit_size}) to Order #${data.order.order_number}! Total: ₹${data.order.final_amount}`
+        : (currentLang.value === 'mr'
+          ? `✅ ${data.added_item.name} (${data.added_item.unit_size}) चालू डिलिव्हरीमध्ये जोडले गेले! एकूण बिल: ₹${data.order.final_amount}`
+          : `✅ ${data.added_item.name} (${data.added_item.unit_size}) चालू डिलीवरी में जुड़ गया! कुल बिल: ₹${data.order.final_amount}`)
+    );
+  } catch (err) {
+    console.error('Error adding item to active order:', err);
+    alert('सर्व्हरशी संपर्क होऊ शकला नाही');
+  } finally {
+    addonSubmitting.value = false;
+  }
+}
 
 const customerForm = ref({
   name: '',

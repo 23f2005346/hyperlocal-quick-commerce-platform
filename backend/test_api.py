@@ -410,6 +410,47 @@ assert batch_res.status_code == 200
 assert batch_res.get_json()['success'] is True
 print("Admin Batch Photo Ingest API: 200 Success: True")
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT & BATCH INGEST TESTS PASSED 100%!")
+# 19. Add to Active Delivery Integration Test (Plugs Margin Leak)
+from models import Order, ProductVariant, db
+with app.app_context():
+    test_ord = Order.query.first()
+    test_var = ProductVariant.query.filter(ProductVariant.stock_quantity > 5).first()
+    if test_ord and test_var:
+        # 19a. Unauthorized check
+        addon_unauth = client.post(f'/api/orders/{test_ord.order_number}/add-item', json={'variant_id': test_var.id, 'quantity': 1})
+        assert addon_unauth.status_code == 403
+        print("Add-Item Unauthorized Rejection: 403 (Should be 403)")
+
+        # 19b. Authorized check when Placed
+        orig_st = test_ord.status
+        test_ord.status = 'Placed'
+        db.session.commit()
+
+        addon_ok = client.post(f'/api/orders/{test_ord.order_number}/add-item', json={
+            'variant_id': test_var.id,
+            'quantity': 1,
+            'token': test_ord.tracking_token
+        })
+        assert addon_ok.status_code == 200
+        print("Add-Item Authorized Appending: 200 Success:", addon_ok.get_json()['added_item']['name'])
+
+        # 19c. Dispatch window closed when Out for Delivery
+        test_ord.status = 'Out for Delivery'
+        db.session.commit()
+
+        addon_closed = client.post(f'/api/orders/{test_ord.order_number}/add-item', json={
+            'variant_id': test_var.id,
+            'quantity': 1,
+            'token': test_ord.tracking_token
+        })
+        assert addon_closed.status_code == 400
+        assert addon_closed.get_json()['code'] == 'DISPATCH_WINDOW_CLOSED'
+        print("Add-Item Dispatch Window Closed: 400 DISPATCH_WINDOW_CLOSED")
+
+        # Restore status
+        test_ord.status = orig_st
+        db.session.commit()
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST & ADD-TO-DELIVERY TESTS PASSED 100%!")
 
 

@@ -392,7 +392,16 @@ export const translations = {
     ai_cod_checkout: "⚡ रोख देऊन थेट ऑर्डर (COD)",
     ai_view_parcha: "📋 मासिक रेशन यादी पहा",
     ai_parcha_saved_toast: "📋 कोमल AI: सर्व सामान तुमच्या मासिक रेशन यादीत सेव्ह झाले!",
-    ai_cod_ready_toast: "⚡ कोमल AI: कॅश ऑन डिलिव्हरी ऑर्डर तयार आहे! १-टॅप मध्ये पुष्टी करा."
+    ai_cod_ready_toast: "⚡ कोमल AI: कॅश ऑन डिलिव्हरी ऑर्डर तयार आहे! १-टॅप मध्ये पुष्टी करा.",
+
+    // Active Delivery Add-on System (Plug Margin Leak)
+    active_addon_btn: "सामान जोडा",
+    active_addon_title: "चालू डिलिव्हरीमध्ये सामान जोडा",
+    active_addon_sub: "डिलिव्हरी बॉय दुकानातून निघण्यापूर्वी सामान जोडा — मोफत डिलिव्हरी!",
+    active_addon_free_badge: "✨ ₹० अतिरिक्त डिलिव्हरी शुल्क (Free Delivery)",
+    active_addon_search: "तेल, मीठ, साखर, चहा, साबण शोधा...",
+    active_addon_done: "पूर्ण झाले / बिल पहा",
+    active_addon_dispatched: "डिलिव्हरी पार्टनर दुकानातून आधीच निघाला आहे. नवीन सामान पुढील डिलिव्हरी स्लॉटमध्ये मागवा."
   },
 
   hi: {
@@ -783,7 +792,16 @@ export const translations = {
     ai_cod_checkout: "⚡ नकद देकर तुरंत ऑर्डर (COD)",
     ai_view_parcha: "📋 मासिक राशन सूची देखें",
     ai_parcha_saved_toast: "📋 कोमल AI: सभी सामान आपकी मासिक राशन सूची में सेव हो गए!",
-    ai_cod_ready_toast: "⚡ कोमल AI: कैश ऑन डिलीवरी ऑर्डर तैयार है! १-टैप में पुष्टि करें।"
+    ai_cod_ready_toast: "⚡ कोमल AI: कैश ऑन डिलीवरी ऑर्डर तैयार है! १-टैप में पुष्टि करें।",
+
+    // Active Delivery Add-on System (Plug Margin Leak)
+    active_addon_btn: "सामान जोड़ें",
+    active_addon_title: "चालू डिलीवरी में सामान जोड़ें",
+    active_addon_sub: "डिलीवरी बॉय दुकान से निकलने से पहले सामान जोड़ें — फ्री डिलीवरी!",
+    active_addon_free_badge: "✨ ₹० अतिरिक्त डिलीवरी शुल्क (Free Delivery)",
+    active_addon_search: "तेल, नमक, चीनी, चाय, साबुन खोजें...",
+    active_addon_done: "पूर्ण / बिल देखें",
+    active_addon_dispatched: "डिलीवरी पार्टनर दुकान से निकल चुका है। नया सामान अगली डिलीवरी में ऑर्डर करें।"
   },
 
   en: {
@@ -1174,7 +1192,16 @@ export const translations = {
     ai_cod_checkout: "⚡ Quick Cash on Delivery (COD)",
     ai_view_parcha: "📋 View Monthly Ration",
     ai_parcha_saved_toast: "📋 Komal AI: All items saved to your Monthly Ration List!",
-    ai_cod_ready_toast: "⚡ Komal AI: Cash on Delivery order ready! Confirm with 1 tap."
+    ai_cod_ready_toast: "⚡ Komal AI: Cash on Delivery order ready! Confirm with 1 tap.",
+
+    // Active Delivery Add-on System (Plug Margin Leak)
+    active_addon_btn: "Add Item",
+    active_addon_title: "Add Item to Active Delivery",
+    active_addon_sub: "Add forgotten items before parcel dispatch — ₹0 Extra Delivery Fee!",
+    active_addon_free_badge: "✨ ₹0 Extra Delivery Fee (Free Delivery)",
+    active_addon_search: "Search oil, salt, sugar, tea, soap...",
+    active_addon_done: "Done / View Bill",
+    active_addon_dispatched: "Delivery boy has already left the shop! New items can be ordered in the next delivery slot."
   }
 };
 

@@ -3575,6 +3575,125 @@ def create_app():
             'order': order.to_dict()
         })
 
+    @app.route('/api/orders/<string:order_number>/add-item', methods=['POST'])
+    def append_item_to_active_order(order_number):
+        """
+        'Add to Active Delivery' System:
+        Allows a customer to add an forgotten item (oil, salt, soap, etc.) to an active order
+        BEFORE the delivery boy leaves the shop (order status in 'Placed', 'Processing', 'Packing').
+        - Free delivery for the add-on because it travels in the same active parcel.
+        - Strict cut-off: Disallowed once status reaches 'Out for Delivery', 'Delivered', or 'Cancelled'.
+        - Recalculates final_amount, total_mrp, and updates soundbox micro-paise fingerprint for UPI orders.
+        """
+        order = Order.query.filter_by(order_number=order_number).first_or_404()
+        data = request.get_json() or {}
+
+        # Authorization: Must be order owner, admin, or have valid tracking_token
+        current_user = get_current_user()
+        token_param = (request.args.get('token') or data.get('token') or request.headers.get('X-Tracking-Token') or '').strip()
+
+        is_authorized = False
+        if current_user:
+            if current_user.role == 'admin':
+                is_authorized = True
+            elif (order.user_id and current_user.id == order.user_id) or (order.customer_phone and current_user.phone == order.customer_phone):
+                is_authorized = True
+
+        if not is_authorized and token_param and order.tracking_token:
+            if token_param == order.tracking_token:
+                is_authorized = True
+
+        if not is_authorized:
+            return jsonify({
+                'error': 'अनाधिकृत प्रवेश: ऑर्डरमध्ये सामान जोडण्यासाठी अधिकृत ट्रॅकिंग लिंक किंवा लॉगिन आवश्यक आहे.',
+                'code': 'UNAUTHORIZED'
+            }), 403
+
+        # Strict Delivery Status Window Check:
+        # Allowed statuses: 'Placed', 'Processing', 'Packing', 'Accepted'
+        status_clean = (order.status or '').strip().lower()
+        active_window_statuses = ['placed', 'processing', 'packing', 'accepted']
+
+        if status_clean not in active_window_statuses:
+            return jsonify({
+                'error': 'डिलिव्हरी बॉय दुकानातून आधीच निघाला आहे. नवीन सामान पुढील डिलिव्हरी स्लॉटमध्ये जोडता येईल.',
+                'code': 'DISPATCH_WINDOW_CLOSED',
+                'status': order.status
+            }), 400
+
+        variant_id = data.get('variant_id')
+        qty = float(data.get('quantity') or 1.0)
+        if not variant_id or qty <= 0:
+            return jsonify({'error': 'अवैध व्हॅरिएंट किंवा प्रमाण.', 'code': 'INVALID_ITEM'}), 400
+
+        variant = ProductVariant.query.options(db.joinedload(ProductVariant.product)).filter_by(id=variant_id).first()
+        if not variant or not variant.product:
+            return jsonify({'error': 'सामान आढळले नाही.', 'code': 'VARIANT_NOT_FOUND'}), 404
+
+        # Enforce Stock Check
+        if variant.stock_quantity is not None and variant.stock_quantity < qty:
+            return jsonify({'error': f'क्षमस्व, फक्त {variant.stock_quantity} शिल्लक आहे.', 'code': 'INSUFFICIENT_STOCK'}), 400
+
+        # Calculate unit price (clearance vs tiered vs standard selling price)
+        effective_price = variant.clearance_price if variant.is_clearance and variant.clearance_price else variant.selling_price
+        tier_res = get_tiered_unit_price(variant.product_id, qty)
+        label_suffix = ""
+        if tier_res and (tier_res[0] < effective_price):
+            effective_price = tier_res[0]
+            label_suffix = f" ({tier_res[1]})"
+
+        subtotal = round(effective_price * qty, 2)
+        item_mrp_total = round((variant.mrp or effective_price) * qty, 2)
+
+        # Check if item variant already exists in order -> increment quantity
+        existing_item = next((it for it in order.items if it.variant_id == variant.id), None)
+        if existing_item:
+            existing_item.quantity = round(existing_item.quantity + qty, 2)
+            existing_item.subtotal = round(existing_item.unit_price * existing_item.quantity, 2)
+        else:
+            new_item = OrderItem(
+                order_id=order.id,
+                product_id=variant.product_id,
+                variant_id=variant.id,
+                product_name=variant.product.name,
+                variant_label=f"{variant.unit_size}{label_suffix}",
+                unit_price=effective_price,
+                quantity=qty,
+                subtotal=subtotal
+            )
+            db.session.add(new_item)
+            order.items.append(new_item)
+
+        # Update order totals
+        order.total_mrp = round((order.total_mrp or 0.0) + item_mrp_total, 2)
+        order.final_amount = round((order.final_amount or 0.0) + subtotal, 2)
+        order.total_savings = round(max(0.0, order.total_mrp - order.final_amount), 2)
+
+        # Recalculate unique paise offset for Paytm soundbox if paying via UPI and unpaid
+        is_upi = 'upi' in (order.payment_method or '').lower() or 'qr' in (order.payment_method or '').lower()
+        if is_upi and order.payment_status != 'Paid':
+            order.final_amount = assign_unique_soundbox_paise(order.final_amount, order.order_number)
+
+        # Deduct inventory stock
+        if variant.stock_quantity is not None:
+            variant.stock_quantity = max(0, int(variant.stock_quantity - qty))
+
+        db.session.commit()
+        append_order_to_audit_vault(order)
+
+        return jsonify({
+            'success': True,
+            'message': f"'{variant.product.name} ({variant.unit_size})' सक्रिय डिलिव्हरीमध्ये यशस्वीरीत्या जोडले गेले!",
+            'added_item': {
+                'name': variant.product.name,
+                'unit_size': variant.unit_size,
+                'quantity': qty,
+                'price': effective_price,
+                'subtotal': subtotal
+            },
+            'order': order.to_dict()
+        }), 200
+
     # --- PROTECTED STORE OWNER / ADMIN ROUTES ---
 
     @app.route('/api/admin/orders', methods=['GET'])
