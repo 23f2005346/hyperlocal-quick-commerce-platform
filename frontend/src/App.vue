@@ -988,12 +988,15 @@
               <strong class="stat-val">{{ isAdminOrdersLoading ? '⏳' : paidAdminOrders.length }}</strong>
             </div>
           </div>
-          <div class="stat-card" style="border-left: 4px solid #0284c7; cursor: pointer;" @click="fetchSmsBalance" title="Click to refresh SMS balance">
-            <div class="stat-icon">💬</div>
+          <div class="stat-card" style="border-left: 4px solid #8b5cf6; cursor: pointer;" @click="fetchAiMetrics" title="Click to refresh 24h AI Scans & Quota telemetry">
+            <div class="stat-icon">⚡</div>
             <div class="stat-content">
-              <span class="stat-label">Fast2SMS Balance</span>
-              <strong class="stat-val" style="color: #0369a1; font-size: 1.05rem;">
-                ₹{{ smsBalanceInfo.wallet }} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">({{ smsBalanceInfo.sms_count }} SMS)</span>
+              <span class="stat-label">AI Scans (24h)</span>
+              <strong class="stat-val" style="color: #6d28d9; font-size: 1.05rem;">
+                {{ aiTelemetry.summary_24h.total_requests }} reqs
+                <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">
+                  (📷 {{ aiTelemetry.summary_24h.photo_scans }} | 🎙️ {{ aiTelemetry.summary_24h.voice_scans }} | {{ aiTelemetry.summary_24h.avg_latency_ms }}ms)
+                </span>
               </strong>
             </div>
           </div>
@@ -9066,6 +9069,36 @@ const pendingUpiUtr = ref('');
 // Admin Orders Ledger Filter
 const adminOrderFilter = ref('all');
 
+// AI Vision & Speech Telemetry State (2-3 Day Live Test Telemetry)
+const aiTelemetry = ref({
+  summary_24h: {
+    total_requests: 0,
+    photo_scans: 0,
+    voice_scans: 0,
+    quota_errors: 0,
+    avg_latency_ms: 0,
+    engine_breakdown: {}
+  },
+  recent_logs: []
+});
+
+async function fetchAiMetrics() {
+  if (!authToken.value) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/ai/metrics`, {
+      headers: { 'Authorization': `Bearer ${authToken.value}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.summary_24h) {
+        aiTelemetry.value = data;
+      }
+    }
+  } catch (e) {
+    console.warn('fetchAiMetrics error:', e);
+  }
+}
+
 const isAdminLoggedIn = computed(() => {
   return currentUser.value && currentUser.value.role === 'admin';
 });
@@ -9100,6 +9133,7 @@ async function checkAuth() {
           loadAdminCustomers();
           loadAdminKhata();
           loadAdminSupportTickets();
+          fetchAiMetrics();
         }
       }
     } else {

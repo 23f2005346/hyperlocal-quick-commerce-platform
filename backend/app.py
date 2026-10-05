@@ -78,6 +78,31 @@ def check_ai_scan_rate_limit(client_ip: str, max_scans: int = 10, window_sec: in
     AI_SCAN_RATE_LIMIT_STORE[client_ip] = history
     return True, 0
 
+# Lightweight In-Memory AI Metrics Buffer (Last 200 operations for 2-3 day testing telemetry)
+AI_USAGE_METRICS = [] # [ { timestamp, ist_time, mode: 'photo'|'voice'|'text', image_count, engine, latency_ms, items_count, matched_count, quota_error: bool, error_msg } ]
+
+def record_ai_metric(mode: str, engine: str, latency_ms: int, items_count: int = 0, matched_count: int = 0, image_count: int = 0, quota_error: bool = False, error_msg: str = None):
+    try:
+        now_ts = time.time()
+        ist_str = datetime.fromtimestamp(now_ts).strftime('%d %b %Y, %I:%M:%S %p')
+        metric = {
+            'timestamp': now_ts,
+            'ist_time': ist_str,
+            'mode': mode,
+            'engine': engine,
+            'latency_ms': latency_ms,
+            'items_count': items_count,
+            'matched_count': matched_count,
+            'image_count': image_count,
+            'quota_error': quota_error,
+            'error_msg': error_msg
+        }
+        AI_USAGE_METRICS.append(metric)
+        if len(AI_USAGE_METRICS) > 200:
+            AI_USAGE_METRICS.pop(0)
+    except Exception as e:
+        print(f"[AI METRIC LOGGING ERROR] {e}")
+
 def check_login_rate_limit(key):
     """
     Blocks more than 5 failed login attempts within 15 minutes per IP/identifier.
@@ -2491,6 +2516,47 @@ def create_app():
             'ticket': ticket.to_dict()
         })
 
+    @app.route('/api/admin/ai/metrics', methods=['GET'])
+    @admin_required
+    def get_admin_ai_metrics():
+        """
+        Telemetry & Analytics for AI Order Assistant (Handwritten Slip & Voice Parsing):
+        Provides 2-3 day live testing stats:
+        - Total calls today vs past 24h
+        - Photo scan count vs voice count
+        - Model breakdown (e.g. gemini-3.8-flash, gemini-flash-latest)
+        - Average latency in milliseconds
+        - Quota/rate-limit error count
+        - Recent operation log (last 50 requests)
+        """
+        now = time.time()
+        past_24h = [m for m in AI_USAGE_METRICS if now - m['timestamp'] <= 86400]
+        photo_scans = [m for m in past_24h if m.get('mode') == 'photo']
+        voice_scans = [m for m in past_24h if m.get('mode') in ('audio', 'voice')]
+        quota_errors = [m for m in past_24h if m.get('quota_error')]
+
+        total_scans_24h = len(past_24h)
+        avg_latency_ms = round(sum(m['latency_ms'] for m in past_24h) / total_scans_24h) if total_scans_24h > 0 else 0
+
+        # Engine usage counter
+        engine_counts = {}
+        for m in past_24h:
+            eng = m.get('engine', 'unknown')
+            engine_counts[eng] = engine_counts.get(eng, 0) + 1
+
+        return jsonify({
+            'success': True,
+            'summary_24h': {
+                'total_requests': total_scans_24h,
+                'photo_scans': len(photo_scans),
+                'voice_scans': len(voice_scans),
+                'quota_errors': len(quota_errors),
+                'avg_latency_ms': avg_latency_ms,
+                'engine_breakdown': engine_counts
+            },
+            'recent_logs': list(reversed(AI_USAGE_METRICS[-50:]))
+        })
+
     # --- PUBLIC STORE ROUTES ---
 
     @app.route('/api/health', methods=['GET'])
@@ -2513,12 +2579,14 @@ def create_app():
         4. local heuristic Kirana parser (offline, unlimited)
         Validates product/variant IDs against DB, computes verified pricing and subtotals.
         """
+        start_time = time.time()
         data = request.get_json() or {}
         raw_text = (data.get('text') or '').strip()
         audio_b64 = (data.get('audio') or '').strip()
         mime_type = (data.get('mime_type') or 'audio/webm').strip()
         images_input = data.get('images') or [] # list of { data: base64, mimeType: str }
         lang = (data.get('language') or 'mr').lower()
+        req_mode = 'photo' if images_input else ('audio' if audio_b64 else 'text')
 
         # Automatic Language Detection: If customer spoke or typed in Marathi or Hindi, respect that language
         if raw_text and re.search(r'[\u0900-\u097F]', raw_text):
@@ -2638,6 +2706,18 @@ def create_app():
                     'फोटोमधील यादी ओळखता आली नाही. कृपया स्पष्ट फोटो काढा किंवा व्हॉइस वापरा.'
                     if validated_images
                     else 'आवाज ओळखता आला नाही. कृपया पुन्हा बोला किंवा टाईप करा.'
+                )
+                latency_ms = int((time.time() - start_time) * 1000)
+                is_quota_err = bool('429' in str(engine_used) or 'quota' in str(engine_used).lower() or 'resource_exhausted' in str(engine_used).lower())
+                record_ai_metric(
+                    mode=req_mode,
+                    engine=str(engine_used),
+                    latency_ms=latency_ms,
+                    items_count=0,
+                    matched_count=0,
+                    image_count=len(validated_images),
+                    quota_error=is_quota_err,
+                    error_msg=fail_msg
                 )
                 return jsonify({'error': fail_msg, 'code': 'INPUT_UNRECOGNIZED'}), 400
 
@@ -2942,9 +3022,22 @@ def create_app():
         except Exception as e:
             print(f"[AI PARSE TTS PRE-SYNTHESIS WARNING] {e}")
 
+        latency_ms = int((time.time() - start_time) * 1000)
+        record_ai_metric(
+            mode=req_mode,
+            engine=str(engine_used),
+            latency_ms=latency_ms,
+            items_count=len(verified_items),
+            matched_count=matched_count,
+            image_count=len(validated_images),
+            quota_error=False,
+            error_msg=None
+        )
+
         return jsonify({
             'success': True,
             'engine': engine_used,
+            'latency_ms': latency_ms,
             'raw_text': raw_text,
             'items': verified_items,
             'estimated_total': round(estimated_total, 2),
