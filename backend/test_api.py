@@ -1,4 +1,4 @@
-from app import create_app, ADMIN_2FA_STORE, CUSTOMER_RESET_STORE
+from app import create_app, ADMIN_2FA_STORE, CUSTOMER_RESET_STORE, RESET_COOLDOWN_STORE, RESET_RATE_LIMIT_STORE
 import json
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -636,6 +636,201 @@ with app.app_context():
     assert csv_cust.status_code == 200
     assert csv_cust.data.startswith(b'\xef\xbb\xbf'), "Customers CSV missing UTF-8 BOM"
     print("CSV Export UTF-8 BOM: Orders & Customers CSV exports properly prepend \\ufeff BOM (no Devanagari mojibake)")
+
+# 26. JWT Token Revocation on Password Change Test (Audit Issue #7)
+with app.app_context():
+    from models import db, ProductVariant, Product, User, Order
+
+    # 26a. Login as customer and obtain active token
+    login_step = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'newpassword456'})
+    if login_step.status_code != 200:
+        login_step = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'password123'})
+    assert login_step.status_code == 200
+    stale_token = login_step.get_json()['token']
+
+    # Confirm token currently grants authenticated access
+    me_valid = client.get('/api/auth/me', headers={'Authorization': f'Bearer {stale_token}'})
+    assert me_valid.status_code == 200
+    assert me_valid.get_json()['user']['phone'] == '9876543299'
+    orders_valid_pre = client.get('/api/customer/orders', headers={'Authorization': f'Bearer {stale_token}'})
+    assert orders_valid_pre.status_code == 200
+
+    # 26b. Customer resets password via forgot-password email OTP flow
+    RESET_COOLDOWN_STORE.clear()
+    RESET_RATE_LIMIT_STORE.clear()
+
+    fp_res = client.post('/api/auth/forgot-password', json={'identifier': '9876543299'})
+    assert fp_res.status_code == 200
+    r_token = fp_res.get_json()['reset_token']
+    r_otp = CUSTOMER_RESET_STORE['pooja@test.com']['otp']
+
+    rp_res = client.post('/api/auth/reset-password', json={
+        'reset_token': r_token,
+        'otp': r_otp,
+        'new_password': 'password123'
+    })
+    assert rp_res.status_code == 200
+
+    # 26c. Stale JWT token MUST now be rejected on all protected endpoints
+    me_revoked = client.get('/api/auth/me', headers={'Authorization': f'Bearer {stale_token}'})
+    assert me_revoked.get_json().get('user') is None, "Stale token was not invalidated by customer password change!"
+
+    orders_revoked = client.get('/api/customer/orders', headers={'Authorization': f'Bearer {stale_token}'})
+    assert orders_revoked.status_code == 401, "Stale token bypassed authentication after customer password change!"
+
+    profile_revoked = client.put('/api/auth/profile', headers={'Authorization': f'Bearer {stale_token}'}, json={'name': 'Hacker'})
+    assert profile_revoked.status_code == 401, "Stale token bypassed profile update authorization!"
+    print("JWT Token Revocation: Customer password reset immediately invalidated old session token (401)")
+
+    # 26d. Login with new password gives fresh token
+    login_fresh = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'password123'})
+    assert login_fresh.status_code == 200
+    fresh_token = login_fresh.get_json()['token']
+
+    orders_fresh = client.get('/api/customer/orders', headers={'Authorization': f'Bearer {fresh_token}'})
+    assert orders_fresh.status_code == 200
+
+    # 26e. Admin-triggered password reset also invalidates active sessions
+    test_user = User.query.filter_by(phone='9876543299').first()
+    assert test_user is not None
+    admin_reset = client.post(
+        f'/api/admin/customers/{test_user.id}/reset-password',
+        headers={'Authorization': f'Bearer {admin_token}'},
+        json={'new_password': 'newpassword456'}
+    )
+    assert admin_reset.status_code == 200
+
+    # That fresh_token must now also be rejected
+    orders_admin_revoked = client.get('/api/customer/orders', headers={'Authorization': f'Bearer {fresh_token}'})
+    assert orders_admin_revoked.status_code == 401, "Admin reset did not invalidate customer session token!"
+    print("JWT Token Revocation: Admin password reset immediately invalidated customer session token (401)")
+
+    # Clean up customer password back to password123 for idempotent runs
+    test_user.set_password('password123')
+    db.session.commit()
+
+# 27. Zero-Stock & Inactive Item Checkout Defense Test (Audit Issue #6)
+with app.app_context():
+    from models import db, ProductVariant, Product, User, Order
+
+    stock_test_var = ProductVariant.query.filter(ProductVariant.stock_quantity > 0).first()
+    assert stock_test_var is not None
+    original_stock = stock_test_var.stock_quantity
+    original_avail = stock_test_var.is_available
+
+    try:
+        # 27a. Insufficient stock on online checkout: Requesting 5 when only 2 in stock -> 400 INSUFFICIENT_STOCK
+        stock_test_var.stock_quantity = 2
+        stock_test_var.is_available = True
+        db.session.commit()
+
+        excess_order = client.post('/api/orders', json={
+            'customer_name': 'Stock Tester',
+            'customer_phone': '9876543210',
+            'customer_address': 'Shop Counter, Wadala 400031',
+            'delivery_type': 'store_pickup',
+            'pincode': '400031',
+            'payment_method': 'Cash on Counter',
+            'items': [{'variant_id': stock_test_var.id, 'quantity': 5}]
+        })
+        assert excess_order.status_code == 400
+        assert excess_order.get_json()['code'] == 'INSUFFICIENT_STOCK'
+        assert excess_order.get_json()['available_quantity'] == 2
+        assert excess_order.get_json()['requested_quantity'] == 5
+        print("Zero-Stock Defense: Order exceeding stock rejected with 400 INSUFFICIENT_STOCK")
+
+        # 27b. Inactive / out-of-stock item (is_available=False) -> 400 ITEM_OUT_OF_STOCK
+        stock_test_var.is_available = False
+        db.session.commit()
+
+        inactive_order = client.post('/api/orders', json={
+            'customer_name': 'Stock Tester',
+            'customer_phone': '9876543210',
+            'customer_address': 'Shop Counter, Wadala 400031',
+            'delivery_type': 'store_pickup',
+            'pincode': '400031',
+            'payment_method': 'Cash on Counter',
+            'items': [{'variant_id': stock_test_var.id, 'quantity': 1}]
+        })
+        assert inactive_order.status_code == 400
+        assert inactive_order.get_json()['code'] == 'ITEM_OUT_OF_STOCK'
+        print("Zero-Stock Defense: Inactive/out-of-stock item rejected with 400 ITEM_OUT_OF_STOCK")
+
+        # 27c. Loose staple item when all base variants are inactive -> 400 ITEM_OUT_OF_STOCK
+        loose_prod = Product.query.filter_by(is_loose=True).first()
+        if loose_prod and loose_prod.variants:
+            orig_states = {v.id: v.is_available for v in loose_prod.variants}
+            try:
+                for v in loose_prod.variants:
+                    v.is_available = False
+                db.session.commit()
+
+                loose_order = client.post('/api/orders', json={
+                    'customer_name': 'Stock Tester',
+                    'customer_phone': '9876543210',
+                    'customer_address': 'Shop Counter, Wadala 400031',
+                    'delivery_type': 'store_pickup',
+                    'pincode': '400031',
+                    'payment_method': 'Cash on Counter',
+                    'items': [{'is_custom_weight': True, 'product_id': loose_prod.id, 'unit_size': '500g', 'quantity': 1}]
+                })
+                assert loose_order.status_code == 400
+                assert loose_order.get_json()['code'] == 'ITEM_OUT_OF_STOCK'
+                print("Zero-Stock Defense: Loose staple with inactive variants rejected with 400 ITEM_OUT_OF_STOCK")
+            finally:
+                for v in loose_prod.variants:
+                    v.is_available = orig_states[v.id]
+                db.session.commit()
+
+        # 27d. Add-to-delivery route (/api/orders/<order_number>/add-item) enforces stock & availability
+        # Restore stock for placing a base order
+        stock_test_var.is_available = True
+        stock_test_var.stock_quantity = 10
+        db.session.commit()
+
+        base_order_res = client.post('/api/orders', json={
+            'customer_name': 'Add-Item Tester',
+            'customer_phone': '9876543210',
+            'customer_address': 'Shop Counter, Wadala 400031',
+            'delivery_type': 'home_delivery',
+            'pincode': '400031',
+            'payment_method': 'Cash on Delivery (COD)',
+            'items': [{'variant_id': stock_test_var.id, 'quantity': 1}]
+        })
+        assert base_order_res.status_code == 201
+        base_order_num = base_order_res.get_json()['order']['order_number']
+        base_track_token = base_order_res.get_json()['order']['tracking_token']
+
+        # Now set variant unavailable and try adding to order
+        stock_test_var.is_available = False
+        db.session.commit()
+
+        add_unavail = client.post(
+            f'/api/orders/{base_order_num}/add-item?token={base_track_token}',
+            json={'variant_id': stock_test_var.id, 'quantity': 1}
+        )
+        assert add_unavail.status_code == 400
+        assert add_unavail.get_json()['code'] == 'ITEM_OUT_OF_STOCK'
+        print("Zero-Stock Defense: Add-to-delivery rejected inactive variant with 400 ITEM_OUT_OF_STOCK")
+
+        # Now set variant available but stock = 1 and try adding quantity = 5
+        stock_test_var.is_available = True
+        stock_test_var.stock_quantity = 1
+        db.session.commit()
+
+        add_excess = client.post(
+            f'/api/orders/{base_order_num}/add-item?token={base_track_token}',
+            json={'variant_id': stock_test_var.id, 'quantity': 5}
+        )
+        assert add_excess.status_code == 400
+        assert add_excess.get_json()['code'] == 'INSUFFICIENT_STOCK'
+        print("Zero-Stock Defense: Add-to-delivery rejected excess quantity with 400 INSUFFICIENT_STOCK")
+
+    finally:
+        # Restore original variant state
+        stock_test_var.stock_quantity = original_stock
+        stock_test_var.is_available = original_avail
+        db.session.commit()
 
 print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 

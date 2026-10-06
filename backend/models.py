@@ -22,12 +22,14 @@ class User(db.Model):
     address = db.Column(db.Text, nullable=True)
     role = db.Column(db.String(20), default='customer') # 'customer' or 'admin'
     wallet_balance = db.Column(db.Float, default=0.0)
+    token_version = db.Column(db.Integer, default=1, nullable=False) # Incremented on password change to invalidate old JWTs
     created_at = db.Column(db.DateTime, default=get_ist_time)
 
     orders = db.relationship('Order', backref='customer', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        self.token_version = (self.token_version or 0) + 1
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -42,6 +44,7 @@ class User(db.Model):
             'address': self.address,
             'role': self.role,
             'wallet_balance': round(self.wallet_balance or 0.0, 2),
+            'token_version': self.token_version or 1,
             'created_at': self.created_at.strftime('%d %b %Y')
         }
 

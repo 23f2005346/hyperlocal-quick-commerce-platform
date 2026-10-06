@@ -1570,6 +1570,13 @@ def create_app():
                     if 'clearance_price' not in v_cols:
                         cur.execute("ALTER TABLE product_variants ADD COLUMN clearance_price FLOAT DEFAULT NULL")
                         conn.commit()
+
+                # Ensure users.token_version column exists
+                cur.execute("PRAGMA table_info(users)")
+                u_cols = [r[1] for r in cur.fetchall()]
+                if u_cols and 'token_version' not in u_cols:
+                    cur.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1")
+                    conn.commit()
             except Exception as e:
                 print("Migration warning:", e)
             finally:
@@ -1589,6 +1596,13 @@ def create_app():
                         conn.execute(text("ALTER TABLE orders ADD COLUMN tracking_token VARCHAR(64) DEFAULT NULL"))
                         conn.commit()
                         print("[CLOUD DB MIGRATION] Added tracking_token column to orders table.")
+            if 'users' in existing_tables:
+                col_names = [c['name'] for c in insp.get_columns('users')]
+                if 'token_version' not in col_names:
+                    with db.engine.connect() as conn:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1"))
+                        conn.commit()
+                        print("[CLOUD DB MIGRATION] Added token_version column to users table.")
         except Exception as e:
             print(f"[CLOUD DB SCHEMA NOTICE] {e}")
 
@@ -1612,7 +1626,20 @@ def create_app():
         try:
             data = serializer.loads(token, max_age=86400 * 30) # 30 days
             user_id = data.get('user_id')
-            return db.session.get(User, user_id)
+            user = db.session.get(User, user_id)
+            if not user:
+                return None
+
+            # Token Revocation Guard (Audit Issue #7)
+            # Invalidate older JWT tokens if the customer or admin changed password
+            token_ver = data.get('token_version')
+            expected_ver = user.token_version or 1
+            if token_ver is not None and token_ver != expected_ver:
+                return None
+            if token_ver is None and expected_ver > 1:
+                return None
+
+            return user
         except (SignatureExpired, BadSignature, Exception):
             return None
 
@@ -1706,7 +1733,7 @@ def create_app():
         db.session.add(user)
         db.session.commit()
 
-        token = serializer.dumps({'user_id': user.id, 'role': user.role})
+        token = serializer.dumps({'user_id': user.id, 'role': user.role, 'token_version': user.token_version or 1})
         return jsonify({
             'message': 'Registration successful! Welcome to Komal Mart.',
             'token': token,
@@ -1802,7 +1829,7 @@ def create_app():
             })
 
         # Regular customer login -> Direct JWT
-        token = serializer.dumps({'user_id': user.id, 'role': user.role})
+        token = serializer.dumps({'user_id': user.id, 'role': user.role, 'token_version': user.token_version or 1})
         return jsonify({
             'message': 'Login successful!',
             'token': token,
@@ -1879,7 +1906,7 @@ def create_app():
         if not user or user.role != 'admin':
             return jsonify({'error': 'Unauthorized admin account', 'code': 'UNAUTHORIZED_ADMIN'}), 403
 
-        token = serializer.dumps({'user_id': user.id, 'role': user.role})
+        token = serializer.dumps({'user_id': user.id, 'role': user.role, 'token_version': user.token_version or 1})
         return jsonify({
             'message': 'दुकानदार २-स्टेप व्हेरिफिकेशन यशस्वी! स्वागत आहे.',
             'token': token,
@@ -3436,6 +3463,14 @@ def create_app():
                 if not base_variant:
                     return jsonify({'error': f'No pricing variant available for {product.name}'}), 400
 
+                # Strict Availability Guard for custom loose items (Audit Issue #6)
+                if not base_variant.is_available:
+                    return jsonify({
+                        'error': f'क्षमस्व! "{product.name}" सध्या दुकानात उपलब्ध नाही (Out of Stock).',
+                        'code': 'ITEM_OUT_OF_STOCK',
+                        'product_id': product.id
+                    }), 400
+
                 v_weight = parse_unit_weight_in_kg(base_variant.unit_size) or 1.0
                 base_eff_price = base_variant.clearance_price if (base_variant.is_clearance and base_variant.clearance_price) else base_variant.selling_price
                 base_per_kg_rate = round(base_eff_price / v_weight, 2)
@@ -3480,10 +3515,28 @@ def create_app():
                 if not variant:
                     return jsonify({'error': f'Product variant ID {variant_id} does not exist'}), 400
 
-                if variant.stock_quantity >= qty:
+                # Strict Stock & Availability Guard (Audit Issue #6)
+                item_name = variant.product.name if variant.product else 'सामान'
+                if not variant.is_available:
+                    return jsonify({
+                        'error': f'क्षमस्व! "{item_name} ({variant.unit_size})" सध्या दुकानात उपलब्ध नाही (Out of Stock).',
+                        'code': 'ITEM_OUT_OF_STOCK',
+                        'variant_id': variant.id,
+                        'variant_label': variant.unit_size
+                    }), 400
+
+                if variant.stock_quantity is not None and variant.stock_quantity < qty:
+                    avail = max(0, variant.stock_quantity)
+                    return jsonify({
+                        'error': f'क्षमस्व! "{item_name} ({variant.unit_size})" चा पुरेसा साठा उपलब्ध नाही (फक्त {avail} शिल्लक, मागणी: {qty}).',
+                        'code': 'INSUFFICIENT_STOCK',
+                        'variant_id': variant.id,
+                        'requested_quantity': qty,
+                        'available_quantity': avail
+                    }), 400
+
+                if variant.stock_quantity is not None:
                     variant.stock_quantity -= qty
-                else:
-                    variant.stock_quantity = 0
 
                 if variant.is_clearance and variant.clearance_price is not None and variant.clearance_price > 0:
                     effective_price = variant.clearance_price
@@ -3709,6 +3762,8 @@ def create_app():
             return jsonify({'error': 'सामान आढळले नाही.', 'code': 'VARIANT_NOT_FOUND'}), 404
 
         # Enforce Stock Check
+        if not variant.is_available:
+            return jsonify({'error': 'क्षमस्व, हे सामान सध्या उपलब्ध नाही.', 'code': 'ITEM_OUT_OF_STOCK'}), 400
         if variant.stock_quantity is not None and variant.stock_quantity < qty:
             return jsonify({'error': f'क्षमस्व, फक्त {variant.stock_quantity} शिल्लक आहे.', 'code': 'INSUFFICIENT_STOCK'}), 400
 
