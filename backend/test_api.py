@@ -832,6 +832,77 @@ with app.app_context():
         stock_test_var.is_available = original_avail
         db.session.commit()
 
+# 28. Trilingual Profile Localization & Admin Email Collision Defense
+with app.app_context():
+    from models import db, User
+
+    # Log in as test customer
+    cust_login = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'password123'})
+    assert cust_login.status_code == 200, "Customer login failed for profile test"
+    cust_token = cust_login.get_json()['token']
+    cust_auth_header = {'Authorization': f'Bearer {cust_token}'}
+
+    # 28a. Attempt to claim secondary admin email (novaaether01@gmail.com) -> 400 EMAIL_EXISTS
+    # Test English localization
+    res_en = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'novaaether01@gmail.com',
+        'lang': 'en'
+    })
+    assert res_en.status_code == 400
+    assert res_en.get_json()['code'] == 'EMAIL_EXISTS'
+    assert res_en.get_json()['error'] == 'This email address is already registered to another account.'
+    print("Profile Defense: Secondary admin email collision rejected with localized English 400")
+
+    # Test Hindi localization
+    res_hi = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'novaaether01@gmail.com',
+        'lang': 'hi'
+    })
+    assert res_hi.status_code == 400
+    assert res_hi.get_json()['code'] == 'EMAIL_EXISTS'
+    assert res_hi.get_json()['error'] == 'यह ईमेल पता पहले से दूसरे खाते से जुड़ा हुआ है।'
+    print("Profile Defense: Secondary admin email collision rejected with localized Hindi 400")
+
+    # Test Marathi localization (default)
+    res_mr = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'novaaether01@gmail.com',
+        'lang': 'mr'
+    })
+    assert res_mr.status_code == 400
+    assert res_mr.get_json()['code'] == 'EMAIL_EXISTS'
+    assert res_mr.get_json()['error'] == 'हा ईमेल पत्ता आधीच दुसऱ्या खात्याशी जोडलेला आहे.'
+    print("Profile Defense: Secondary admin email collision rejected with localized Marathi 400")
+
+    # 28b. Attempt to claim primary admin email (thisisroushan01@gmail.com) -> 400 EMAIL_EXISTS
+    res_admin1 = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'thisisroushan01@gmail.com',
+        'lang': 'en'
+    })
+    assert res_admin1.status_code == 400
+    assert res_admin1.get_json()['code'] == 'EMAIL_EXISTS'
+    print("Profile Defense: Primary admin email collision rejected with 400 EMAIL_EXISTS")
+
+    # 28c. Invalid email format -> 400 INVALID_EMAIL (English)
+    res_invalid = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'not-a-valid-email',
+        'lang': 'en'
+    })
+    assert res_invalid.status_code == 400
+    assert res_invalid.get_json()['code'] == 'INVALID_EMAIL'
+    assert res_invalid.get_json()['error'] == 'Please enter a valid email address (e.g. name@gmail.com).'
+    print("Profile Defense: Invalid email rejected with localized English 400")
+
+    # 28d. Valid unique customer email update succeeds
+    res_valid = client.put('/api/auth/profile', headers=cust_auth_header, json={
+        'email': 'customer_test_unique@example.com'
+    })
+    assert res_valid.status_code == 200
+    assert res_valid.get_json()['user']['email'] == 'customer_test_unique@example.com'
+    print("Profile Defense: Valid unique customer email update succeeded (200)")
+
+    # Clean up test customer email back to None
+    client.put('/api/auth/profile', headers=cust_auth_header, json={'email': ''})
+
 print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 
 

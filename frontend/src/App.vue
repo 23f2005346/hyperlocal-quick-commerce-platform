@@ -10442,7 +10442,8 @@ async function updateCustomerProfile() {
         name: profileForm.value.name,
         email: profileForm.value.email ? profileForm.value.email.trim() : '',
         phone: profileForm.value.phone,
-        address: profileForm.value.address
+        address: profileForm.value.address,
+        lang: currentLang.value
       })
     });
     if (res.ok) {
@@ -10455,11 +10456,13 @@ async function updateCustomerProfile() {
       showAccountModal.value = false;
     } else {
       const err = await res.json().catch(() => ({}));
-      showToast(`⚠️ ${err.error || (currentLang.value === 'en' ? 'Update failed' : 'अपडेट अयशस्वी')}`, 'error');
+      const fallbackMsg = currentLang.value === 'en' ? 'Update failed' : (currentLang.value === 'hi' ? 'अपडेट विफल' : 'अपडेट अयशस्वी');
+      const msg = formatAuthError(err, fallbackMsg);
+      showToast(`⚠️ ${msg}`, 'error');
     }
   } catch (err) {
     console.error('Profile update error:', err);
-    showToast(currentLang.value === 'en' ? '⚠️ Network error updating profile' : '⚠️ प्रोफाइल अपडेट करताना त्रुटी आली', 'error');
+    showToast(currentLang.value === 'en' ? '⚠️ Network error updating profile' : (currentLang.value === 'hi' ? '⚠️ प्रोफाइल अपडेट करते समय नेटवर्क त्रुटि' : '⚠️ प्रोफाइल अपडेट करताना नेटवर्क त्रुटी आली'), 'error');
   }
 }
 
@@ -11885,12 +11888,18 @@ async function submitOrder() {
   const phone = customerForm.value.phone.trim();
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
-    alert('कृपया 10 अंकों का सही भारतीय मोबाइल नंबर दर्ज करें (उदा: 9876543210)');
+    const invalidPhoneMsg = currentLang.value === 'en'
+      ? 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)'
+      : (currentLang.value === 'mr' ? 'कृपया १० अंकांचा खरा भारतीय मोबाईल नंबर टाका (उदा. 9876543210)' : 'कृपया 10 अंकों का सही भारतीय मोबाइल नंबर दर्ज करें (उदा: 9876543210)');
+    alert(invalidPhoneMsg);
     return;
   }
 
   if (customerForm.value.paymentMethod === 'UPI / QR Code' && !customerForm.value.upiConfirmed) {
-    alert('कृपया QR कोड स्कैन करके पेमेंट करने के बाद चेकबॉक्स टिक करें।');
+    const upiMsg = currentLang.value === 'en'
+      ? 'Please scan the QR code to pay, then check the confirmation box.'
+      : (currentLang.value === 'mr' ? 'कृपया QR कोड स्कॅन करून पेमेंट केल्यावर चेकबॉक्स टिक करा.' : 'कृपया QR कोड स्कैन करके पेमेंट करने के बाद चेकबॉक्स टिक करें।');
+    alert(upiMsg);
     return;
   }
 
@@ -11986,7 +11995,10 @@ async function submitOrder() {
       customerForm.value.upiConfirmed = false;
       customerForm.value.utrNumber = '';
       showCheckoutModal.value = false;
-      showToast(`🎉 ऑर्डर पक्का हुआ! बिल संख्या: ${data.order.order_number}`);
+      const orderConfirmedMsg = currentLang.value === 'en'
+        ? `🎉 Order confirmed! Bill #${data.order.order_number}`
+        : (currentLang.value === 'mr' ? `🎉 ऑर्डर निश्चित झाली! बिल क्र.: ${data.order.order_number}` : `🎉 ऑर्डर पक्का हुआ! बिल संख्या: ${data.order.order_number}`);
+      showToast(orderConfirmedMsg);
       fetchProducts();
       if (currentUser.value) {
         loadCustomerOrders();
@@ -12001,13 +12013,13 @@ async function submitOrder() {
       try {
         err = await res.json();
       } catch (jsonErr) {
-        err = { error: `सर्व्हरवर तांत्रिक अडचण आली (${res.status}). कृपया पुन्हा प्रयत्न करा.` };
+        err = { error: currentLang.value === 'en' ? `Server technical issue (${res.status}). Please try again.` : (currentLang.value === 'mr' ? `सर्व्हरवर तांत्रिक अडचण आली (${res.status}). कृपया पुन्हा प्रयत्न करा.` : `सर्वर पर तकनीकी समस्या (${res.status})। कृपया पुनः प्रयास करें।`) };
       }
-      alert(err.error || 'ऑर्डर दर्ज नहीं हो सका');
+      alert(err.error || (currentLang.value === 'en' ? 'Order could not be placed' : (currentLang.value === 'mr' ? 'ऑर्डर नोंदवता आली नाही' : 'ऑर्डर दर्ज नहीं हो सका')));
     }
   } catch (err) {
     console.error('Order error:', err);
-    alert('सर्वर से संपर्क नहीं हो पाया।');
+    alert(currentLang.value === 'en' ? 'Unable to connect to server.' : (currentLang.value === 'mr' ? 'सर्व्हरशी संपर्क होऊ शकला नाही.' : 'सर्वर से संपर्क नहीं हो पाया।'));
   } finally {
     orderSubmitting.value = false;
   }

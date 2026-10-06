@@ -2261,27 +2261,68 @@ def create_app():
             return jsonify({'error': 'Unauthorized'}), 401
 
         data = request.get_json() or {}
+        raw_lang = (data.get('lang') or request.headers.get('Accept-Language') or 'mr').lower()
+        if raw_lang.startswith('en'):
+            lang_code = 'en'
+        elif raw_lang.startswith('hi'):
+            lang_code = 'hi'
+        else:
+            lang_code = 'mr'
+
+        PROFILE_ERRORS = {
+            'INVALID_PHONE': {
+                'en': 'Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9).',
+                'hi': 'कृपया 10 अंकों का सही भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू)।',
+                'mr': 'कृपया १० अंकांचा खरा भारतीय मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).'
+            },
+            'DUMMY_PHONE': {
+                'en': 'Invalid phone! Dummy numbers (e.g. 0000000000, 1234567890) are not permitted.',
+                'hi': 'अवैध मोबाइल नंबर! डमी नंबर (उदा. 0000000000, 1234567890) मान्य नहीं हैं।',
+                'mr': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. ००००००००००, १२३४५६७८९०) चालणार नाही.'
+            },
+            'PHONE_EXISTS': {
+                'en': 'This mobile number is already registered to another account.',
+                'hi': 'यह मोबाइल नंबर पहले से दूसरे खाते से जुड़ा हुआ है।',
+                'mr': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.'
+            },
+            'INVALID_EMAIL': {
+                'en': 'Please enter a valid email address (e.g. name@gmail.com).',
+                'hi': 'कृपया वैध ईमेल पता दर्ज करें (उदा. name@gmail.com)।',
+                'mr': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com).'
+            },
+            'EMAIL_EXISTS': {
+                'en': 'This email address is already registered to another account.',
+                'hi': 'यह ईमेल पता पहले से दूसरे खाते से जुड़ा हुआ है।',
+                'mr': 'हा ईमेल पत्ता आधीच दुसऱ्या खात्याशी जोडलेला आहे.'
+            }
+        }
+
+        def make_profile_error(code):
+            msgs = PROFILE_ERRORS.get(code, {})
+            msg = msgs.get(lang_code, msgs.get('mr', 'Error'))
+            return jsonify({'error': msg, 'code': code}), 400
+
         if 'name' in data and data['name'].strip():
             user.name = data['name'].strip()
         if 'phone' in data and data['phone'].strip():
             new_phone = data['phone'].strip()
             if new_phone != user.phone:
                 if not re.match(r'^[6-9]\d{9}$', new_phone):
-                    return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका.', 'code': 'INVALID_PHONE'}), 400
+                    return make_profile_error('INVALID_PHONE')
                 if is_dummy_phone(new_phone):
-                    return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
+                    return make_profile_error('DUMMY_PHONE')
                 existing = User.query.filter_by(phone=new_phone).first()
                 if existing and existing.id != user.id:
-                    return jsonify({'error': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'PHONE_EXISTS'}), 400
+                    return make_profile_error('PHONE_EXISTS')
                 user.phone = new_phone
         if 'email' in data:
             new_email = (data.get('email') or '').strip().lower()
             if new_email:
                 if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', new_email):
-                    return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com).', 'code': 'INVALID_EMAIL'}), 400
+                    return make_profile_error('INVALID_EMAIL')
                 existing_email = User.query.filter_by(email=new_email).first()
                 if existing_email and existing_email.id != user.id:
-                    return jsonify({'error': 'हा ईमेल पत्ता आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'EMAIL_EXISTS'}), 400
+                    return make_profile_error('EMAIL_EXISTS')
                 user.email = new_email
             else:
                 user.email = None
