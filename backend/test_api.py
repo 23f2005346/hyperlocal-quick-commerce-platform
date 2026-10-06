@@ -411,7 +411,7 @@ assert batch_res.get_json()['success'] is True
 print("Admin Batch Photo Ingest API: 200 Success: True")
 
 # 19. Add to Active Delivery Integration Test (Plugs Margin Leak)
-from models import Order, ProductVariant, db
+from models import Order, ProductVariant, Product, db
 with app.app_context():
     test_ord = Order.query.first()
     test_var = ProductVariant.query.filter(ProductVariant.stock_quantity > 5).first()
@@ -487,6 +487,156 @@ with app.app_context():
         assert settled_ord['amount_paid'] == settled_ord['final_amount']
         print("Admin Full Balance Settlement: 200 (payment_status: Paid, balance_due: 0.0)")
 
-print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & PARTIAL-PAY TESTS PASSED 100%!")
+# 21. Custom-Weight Price Manipulation Defense Test (Audit Issue #1)
+with app.app_context():
+    loose_prod = Product.query.filter_by(is_loose=True).first()
+    if loose_prod and loose_prod.variants:
+        real_var = loose_prod.variants[0]
+        tamper_res = client.post('/api/orders', json={
+            'customer_name': 'Audit Tester',
+            'customer_phone': '9876543210',
+            'customer_address': 'Vitthal Rukhmai CHS, Wadala 400031',
+            'delivery_type': 'store_pickup',
+            'pincode': '400031',
+            'payment_method': 'Cash on Counter',
+            'items': [{
+                'product_id': loose_prod.id,
+                'variant_id': real_var.id,
+                'is_custom_weight': True,
+                'custom_weight': 1.0,
+                'unit_price': 2.0, # Attacker attempts to buy at ₹2
+                'subtotal': 2.0,   # Attacker attempts to pay ₹2
+                'mrp': 2.0
+            }]
+        })
+        assert tamper_res.status_code == 201
+        created_ord = tamper_res.get_json()['order']
+        item_unit_price = created_ord['items'][0]['unit_price']
+        assert item_unit_price > 2.0, f"Vulnerability detected! Unit price was manipulated: {item_unit_price}"
+        print(f"Custom-Weight Tamper Defense: Server computed genuine rate ₹{item_unit_price} (attacker's ₹2 ignored)")
+
+# 22. Support Ticket PII Protection Test (Audit Issue #3)
+with app.app_context():
+    # Unauthenticated ticket listing must be rejected with 401
+    anon_tickets = client.get('/api/support/my-tickets?phone=9876543210')
+    assert anon_tickets.status_code == 401
+    print("Support Ticket PII Guard: Anonymous ticket listing blocked with 401")
+
+    # Create a test ticket to verify token-based privacy
+    post_ticket = client.post('/api/support/ticket', json={
+        'customer_name': 'Privacy Test User',
+        'customer_phone': '9820123456',
+        'ticket_type': 'complaint',
+        'category': 'Delivery Delay',
+        'message': 'My grocery delivery was delayed by more than an hour.'
+    })
+    assert post_ticket.status_code == 201
+    tk_data = post_ticket.get_json()
+    tk_num = tk_data['ticket']['ticket_number']
+    tk_token = tk_data['ticket_token']
+
+    # Access without token (anonymous) -> 403
+    unauth_tk = client.get(f'/api/support/ticket/{tk_num}')
+    assert unauth_tk.status_code == 403
+
+    # Access with invalid/tampered token -> 403
+    bad_token_tk = client.get(f'/api/support/ticket/{tk_num}?token=tampered_fake_token')
+    assert bad_token_tk.status_code == 403
+
+    # Access with valid cryptographic token -> 200
+    valid_token_tk = client.get(f'/api/support/ticket/{tk_num}?token={tk_token}')
+    assert valid_token_tk.status_code == 200
+    print("Support Ticket Guest Token Guard: Unauthenticated lookup blocked (403), valid signed token allowed (200)")
+
+# 23. Admin 2FA Brute-Force Rate Limiting Test (Audit Issue #4)
+with app.app_context():
+    admin_login_step1 = client.post('/api/auth/login', json={
+        'identifier': 'thisisroushan01@gmail.com',
+        'password': 'admin123'
+    })
+    assert admin_login_step1.status_code == 200
+    temp_token = admin_login_step1.get_json()['temp_token']
+
+    # Send 4 invalid attempts -> all should return 400 INVALID_OTP with remaining attempts count
+    for i in range(1, 5):
+        bad_attempt = client.post('/api/auth/verify-admin-2fa', json={
+            'temp_token': temp_token,
+            'otp': '000000'
+        })
+        assert bad_attempt.status_code == 400
+        assert bad_attempt.get_json()['code'] == 'INVALID_OTP'
+        assert bad_attempt.get_json()['remaining_attempts'] == (5 - i)
+
+    # 5th invalid attempt -> must trigger 429 TOO_MANY_ATTEMPTS
+    lockout_attempt = client.post('/api/auth/verify-admin-2fa', json={
+        'temp_token': temp_token,
+        'otp': '000000'
+    })
+    assert lockout_attempt.status_code == 429
+    assert lockout_attempt.get_json()['code'] == 'TOO_MANY_ATTEMPTS'
+    print("Admin 2FA Brute-Force Lockout: 5 failed attempts triggered 429 TOO_MANY_ATTEMPTS")
+
+# 24. Area Delivery Hold Backend Enforcement Test (Audit Issue #5)
+with app.app_context():
+    hold_test_var = ProductVariant.query.filter(ProductVariant.stock_quantity > 5).first()
+    assert hold_test_var is not None
+
+    try:
+        # Admin holds pincode 400031
+        hold_toggle = client.post(
+            '/api/admin/delivery-areas/toggle-hold',
+            headers={'Authorization': f'Bearer {admin_token}'},
+            json={'pincode': '400031', 'is_held': True, 'reason': 'Heavy Rain Test Hold', 'resume': 'Tomorrow 9am'}
+        )
+        assert hold_toggle.status_code == 200
+
+        # Customer attempts home delivery to held pincode -> must be rejected with 400 AREA_DELIVERY_HELD
+        held_order = client.post('/api/orders', json={
+            'customer_name': 'Hold Test User',
+            'customer_phone': '9876543210',
+            'customer_address': 'Vitthal Rukhmai CHS, Wadala 400031',
+            'delivery_type': 'home_delivery',
+            'pincode': '400031',
+            'payment_method': 'Cash on Delivery (COD)',
+            'items': [{'variant_id': hold_test_var.id, 'quantity': 1}]
+        })
+        assert held_order.status_code == 400
+        assert held_order.get_json()['code'] == 'AREA_DELIVERY_HELD'
+        print("Area Delivery Hold Enforcement: Home delivery to held pincode blocked with 400 AREA_DELIVERY_HELD")
+
+        # Store Counter pickup for held area must succeed
+        pickup_order = client.post('/api/orders', json={
+            'customer_name': 'Hold Test User',
+            'customer_phone': '9876543210',
+            'customer_address': 'Vitthal Rukhmai CHS, Wadala 400031',
+            'delivery_type': 'store_pickup',
+            'pincode': '400031',
+            'payment_method': 'Cash on Counter',
+            'items': [{'variant_id': hold_test_var.id, 'quantity': 1}]
+        })
+        assert pickup_order.status_code == 201
+        print("Area Delivery Hold Bypass for Pickup: Store Counter pickup allowed during hold (201)")
+    finally:
+        # Resume delivery for 400031 guaranteed
+        resume_toggle = client.post(
+            '/api/admin/delivery-areas/toggle-hold',
+            headers={'Authorization': f'Bearer {admin_token}'},
+            json={'pincode': '400031', 'is_held': False}
+        )
+        assert resume_toggle.status_code == 200
+        print("Area Delivery Hold Resumed: Pincode 400031 unheld successfully")
+
+# 25. CSV Export UTF-8 BOM Test (Audit Issue #11)
+with app.app_context():
+    csv_orders = client.get('/api/admin/export/orders.csv', headers={'Authorization': f'Bearer {admin_token}'})
+    assert csv_orders.status_code == 200
+    assert csv_orders.data.startswith(b'\xef\xbb\xbf'), "Orders CSV missing UTF-8 BOM"
+
+    csv_cust = client.get('/api/admin/export/customers.csv', headers={'Authorization': f'Bearer {admin_token}'})
+    assert csv_cust.status_code == 200
+    assert csv_cust.data.startswith(b'\xef\xbb\xbf'), "Customers CSV missing UTF-8 BOM"
+    print("CSV Export UTF-8 BOM: Orders & Customers CSV exports properly prepend \\ufeff BOM (no Devanagari mojibake)")
+
+print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 
 

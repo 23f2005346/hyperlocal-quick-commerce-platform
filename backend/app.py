@@ -55,9 +55,8 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 # Strict Store Owner Admin Email Whitelist
 ADMIN_WHITELIST = {'thisisroushan01@gmail.com', 'novaaether01@gmail.com'}
-ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id } }
+ADMIN_2FA_STORE = {} # { email: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0, 'locked_until': ts } }
 CUSTOMER_RESET_STORE = {} # { reset_key: { 'otp': '123456', 'expires_at': ts, 'user_id': id, 'attempts': 0, 'channel': 'sms'|'email' } }
-REGISTRATION_OTP_STORE = {} # { phone: { 'otp': '123456', 'expires_at': ts, 'attempts': 0, 'last_sent': ts } }
 RESET_RATE_LIMIT_STORE = {} # { key: [timestamps] }
 RESET_COOLDOWN_STORE = {}   # { key: last_request_timestamp }
 LOGIN_ATTEMPTS_STORE = {}   # { key: { 'attempts': int, 'locked_until': ts, 'first_attempt': ts } }
@@ -1403,7 +1402,15 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = SECRET_KEY
-    
+
+    # Configure Werkzeug ProxyFix for reverse-proxy deployment (Render / Gunicorn)
+    # Render terminates TLS and operates behind 1 proxy layer (x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    try:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    except Exception as e:
+        print(f"[PROXYFIX NOTICE] {e}")
+
     # Enable CORS for frontend development
     CORS(app)
 
@@ -1631,55 +1638,6 @@ def create_app():
 
     # --- AUTH ROUTES ---
 
-    @app.route('/api/auth/send-registration-otp', methods=['POST'])
-    def send_registration_otp():
-        """
-        Customer registration: Sends 6-digit SMS OTP to customer's mobile phone via Fast2SMS.
-        Validates phone format, dummy numbers, and checks for existing registration.
-        Rate limits to 1 OTP per 60 seconds per phone.
-        """
-        data = request.get_json() or {}
-        phone = re.sub(r'\D', '', str(data.get('phone') or '').strip())
-
-        if not phone:
-            return jsonify({'error': 'मोबाईल नंबर आवश्यक आहे.', 'code': 'MISSING_PHONE'}), 400
-
-        if not re.match(r'^[6-9]\d{9}$', phone):
-            return jsonify({'error': 'कृपया १० अंकांचा वैध मोबाईल नंबर टाका (6, 7, 8 किंवा 9 ने सुरू होणारा).', 'code': 'INVALID_PHONE'}), 400
-
-        if is_dummy_phone(phone):
-            return jsonify({'error': 'अवैध मोबाईल नंबर! डमी नंबर (उदा. 0000000000, 1234567890, 9876543210) चालणार नाही.', 'code': 'DUMMY_PHONE'}), 400
-
-        # Check if already registered
-        if User.query.filter_by(phone=phone).first():
-            return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया थेट लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
-
-        # Rate limiting: 60 seconds cooldown between resends
-        rec = REGISTRATION_OTP_STORE.get(phone)
-        now = time.time()
-        if rec and (now - rec.get('last_sent', 0)) < 60:
-            remaining = int(60 - (now - rec['last_sent']))
-            return jsonify({'error': f'कृपया नवीन OTP मागण्यापूर्वी {remaining} सेकंद प्रतीक्षा करा.', 'code': 'RATE_LIMITED', 'retry_after': remaining}), 429
-
-        otp = f"{random.randint(100000, 999999)}"
-        REGISTRATION_OTP_STORE[phone] = {
-            'otp': otp,
-            'expires_at': now + 600, # 10 minutes
-            'attempts': 0,
-            'last_sent': now
-        }
-
-        print(f"\n[REGISTRATION SMS OTP] Phone: {phone}, OTP: {otp}")
-
-        sms_sent, msg = send_fast2sms_otp(phone, otp)
-
-        return jsonify({
-            'message': '६-अंकी पडताळणी OTP आपल्या मोबाईल नंबरवर पाठवला आहे.',
-            'phone': phone,
-            'sms_sent': sms_sent,
-            'cooldown': 60
-        }), 200
-
     @app.route('/api/auth/register', methods=['POST'])
     def register():
         data = request.get_json() or {}
@@ -1688,7 +1646,6 @@ def create_app():
         email = (data.get('email') or '').strip().lower()
         phone = re.sub(r'\D', '', str(data.get('phone') or '').strip())
         password = (data.get('password') or '').strip()
-        otp = (data.get('otp') or '').strip()
         address = (data.get('address') or '').strip()
 
         if not name or not password or not phone:
@@ -1766,7 +1723,7 @@ def create_app():
             return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
 
         # Brute-force rate limiting: 5 failed attempts per IP + identifier -> 15 min lock
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+        client_ip = (request.remote_addr or '127.0.0.1').split(',')[0].strip()
         rate_limit_key = f"{client_ip}:{identifier.lower()}"
         allowed, wait_sec = check_login_rate_limit(rate_limit_key)
         if not allowed:
@@ -1814,7 +1771,8 @@ def create_app():
                 'otp': otp,
                 'otp_hash': otp_hash,
                 'expires_at': time.time() + 300, # 5 minutes
-                'user_id': user.id
+                'user_id': user.id,
+                'attempts': 0
             }
 
             print("\n=======================================================")
@@ -1868,6 +1826,21 @@ def create_app():
         except (SignatureExpired, BadSignature, Exception):
             return jsonify({'error': '२-स्टेप पडताळणी सत्र संपले आहे. कृपया पुन्हा लॉगिन करा.', 'code': 'SESSION_EXPIRED'}), 401
 
+        # Failed attempt lockout guard: Maximum 5 attempts per 2FA challenge
+        record = ADMIN_2FA_STORE.setdefault(email, {
+            'otp': None,
+            'otp_hash': token_otp_hash,
+            'expires_at': time.time() + 300,
+            'user_id': token_user_id,
+            'attempts': 0
+        })
+
+        if record.get('locked_until', 0) > time.time() or record.get('attempts', 0) >= 5:
+            return jsonify({
+                'error': 'अनेक वेळा चुकीचा OTP टाकला गेला आहे. सुरक्षेसाठी हे सत्र लॉक केले आहे. कृपया पुन्हा लॉगिन करा.',
+                'code': 'TOO_MANY_ATTEMPTS'
+            }), 429
+
         MASTER_ADMIN_PIN = os.environ.get('MASTER_ADMIN_PIN', '202699')
         is_master_pin = (otp_input == MASTER_ADMIN_PIN)
 
@@ -1879,13 +1852,25 @@ def create_app():
                 is_valid_otp = True
 
         # 2. In-memory record verification fallback
-        record = ADMIN_2FA_STORE.get(email)
         if not is_valid_otp and record:
             if time.time() <= record.get('expires_at', 0) and record.get('otp') == otp_input:
                 is_valid_otp = True
 
         if not is_valid_otp and not is_master_pin:
-            return jsonify({'error': 'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका.', 'code': 'INVALID_OTP'}), 400
+            record['attempts'] = record.get('attempts', 0) + 1
+            remaining = max(0, 5 - record['attempts'])
+            if record['attempts'] >= 5:
+                record['locked_until'] = time.time() + 900 # 15-minute lockout
+                record['otp'] = None
+                return jsonify({
+                    'error': 'अनेक वेळा चुकीचा OTP टाकला गेला आहे. सुरक्षेसाठी हे सत्र १५ मिनिटांसाठी लॉक केले आहे. कृपया पुन्हा लॉगिन करा.',
+                    'code': 'TOO_MANY_ATTEMPTS'
+                }), 429
+            return jsonify({
+                'error': f'चुकीचा OTP कोड! कृपया योग्य ६-अंकी कोड टाका (शिल्लक प्रयत्न: {remaining}).',
+                'code': 'INVALID_OTP',
+                'remaining_attempts': remaining
+            }), 400
 
         # OTP valid! Issue Admin JWT Token
         ADMIN_2FA_STORE.pop(email, None)
@@ -1943,7 +1928,7 @@ def create_app():
             return jsonify({'error': 'या मोबाईल नंबर किंवा ईमेलवर कोणतेही खाते सापडले नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
         # Rate Limiting Guard: Max 3 requests/hour per account, max 8/hour per IP, 60s cooldown
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+        client_ip = (request.remote_addr or '127.0.0.1').split(',')[0].strip()
         allowed, wait_sec, err_code = check_reset_rate_limit(user.id, client_ip)
         if not allowed:
             if err_code == 'COOLDOWN_ACTIVE':
@@ -2050,7 +2035,7 @@ def create_app():
             return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
 
         # Rate Limiting Guard on Resend
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+        client_ip = (request.remote_addr or '127.0.0.1').split(',')[0].strip()
         allowed, wait_sec, err_code = check_reset_rate_limit(user.id, client_ip)
         if not allowed:
             return jsonify({'error': f'कृपया नवीन OTP मागण्यापूर्वी {wait_sec} सेकंद प्रतीक्षा करा.', 'code': 'RATE_LIMIT_EXCEEDED', 'wait_seconds': wait_sec}), 429
@@ -2431,6 +2416,12 @@ def create_app():
         # Dispatch instant email alert to Roushan via Resend Port 443 HTTPS
         send_support_ticket_email(ticket)
 
+        # Generate tamper-proof tracking token for guest ticket lookup
+        ticket_token = serializer.dumps({
+            'ticket_number': ticket_number,
+            'phone': customer_phone
+        }, salt='ticket-track-salt')
+
         if ticket_type == 'complaint':
             success_msg = f"तुमची तक्रार नोंदवली गेली आहे (तक्रार क्र. #{ticket_number}). आमचे व्यवस्थापक लवकरात लवकर तपासणी करून तुमच्याशी संपर्क साधतील."
         else:
@@ -2438,27 +2429,61 @@ def create_app():
 
         return jsonify({
             'message': success_msg,
-            'ticket': ticket.to_dict()
+            'ticket': ticket.to_dict(),
+            'ticket_token': ticket_token,
+            'tracking_url': f"/?ticket={ticket_number}&token={ticket_token}"
         }), 201
 
     @app.route('/api/support/my-tickets', methods=['GET'])
     def get_my_support_tickets():
         """
-        Retrieves support tickets for the current authenticated user or matching customer phone.
+        Retrieves support tickets strictly for the current authenticated user.
+        Unauthenticated callers cannot scrape tickets by supplying arbitrary phone numbers.
         """
         user = get_current_user()
-        phone = (request.args.get('phone') or '').strip()
+        if not user:
+            return jsonify({'error': 'Unauthorized: Please login to view your support tickets.', 'code': 'UNAUTHORIZED'}), 401
 
-        query = SupportTicket.query
-        if user:
-            query = query.filter((SupportTicket.user_id == user.id) | (SupportTicket.customer_phone == user.phone))
-        elif phone:
-            query = query.filter_by(customer_phone=phone)
-        else:
-            return jsonify([])
-
+        query = SupportTicket.query.filter(
+            (SupportTicket.user_id == user.id) | (SupportTicket.customer_phone == user.phone)
+        )
         tickets = query.order_by(SupportTicket.created_at.desc()).all()
         return jsonify([t.to_dict() for t in tickets])
+
+    @app.route('/api/support/ticket/<string:ticket_number>', methods=['GET'])
+    def get_support_ticket_by_number(ticket_number):
+        """
+        Retrieves a single support ticket with strict access controls:
+        1. Store Admin (Bearer token)
+        2. Authenticated ticket owner (Bearer token matching user_id or phone)
+        3. Secure tracking token (salt='ticket-track-salt') issued upon ticket creation
+        """
+        ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
+        user = get_current_user()
+        token_param = (request.args.get('token') or request.headers.get('X-Ticket-Token') or '').strip()
+
+        is_authorized = False
+        if user:
+            if user.role == 'admin':
+                is_authorized = True
+            elif (ticket.user_id and user.id == ticket.user_id) or (ticket.customer_phone and user.phone == ticket.customer_phone):
+                is_authorized = True
+
+        if not is_authorized and token_param:
+            try:
+                data = serializer.loads(token_param, salt='ticket-track-salt', max_age=86400 * 90)
+                if data.get('ticket_number') == ticket_number:
+                    is_authorized = True
+            except Exception:
+                pass
+
+        if not is_authorized:
+            return jsonify({
+                'error': 'अनाधिकृत प्रवेश: या तिकिटाचे तपशील पाहण्यासाठी लॉगिन करा किंवा अधिकृत ट्रॅकिंग लिंक वापरा.',
+                'code': 'UNAUTHORIZED_TICKET_ACCESS'
+            }), 403
+
+        return jsonify(ticket.to_dict())
 
     @app.route('/api/admin/support/tickets', methods=['GET'])
     @admin_required
@@ -2614,7 +2639,7 @@ def create_app():
                 return jsonify({'error': 'एका वेळी जास्तीत जास्त ५ फोटो स्कॅन करता येतील.', 'code': 'TOO_MANY_IMAGES'}), 400
 
             # Rate Limiting Guard on Image Scanning (10 scans per hour per IP)
-            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '127.0.0.1').split(',')[0].strip()
+            client_ip = (request.remote_addr or '127.0.0.1').split(',')[0].strip()
             allowed, wait_sec = check_ai_scan_rate_limit(client_ip, max_scans=10, window_sec=3600)
             if not allowed:
                 wait_min = max(1, round(wait_sec / 60))
@@ -3265,7 +3290,7 @@ def create_app():
         """
         base_rupees = int(base_final_amount)
         active_pending = Order.query.filter(
-            Order.payment_status.in_(['Pending Verification', 'Unpaid']),
+            Order.payment_status.in_(['Pending Verification', 'Unpaid', 'Partially Paid']),
             Order.payment_method.in_(['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR', 'UPI Instant'])
         ).all()
         occupied_paise = set()
@@ -3337,6 +3362,26 @@ def create_app():
                         'allowed_pincodes': list(sorted(ALLOWED_WADALA_PINCODES))
                     }), 400
 
+            # Area Delivery Hold Guard (temporary holds set by storekeeper e.g. delivery boy absence or heavy rain)
+            target_pins = set()
+            if pincode:
+                target_pins.add(pincode)
+            for apin in address_pincodes:
+                target_pins.add(apin)
+
+            for pin in target_pins:
+                if pin in AREA_DELIVERY_HOLDS and AREA_DELIVERY_HOLDS[pin].get('is_held'):
+                    hold = AREA_DELIVERY_HOLDS[pin]
+                    reason = hold.get('reason') or 'डिलिव्हरी बॉय गैरहजर असल्याने तात्पुरती डिलिव्हरी थांबवली आहे.'
+                    resume = hold.get('resume') or 'लवकरच'
+                    return jsonify({
+                        'error': f'या पिनकोड ({pin}) वर घरपोच डिलिव्हरी तात्पुरती स्थगित आहे ({reason}). पुन्हा सुरू: {resume}. कृपया "Store Counter Pickup" निवडा.',
+                        'code': 'AREA_DELIVERY_HELD',
+                        'pincode': pin,
+                        'reason': reason,
+                        'resume': resume
+                    }), 400
+
         # Online customer checkout with UPI QR must NEVER be automatically marked 'Paid'
         # It must be 'Pending Verification' until store owner verifies bank receipt/SMS.
         utr_number = str(data.get('utr_number', '')).strip()
@@ -3371,24 +3416,49 @@ def create_app():
                 if custom_weight <= 0:
                     return jsonify({'error': 'Custom weight must be greater than zero'}), 400
 
-                unit_price = float(item.get('unit_price', 30.0))
+                # Derive authoritative base per-kg rate strictly from ProductVariant in database
+                # Never trust client-supplied unit_price, subtotal, or mrp!
+                base_variant = None
+                if product.variants:
+                    for v in product.variants:
+                        w = parse_unit_weight_in_kg(v.unit_size)
+                        if w == 1.0 and v.is_available:
+                            base_variant = v
+                            break
+                    if not base_variant:
+                        for v in product.variants:
+                            if v.is_available:
+                                base_variant = v
+                                break
+                    if not base_variant and product.variants:
+                        base_variant = product.variants[0]
+
+                if not base_variant:
+                    return jsonify({'error': f'No pricing variant available for {product.name}'}), 400
+
+                v_weight = parse_unit_weight_in_kg(base_variant.unit_size) or 1.0
+                base_eff_price = base_variant.clearance_price if (base_variant.is_clearance and base_variant.clearance_price) else base_variant.selling_price
+                base_per_kg_rate = round(base_eff_price / v_weight, 2)
+                base_per_kg_mrp = round((base_variant.mrp or (base_eff_price * 1.15)) / v_weight, 2)
 
                 # Check wholesale tiered pricing for bulk weight
                 tier_res = get_tiered_unit_price(prod_id, custom_weight)
                 label_suffix = ""
-                if tier_res:
+                if tier_res and (tier_res[0] < base_per_kg_rate):
                     unit_price = tier_res[0]
                     label_suffix = f" ({tier_res[1]})"
+                else:
+                    unit_price = base_per_kg_rate
 
-                subtotal = round(float(item.get('subtotal', unit_price * custom_weight)), 2)
-                item_mrp = round(float(item.get('mrp', unit_price * 1.15)), 2)
+                subtotal = round(unit_price * custom_weight, 2)
+                item_mrp = round(base_per_kg_mrp * custom_weight, 2)
                 
                 total_mrp += item_mrp
                 final_amount += subtotal
 
                 order_item = OrderItem(
                     product_id=prod_id,
-                    variant_id=None,
+                    variant_id=base_variant.id if base_variant else None,
                     product_name=prod_name,
                     variant_label=f"{unit_label} (कस्टम तोल){label_suffix}",
                     unit_price=unit_price,
@@ -4063,16 +4133,17 @@ def create_app():
                         if not sib_weight or sib_weight <= 0:
                             continue
 
-                        # Preserve bulk wholesale tier discount differential per kg (e.g. 5kg sack)
+                        # Preserve bulk wholesale tier discount differential per kg strictly for large bulk packs (>= 5kg sack)
                         prev_disc_per_kg = 0.0
-                        if sib.mrp and sib.selling_price and sib.mrp > sib.selling_price:
-                            prev_disc_per_kg = max(0.0, (sib.mrp - sib.selling_price) / sib_weight)
+                        if sib_weight >= 5.0 and sib.mrp and sib.selling_price and sib.mrp > sib.selling_price:
+                            raw_disc = (sib.mrp - sib.selling_price) / sib_weight
+                            prev_disc_per_kg = min(base_sell_rate * 0.10, max(0.0, raw_disc))
 
                         new_sib_mrp = round(base_mrp_rate * sib_weight, 2)
                         if new_sib_mrp == int(new_sib_mrp):
                             new_sib_mrp = float(int(new_sib_mrp))
 
-                        new_sib_sell = round(max(0.5, (base_sell_rate - prev_disc_per_kg) * sib_weight), 2)
+                        new_sib_sell = round(max(1.0, (base_sell_rate - prev_disc_per_kg) * sib_weight), 2)
                         if new_sib_sell == int(new_sib_sell):
                             new_sib_sell = float(int(new_sib_sell))
 
@@ -4307,7 +4378,7 @@ def create_app():
         output.seek(0)
         today = datetime.now().strftime('%Y%m%d')
         return Response(
-            output.getvalue(),
+            '\ufeff' + output.getvalue(),
             mimetype='text/csv; charset=utf-8',
             headers={'Content-Disposition': f'attachment; filename=komalmart_orders_{today}.csv'}
         )
@@ -4347,7 +4418,7 @@ def create_app():
         output.seek(0)
         today = datetime.now().strftime('%Y%m%d')
         return Response(
-            output.getvalue(),
+            '\ufeff' + output.getvalue(),
             mimetype='text/csv; charset=utf-8',
             headers={'Content-Disposition': f'attachment; filename=komalmart_khata_customers_{today}.csv'}
         )
