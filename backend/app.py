@@ -146,7 +146,58 @@ FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', '').strip()
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 SMTP_USER = os.environ.get('SMTP_USER', 'thisisroushan01@gmail.com').strip()
-SMTP_PASS = os.environ.get('SMTP_PASS', 'emaiuwgdfqddjskg').replace(' ', '').strip()
+SMTP_PASS = os.environ.get('SMTP_PASS', '').replace(' ', '').strip()
+
+# Brevo REST API configuration (Port 443 HTTPS - Single Sender, no custom domain required, 300/day free)
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '').strip()
+BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'thisisroushan01@gmail.com').strip()
+BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME', 'Komal Mart (कोमल मार्ट)').strip()
+
+def send_email_brevo(to_email, subject, html_body, to_name="Customer"):
+    """
+    Dispatches email via Brevo REST API over Port 443 HTTPS.
+    Works seamlessly on Render cloud (no outbound SMTP port blocks).
+    Uses Brevo's Single Sender Verification (sends to ANY customer email worldwide without custom domain).
+    Free tier: 300 emails/day forever (no credit card required).
+    """
+    api_key = os.environ.get('BREVO_API_KEY', BREVO_API_KEY).strip()
+    if not api_key:
+        return False, "BREVO_API_KEY not configured"
+
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email, "name": to_name or "Customer"}],
+        "subject": subject,
+        "htmlContent": html_body
+    }
+
+    try:
+        req_data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=req_data,
+            headers={
+                "accept": "application/json",
+                "api-key": api_key,
+                "content-type": "application/json",
+                "User-Agent": "KomalMart/1.0"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10.0) as resp:
+            resp_body = resp.read().decode('utf-8', errors='replace')
+            print(f"[BREVO SUCCESS] Sent email to {to_email} via Port 443 HTTPS. Status: {resp.status}, Body: {resp_body}")
+            return True, "Email dispatched successfully via Brevo HTTPS API (Port 443)"
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f"[BREVO HTTP ERROR {e.code}] {err_body}")
+        return False, f"Brevo HTTP {e.code}: {err_body}"
+    except urllib.error.URLError as e:
+        print(f"[BREVO NETWORK ERROR] {e.reason}")
+        return False, f"Brevo Network Error: {e.reason}"
+    except Exception as e:
+        print(f"[BREVO EXCEPTION] {e}")
+        return False, str(e)
 
 # Resend API configuration (Port 443 HTTPS - Operates without cloud SMTP firewall blockage)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
@@ -235,7 +286,15 @@ def send_admin_otp_email(to_email, otp):
     </div>
     """
 
-    # 1. Primary: Attempt Resend API over Port 443 HTTPS (cloud-safe)
+    # 1. Primary: Attempt Brevo REST API over Port 443 HTTPS (cloud-safe, Port 443)
+    brevo_key = os.environ.get('BREVO_API_KEY', BREVO_API_KEY).strip()
+    if brevo_key:
+        ok, brevo_msg = send_email_brevo(to_email, subject, html_body, to_name="Store Owner")
+        if ok:
+            return True, brevo_msg
+        print(f"[BREVO ADMIN NOTICE] {brevo_msg}. Falling back to Resend / SMTP...")
+
+    # 2. Secondary: Attempt Resend API over Port 443 HTTPS (cloud-safe)
     resend_key = os.environ.get('RESEND_API_KEY', '').strip()
     if resend_key:
         ok, resend_msg = send_admin_otp_resend(to_email, otp, subject, html_body)
@@ -243,7 +302,7 @@ def send_admin_otp_email(to_email, otp):
             return True, resend_msg
         print(f"[RESEND NOTICE] {resend_msg}. Falling back to direct SMTP...")
 
-    # 2. Secondary: SMTP over Port 465 SSL or Port 587 STARTTLS
+    # 3. Tertiary: SMTP over Port 465 SSL or Port 587 STARTTLS
     if SMTP_USER and SMTP_PASS:
         try:
             msg = MIMEMultipart('alternative')
@@ -282,9 +341,9 @@ def send_admin_otp_email(to_email, otp):
 def send_customer_otp_email(to_email, otp, customer_name="Customer"):
     """
     Dispatches 6-digit OTP code to a customer's verified email address for password reset.
-    Priority 1: Resend REST API via Port 443 HTTPS (ideal for Render cloud deployment).
-    Priority 2: Port 465 SSL SMTP.
-    Priority 3: Port 587 STARTTLS SMTP.
+    Priority 1: Brevo REST API over Port 443 HTTPS (Single Sender, universal customer inbox delivery).
+    Priority 2: Resend REST API via Port 443 HTTPS (delivers to owner or once custom domain verified).
+    Priority 3: Direct Port 465 SSL SMTP.
     """
     subject = f"🔐 कोमल मार्ट (Komal Mart) पासवर्ड रीसेट OTP: {otp}"
     display_name = customer_name or "ग्राहक"
@@ -306,7 +365,20 @@ def send_customer_otp_email(to_email, otp, customer_name="Customer"):
     </div>
     """
 
-    # 1. Primary: Attempt Resend API over Port 443 HTTPS
+    # 1. Primary: Attempt Brevo REST API over Port 443 HTTPS (universal customer inbox delivery)
+    brevo_key = os.environ.get('BREVO_API_KEY', BREVO_API_KEY).strip()
+    if brevo_key:
+        ok, brevo_msg = send_email_brevo(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_body,
+            to_name=display_name
+        )
+        if ok:
+            return True, brevo_msg
+        print(f"[BREVO CUSTOMER OTP NOTICE] {brevo_msg}. Falling back to Resend / SMTP...")
+
+    # 2. Secondary: Attempt Resend API over Port 443 HTTPS
     resend_key = os.environ.get('RESEND_API_KEY', '').strip()
     if resend_key:
         ok, resend_msg = send_email_resend(
