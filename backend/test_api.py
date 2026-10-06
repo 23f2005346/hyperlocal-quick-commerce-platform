@@ -135,6 +135,13 @@ assert del_test_prod.status_code == 200
 
 # 8. Password Reset via 2-Step Email OTP Flow
 # 8a. Step 1: Request OTP via Phone or Email
+with app.app_context():
+    from models import User, db
+    u_pooja = User.query.filter_by(phone='9876543299').first()
+    if u_pooja:
+        u_pooja.email = 'pooja@test.com'
+        db.session.commit()
+
 step1_res = client.post('/api/auth/forgot-password', json={
     'identifier': '9876543299'
 })
@@ -900,8 +907,29 @@ with app.app_context():
     assert res_valid.get_json()['user']['email'] == 'customer_test_unique@example.com'
     print("Profile Defense: Valid unique customer email update succeeded (200)")
 
-    # Clean up test customer email back to None
-    client.put('/api/auth/profile', headers=cust_auth_header, json={'email': ''})
+    # Clean up test customer email back to pooja@test.com
+    client.put('/api/auth/profile', headers=cust_auth_header, json={'email': 'pooja@test.com'})
+
+# 29. Truthful Email Dispatch & Instant WhatsApp Failover Guard
+with app.app_context():
+    from unittest.mock import patch
+
+    RESET_COOLDOWN_STORE.clear()
+    RESET_RATE_LIMIT_STORE.clear()
+
+    with patch('app.send_customer_otp_email', return_value=(False, 'Resend sandbox restricted: custom domain required')):
+        failover_res = client.post('/api/auth/forgot-password', json={
+            'identifier': '9876543299',
+            'lang': 'en'
+        })
+        assert failover_res.status_code == 200
+        data = failover_res.get_json()
+        assert data['channel'] == 'whatsapp', "Failed email dispatch did not failover to WhatsApp channel!"
+        assert data['sent_ok'] == False, "System falsely claimed sent_ok=True on failed email delivery!"
+        assert data['email_failed'] == True
+        assert 'wa_link' in data and 'wa.me/919142052967' in data['wa_link']
+        assert 'Email delivery is currently unavailable' in data['message']
+        print("Truthful Email Guard: Failed email delivery gracefully failed over to 1-tap WhatsApp support (channel='whatsapp', sent_ok=False)")
 
 print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 

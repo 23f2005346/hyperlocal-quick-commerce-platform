@@ -190,6 +190,8 @@ def send_email_resend(to_email, subject, html_body, text_body=None):
     except urllib.error.HTTPError as e:
         err_body = e.read().decode('utf-8', errors='replace')
         print(f"[RESEND HTTP ERROR {e.code}] {err_body}")
+        if e.code == 403 and 'testing emails' in err_body:
+            return False, "Resend sandbox restriction: Sending to external email addresses requires adding and verifying a custom domain at resend.com/domains."
         return False, f"Resend HTTP {e.code}: {err_body}"
     except urllib.error.URLError as e:
         print(f"[RESEND NETWORK ERROR] {e.reason}")
@@ -315,9 +317,14 @@ def send_customer_otp_email(to_email, otp, customer_name="Customer"):
         )
         if ok:
             return True, resend_msg
-        print(f"[RESEND CUSTOMER OTP NOTICE] {resend_msg}. Falling back to direct SMTP...")
-
     # 2. Secondary: SMTP over Port 465 SSL or Port 587 STARTTLS
+    is_render = bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+    if is_render:
+        # Render cloud free tier blocks outbound TCP on ports 25, 465, and 587.
+        # Direct SMTP sockets will hang and fail.
+        print("[SMTP CLOUD NOTICE] Outbound SMTP ports 25/465/587 are blocked on Render free tier.")
+        return False, "Render cloud blocks outbound SMTP ports 25/465/587. Verified custom domain in Resend required for HTTPS email."
+
     if SMTP_USER and SMTP_PASS:
         try:
             msg = MIMEMultipart('alternative')
@@ -2042,17 +2049,46 @@ def create_app():
         if channel == 'email':
             parts = user.email.split('@')
             masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
-            sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
-            msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.' if lang == 'mr' else (f'सुरक्षा कोड (OTP) {masked_dest} पर ईमेल किया गया है।' if lang == 'hi' else f'Verification OTP sent to {masked_dest}.')
-            return jsonify({
-                'message': msg,
-                'reset_token': reset_token,
-                'channel': 'email',
-                'masked_target': masked_dest,
-                'has_email': True,
-                'has_phone': has_real_phone,
-                'sent_ok': sent_ok
-            }), 200
+            sent_ok, send_err = send_customer_otp_email(user.email, otp, user.name)
+
+            if sent_ok:
+                msg = f'सुरक्षा कोड (OTP) {masked_dest} वर ईमेल केला आहे.' if lang == 'mr' else (f'सुरक्षा कोड (OTP) {masked_dest} पर ईमेल किया गया है।' if lang == 'hi' else f'Verification OTP sent to {masked_dest}.')
+                return jsonify({
+                    'message': msg,
+                    'reset_token': reset_token,
+                    'channel': 'email',
+                    'masked_target': masked_dest,
+                    'has_email': True,
+                    'has_phone': has_real_phone,
+                    'sent_ok': True
+                }), 200
+            else:
+                # Email dispatch could not reach external inbox (e.g. sandbox restriction or cloud firewall)
+                # Seamlessly fallback to 1-tap WhatsApp verification so customer is NEVER stuck!
+                print(f"[RESET FAILOVER] Email dispatch to {user.email} failed ({send_err}). Falling back to WhatsApp verification.")
+                ROUSHAN_WHATSAPP = '919142052967'
+                if lang == 'hi':
+                    wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}, ईमेल: {user.email}) का पासवर्ड रीसेट करना चाहता हूँ। कृपया सहायता करें।"
+                    wa_user_msg = 'ईमेल सेवा फ़िलहाल अनुपलब्ध है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु नीचे दिए गए बटन से सीधे WhatsApp पर संपर्क करें।'
+                elif lang == 'en':
+                    wa_text = f"Hello Komal Mart! I need to reset the password for my account (Phone: {user.phone}, Email: {user.email}). Please assist me."
+                    wa_user_msg = 'Email delivery is currently unavailable. For your account security, please tap below to verify via WhatsApp with the store owner.'
+                else:
+                    wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}, ईमेल: {user.email}) पासवर्ड रीसेट करू इच्छितो. कृपया मदत करा."
+                    wa_user_msg = 'ईमेल डिलिव्हरी सध्या उपलब्ध नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.'
+
+                wa_link = f"https://wa.me/{ROUSHAN_WHATSAPP}?text={urllib.parse.quote(wa_text)}"
+                return jsonify({
+                    'message': wa_user_msg,
+                    'reset_token': '',
+                    'channel': 'whatsapp',
+                    'customer_phone': user.phone,
+                    'wa_link': wa_link,
+                    'has_email': True,
+                    'has_phone': has_real_phone,
+                    'sent_ok': False,
+                    'email_failed': True
+                }), 200
         else:
             # Phone-only account: direct them to Roushan's WhatsApp for manual security reset (zero code exposure)
             ROUSHAN_WHATSAPP = '919142052967'
@@ -2133,15 +2169,21 @@ def create_app():
         else:
             parts = user.email.split('@')
             masked_dest = (parts[0][:2] + '***' + parts[0][-1:] + '@' + parts[1]) if len(parts[0]) > 3 else user.email
-            sent_ok, _ = send_customer_otp_email(user.email, otp, user.name)
-            msg = f'नवीन OTP कोड {masked_dest} वर पुन्हा ईमेल केला आहे.'
-
-        return jsonify({
-            'message': msg,
-            'channel': channel,
-            'masked_target': masked_dest,
-            'sent_ok': sent_ok
-        }), 200
+            sent_ok, send_err = send_customer_otp_email(user.email, otp, user.name)
+            if sent_ok:
+                msg = f'नवीन OTP कोड {masked_dest} वर पुन्हा ईमेल केला आहे.'
+                return jsonify({
+                    'message': msg,
+                    'channel': channel,
+                    'masked_target': masked_dest,
+                    'sent_ok': True
+                }), 200
+            else:
+                return jsonify({
+                    'error': 'ईमेल पाठवण्यात अडचण आली. कृपया WhatsApp द्वारे संपर्क साधा.',
+                    'code': 'EMAIL_SEND_FAILED',
+                    'sent_ok': False
+                }), 502
 
     @app.route('/api/auth/reset-password', methods=['POST'])
     def reset_password():

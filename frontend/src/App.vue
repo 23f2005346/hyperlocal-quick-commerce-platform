@@ -4327,7 +4327,12 @@
                 {{ currentLang === 'en' ? 'Store Security Verification' : (currentLang === 'mr' ? 'दुकानदार सुरक्षा पडताळणी' : 'दुकानदार सुरक्षा सत्यापन') }}
               </p>
               <p style="font-size: 0.82rem; color: #4b5563; margin: 0 0 14px 0; line-height: 1.45;">
-                {{ currentLang === 'en' ? 'Your account does not have a registered email address. For your account safety, please message our store on WhatsApp to reset your password.' : (currentLang === 'mr' ? 'तुमच्या खात्याशी ईमेल जोडलेला नाही. खात्याच्या सुरक्षेसाठी, कृपया पासवर्ड रीसेट करण्यासाठी आमच्या दुकानदाराशी WhatsApp वर संपर्क साधा.' : 'आपके खाते से कोई ईमेल नहीं जुड़ा है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु हमारे दुकानदार से WhatsApp पर संपर्क करें।') }}
+                <template v-if="resetHasEmail">
+                  {{ currentLang === 'en' ? 'Email delivery is currently unavailable. For your account safety, please message our store on WhatsApp to reset your password.' : (currentLang === 'mr' ? 'ईमेल डिलिव्हरी सध्या उपलब्ध नाही. खात्याच्या सुरक्षेसाठी, कृपया पासवर्ड रीसेट करण्यासाठी आमच्या दुकानदाराशी WhatsApp वर संपर्क साधा.' : 'ईमेल सेवा फ़िलहाल अनुपलब्ध है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु हमारे दुकानदार से WhatsApp पर संपर्क करें।') }}
+                </template>
+                <template v-else>
+                  {{ currentLang === 'en' ? 'Your account does not have a registered email address. For your account safety, please message our store on WhatsApp to reset your password.' : (currentLang === 'mr' ? 'तुमच्या खात्याशी ईमेल जोडलेला नाही. खात्याच्या सुरक्षेसाठी, कृपया पासवर्ड रीसेट करण्यासाठी आमच्या दुकानदाराशी WhatsApp वर संपर्क साधा.' : 'आपके खाते से कोई ईमेल नहीं जुड़ा है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु हमारे दुकानदार से WhatsApp पर संपर्क करें।') }}
+                </template>
               </p>
               <a
                 v-if="resetWaLink"
