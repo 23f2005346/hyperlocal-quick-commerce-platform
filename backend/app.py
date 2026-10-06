@@ -1591,18 +1591,56 @@ def create_app():
             existing_tables = insp.get_table_names()
             if 'orders' in existing_tables:
                 col_names = [c['name'] for c in insp.get_columns('orders')]
-                if 'tracking_token' not in col_names:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE orders ADD COLUMN tracking_token VARCHAR(64) DEFAULT NULL"))
-                        conn.commit()
-                        print("[CLOUD DB MIGRATION] Added tracking_token column to orders table.")
+                orders_cols = [
+                    ('tracking_token', 'VARCHAR(64) DEFAULT NULL'),
+                    ('delivery_type', "VARCHAR(30) DEFAULT 'home_delivery'"),
+                    ('pincode', "VARCHAR(10) DEFAULT '400031'"),
+                    ('amount_paid', 'FLOAT DEFAULT 0.0'),
+                    ('total_savings', 'FLOAT DEFAULT 0.0'),
+                    ('credit_used', 'FLOAT DEFAULT 0.0'),
+                    ('credit_earned', 'FLOAT DEFAULT 0.0'),
+                    ('delivery_availability', "VARCHAR(30) DEFAULT 'pending'"),
+                    ('delivery_availability_time', 'DATETIME DEFAULT NULL'),
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_def in orders_cols:
+                        if c_name not in col_names:
+                            try:
+                                conn.execute(text(f"ALTER TABLE orders ADD COLUMN {c_name} {c_def}"))
+                                conn.commit()
+                                print(f"[CLOUD DB MIGRATION] Added {c_name} column to orders table.")
+                            except Exception as alt_err:
+                                print(f"[CLOUD DB MIGRATION WARNING] orders.{c_name}: {alt_err}")
             if 'users' in existing_tables:
                 col_names = [c['name'] for c in insp.get_columns('users')]
-                if 'token_version' not in col_names:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1"))
-                        conn.commit()
-                        print("[CLOUD DB MIGRATION] Added token_version column to users table.")
+                users_cols = [
+                    ('wallet_balance', 'FLOAT DEFAULT 0.0'),
+                    ('token_version', 'INTEGER DEFAULT 1'),
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_def in users_cols:
+                        if c_name not in col_names:
+                            try:
+                                conn.execute(text(f"ALTER TABLE users ADD COLUMN {c_name} {c_def}"))
+                                conn.commit()
+                                print(f"[CLOUD DB MIGRATION] Added {c_name} column to users table.")
+                            except Exception as alt_err:
+                                print(f"[CLOUD DB MIGRATION WARNING] users.{c_name}: {alt_err}")
+            if 'product_variants' in existing_tables:
+                col_names = [c['name'] for c in insp.get_columns('product_variants')]
+                pv_cols = [
+                    ('is_clearance', 'BOOLEAN DEFAULT 0'),
+                    ('clearance_price', 'FLOAT DEFAULT NULL'),
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_def in pv_cols:
+                        if c_name not in col_names:
+                            try:
+                                conn.execute(text(f"ALTER TABLE product_variants ADD COLUMN {c_name} {c_def}"))
+                                conn.commit()
+                                print(f"[CLOUD DB MIGRATION] Added {c_name} column to product_variants table.")
+                            except Exception as alt_err:
+                                print(f"[CLOUD DB MIGRATION WARNING] product_variants.{c_name}: {alt_err}")
         except Exception as e:
             print(f"[CLOUD DB SCHEMA NOTICE] {e}")
 
@@ -1965,8 +2003,9 @@ def create_app():
                 err_msg = f'अनेक वेळा प्रयत्न झाले आहेत. सुरक्षेसाठी कृपया {wait_min} मिनिटे थांबा किंवा व्हॉट्सॲपवर संपर्क साधा.' if lang == 'mr' else (f'बहुत अधिक प्रयास किए गए हैं। कृपया {wait_min} मिनट प्रतीक्षा करें या WhatsApp पर संपर्क करें।' if lang == 'hi' else f'Too many reset attempts. Please wait {wait_min} minutes or contact support on WhatsApp.')
             return jsonify({'error': err_msg, 'code': 'RATE_LIMIT_EXCEEDED', 'wait_seconds': wait_sec}), 429
 
-        # Check if account has a real verified email and phone
-        has_real_email = bool(user.email and '@' in user.email and not user.email.endswith('@komalmart.local'))
+        # Check if account has a real verified email and phone (treat dummy/test domains as phone-only)
+        dummy_domains = ('@komalmart.local', '@komalmart.com', '@example.com', '@test.local')
+        has_real_email = bool(user.email and '@' in user.email and not any(user.email.lower().endswith(d) for d in dummy_domains))
         has_real_phone = bool(user.phone and not is_dummy_phone(user.phone))
 
         # Channel selection:
@@ -2235,6 +2274,17 @@ def create_app():
                 if existing and existing.id != user.id:
                     return jsonify({'error': 'हा मोबाईल नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'PHONE_EXISTS'}), 400
                 user.phone = new_phone
+        if 'email' in data:
+            new_email = (data.get('email') or '').strip().lower()
+            if new_email:
+                if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', new_email):
+                    return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com).', 'code': 'INVALID_EMAIL'}), 400
+                existing_email = User.query.filter_by(email=new_email).first()
+                if existing_email and existing_email.id != user.id:
+                    return jsonify({'error': 'हा ईमेल पत्ता आधीच दुसऱ्या खात्याशी जोडलेला आहे.', 'code': 'EMAIL_EXISTS'}), 400
+                user.email = new_email
+            else:
+                user.email = None
         if 'address' in data:
             user.address = data['address'].strip()
 
@@ -3616,9 +3666,17 @@ def create_app():
         )
         new_order.items = order_items
 
-        db.session.add(new_order)
-        db.session.commit()
-        append_order_to_audit_vault(new_order)
+        try:
+            db.session.add(new_order)
+            db.session.commit()
+            append_order_to_audit_vault(new_order)
+        except Exception as e:
+            db.session.rollback()
+            print(f"[ORDER SAVE ERROR] {e}")
+            return jsonify({
+                'error': f'ऑर्डर नोंदवताना सर्व्हरवर अडचण आली: {str(e)}',
+                'code': 'ORDER_DATABASE_ERROR'
+            }), 500
 
         return jsonify({
             'message': 'Order placed successfully! Bill generated.',

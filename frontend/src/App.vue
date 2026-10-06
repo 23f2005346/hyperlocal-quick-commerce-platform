@@ -3821,8 +3821,8 @@
               <input type="text" v-model="profileForm.name" required class="form-input" />
             </div>
             <div class="form-group">
-              <label class="form-label">{{ currentLang === 'en' ? 'Email ID (Read Only)' : (currentLang === 'mr' ? 'ईमेल (Email ID - फक्त वाचण्यासाठी)' : 'ईमेल (Email ID - Read Only)') }}</label>
-              <input type="email" :value="profileForm.email" disabled class="form-input" style="background: #f5f0e8; cursor: not-allowed;" />
+              <label class="form-label">{{ currentLang === 'en' ? 'Email ID (For OTP & Digital Receipts)' : (currentLang === 'mr' ? 'ईमेल (OTP व डिजिटल बिलांसाठी)' : 'ईमेल (OTP व डिजिटल बिल के लिए)') }}</label>
+              <input type="email" v-model="profileForm.email" class="form-input" :placeholder="currentLang === 'en' ? 'e.g. name@gmail.com' : 'उदा. name@gmail.com'" />
             </div>
             <div class="form-group">
               <label class="form-label">{{ currentLang === 'en' ? 'Mobile / WhatsApp Number *' : (currentLang === 'mr' ? 'मोबाईल नंबर (Phone Number) *' : 'मोबाइल नंबर (Phone Number) *') }}</label>
@@ -10440,6 +10440,7 @@ async function updateCustomerProfile() {
       },
       body: JSON.stringify({
         name: profileForm.value.name,
+        email: profileForm.value.email ? profileForm.value.email.trim() : '',
         phone: profileForm.value.phone,
         address: profileForm.value.address
       })
@@ -11996,7 +11997,12 @@ async function submitOrder() {
         lastOrderReceipt.value = data.order;
       }
     } else {
-      const err = await res.json();
+      let err = null;
+      try {
+        err = await res.json();
+      } catch (jsonErr) {
+        err = { error: `सर्व्हरवर तांत्रिक अडचण आली (${res.status}). कृपया पुन्हा प्रयत्न करा.` };
+      }
       alert(err.error || 'ऑर्डर दर्ज नहीं हो सका');
     }
   } catch (err) {
