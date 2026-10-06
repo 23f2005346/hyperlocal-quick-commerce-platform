@@ -31,9 +31,10 @@ else:
     print("Customer Re-Login with Phone:", login_res.status_code, login_res.get_json().get('user', {}).get('role'))
     cust_token = login_res.get_json()['token']
 
-# 3. Security: Dummy phone and duplicate username rejection
+# 3. Security: Dummy phone, duplicate phone, and missing email rejection
 dummy_phone_res = client.post('/api/auth/register', json={
     'name': 'Fake Tester',
+    'email': 'faketester@test.com',
     'phone': '1234567890',
     'password': 'pass'
 })
@@ -42,11 +43,20 @@ assert dummy_phone_res.status_code == 400
 
 dup_phone_res = client.post('/api/auth/register', json={
     'name': 'Another User',
+    'email': 'anotheruser@test.com',
     'phone': '9876543299', # duplicate phone
     'password': 'pass'
 })
 print("Duplicate Phone Rejection Test:", dup_phone_res.status_code, "(Should be 400)")
 assert dup_phone_res.status_code == 400
+
+missing_email_res = client.post('/api/auth/register', json={
+    'name': 'No Email User',
+    'phone': '9876543211',
+    'password': 'pass'
+})
+print("Missing Email Rejection Test:", missing_email_res.status_code, "(Should be 400)")
+assert missing_email_res.status_code == 400
 
 # 4. Security Check: Customer attempts to change price (Should be REJECTED 403)
 patch_as_customer = client.patch(

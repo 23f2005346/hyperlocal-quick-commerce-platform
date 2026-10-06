@@ -905,12 +905,6 @@
           <p style="margin-top: 14px; font-size: 0.8rem; color: #94a3b8;">
             Komal Mart • Pure Kirana, Fresh Chakki Atta, Dals, Spices & Grains • Hyperlocal doorstep delivery across Wadala, Dadar, Matunga, Sewri & Sion.
           </p>
-
-          <p style="margin-top: 10px;">
-            <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
-              🔐 Store Owner / Admin Portal Access
-            </a>
-          </p>
         </div>
       </footer>
     </main>
@@ -2351,14 +2345,24 @@
                     </span>
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      @click="openCustomerAudit(c)"
-                      style="background: #065f46; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                      :title="currentLang === 'en' ? 'View customer past bills and purchase history' : 'ग्राहकाची मागील सर्व बिले व खरेदी इतिहास पहा'"
-                    >
-                      🧾 {{ currentLang === 'en' ? 'See Past Bills' : (currentLang === 'mr' ? 'जुनी बिले पहा' : 'पुराने बिल देखें') }}
-                    </button>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <button
+                        type="button"
+                        @click="openCustomerAudit(c)"
+                        style="background: #065f46; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                        :title="currentLang === 'en' ? 'View customer past bills and purchase history' : 'ग्राहकाची मागील सर्व बिले व खरेदी इतिहास पहा'"
+                      >
+                        🧾 {{ currentLang === 'en' ? 'Bills' : (currentLang === 'mr' ? 'बिले' : 'बिल') }}
+                      </button>
+                      <button
+                        type="button"
+                        @click="openAdminCustomerPasswordReset(c)"
+                        style="background: #0284c7; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                        :title="currentLang === 'en' ? 'Reset customer password & send via WhatsApp' : 'ग्राहकाचा पासवर्ड बदला व WhatsApp वर पाठवा'"
+                      >
+                        🔑 {{ currentLang === 'en' ? 'Reset Pass' : (currentLang === 'mr' ? 'पासवर्ड' : 'पासवर्ड') }}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -2420,9 +2424,18 @@
                   type="button"
                   @click="openCustomerAudit(c)"
                   class="admin-action-btn"
-                  style="flex: 1; min-width: 120px; background: #065f46; color: white; border: none; font-weight: 800; padding: 8px;"
+                  style="flex: 1; min-width: 110px; background: #065f46; color: white; border: none; font-weight: 800; padding: 8px;"
                 >
                   🧾 {{ currentLang === 'en' ? 'Past Bills' : (currentLang === 'mr' ? 'जुनी बिले' : 'पुराने बिल') }}
+                </button>
+                <button
+                  type="button"
+                  @click="openAdminCustomerPasswordReset(c)"
+                  class="admin-action-btn"
+                  style="flex: 1; min-width: 110px; background: #0284c7; color: white; border: none; font-weight: 800; padding: 8px;"
+                  title="Reset Password"
+                >
+                  🔑 {{ currentLang === 'en' ? 'Reset Pass' : (currentLang === 'mr' ? 'पासवर्ड' : 'पासवर्ड') }}
                 </button>
                 <button
                   v-if="c.unpaid_balance > 0"
@@ -3294,7 +3307,14 @@
             </div>
           </div>
 
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button
+              type="button"
+              @click="openAdminCustomerPasswordReset(activeAuditedCustomer)"
+              style="background: #0284c7; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+            >
+              🔑 {{ currentLang === 'en' ? 'Reset Password' : (currentLang === 'mr' ? 'पासवर्ड बदला' : 'पासवर्ड बदलें') }}
+            </button>
             <button
               v-if="activeAuditedCustomer.unpaid_balance > 0"
               type="button"
@@ -3400,6 +3420,99 @@
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ADMIN CUSTOMER PASSWORD RESET MODAL                      -->
+    <!-- ======================================================== -->
+    <div class="audit-modal-backdrop" v-if="adminResetCustomerTarget" @click.self="closeAdminCustomerReset">
+      <div class="audit-modal-content" style="max-width: 480px; width: 95%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
+          <h3 style="font-size: 1.2rem; font-weight: 900; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+            🔑 {{ currentLang === 'en' ? 'Customer Password Reset' : (currentLang === 'mr' ? 'ग्राहक पासवर्ड रीसेट' : 'ग्राहक पासवर्ड रीसेट') }}
+          </h3>
+          <button class="close-btn" @click="closeAdminCustomerReset">✕</button>
+        </div>
+
+        <!-- Target Customer Info -->
+        <div style="margin-top: 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+          <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a;">👤 {{ adminResetCustomerTarget.name }}</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            📞 <strong>{{ adminResetCustomerTarget.phone }}</strong>
+            <span v-if="adminResetCustomerTarget.email"> • ✉️ {{ adminResetCustomerTarget.email }}</span>
+          </div>
+        </div>
+
+        <!-- Step 1: Trigger Reset -->
+        <div v-if="!adminResetResult" style="margin-top: 16px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px;">
+            {{ currentLang === 'en' ? 'Custom New Password (Optional):' : (currentLang === 'mr' ? 'नवीन पासवर्ड (ऐच्छिक):' : 'नया पासवर्ड (वैकल्पिक):') }}
+          </label>
+          <input
+            type="text"
+            v-model="adminResetCustomPassword"
+            class="form-input"
+            :placeholder="currentLang === 'en' ? 'Leave empty to auto-generate PIN (e.g. KM4821)' : (currentLang === 'mr' ? 'रिकामे ठेवल्यास आपोआप PIN तयार होईल (उदा. KM4821)' : 'खाली छोड़ने पर ऑटोमेटिक PIN बनेगा (उदा. KM4821)')"
+            style="margin-bottom: 12px;"
+          />
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 16px;">
+            💡 {{ currentLang === 'en' ? 'Resets customer password and generates a temporary login key to share via WhatsApp.' : (currentLang === 'mr' ? 'यामुळे ग्राहकाचा पासवर्ड रीसेट होऊन WhatsApp वर पाठवण्यासाठी तात्पुरता PIN तयार होईल.' : 'इससे ग्राहक का पासवर्ड रीसेट होकर WhatsApp पर भेजने हेतु अस्थायी PIN तैयार होगा।') }}
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button
+              type="button"
+              class="pos-btn-discard"
+              @click="closeAdminCustomerReset"
+              :disabled="adminResetSubmitting"
+            >
+              {{ currentLang === 'en' ? 'Cancel' : (currentLang === 'mr' ? 'रद्द करा' : 'रद्द करें') }}
+            </button>
+            <button
+              type="button"
+              class="checkout-btn"
+              style="width: auto; padding: 10px 18px; margin-top: 0; background: #0284c7;"
+              @click="executeAdminCustomerPasswordReset"
+              :disabled="adminResetSubmitting"
+            >
+              {{ adminResetSubmitting ? (currentLang === 'en' ? 'Resetting...' : 'रीसेट होत आहे...') : (currentLang === 'en' ? '🔑 Confirm Reset' : (currentLang === 'mr' ? '🔑 पासवर्ड बदला' : '🔑 पासवर्ड बदलें')) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Show Result & 1-Click WhatsApp Share -->
+        <div v-else style="margin-top: 16px;">
+          <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 14px; text-align: center;">
+            <div style="font-size: 0.88rem; font-weight: 700; color: #166534;">
+              ✅ {{ currentLang === 'en' ? 'Password Reset Successfully!' : (currentLang === 'mr' ? 'पासवर्ड यशस्वीरीत्या बदलला आहे!' : 'पासवर्ड सफलतापूर्वक रीसेट हो गया!') }}
+            </div>
+            <div style="font-size: 0.8rem; color: #15803d; margin-top: 6px;">
+              {{ currentLang === 'en' ? 'Temporary Password:' : (currentLang === 'mr' ? 'तात्पुरता पासवर्ड:' : 'अस्थायी पासवर्ड:') }}
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 900; letter-spacing: 2px; color: #065f46; margin: 8px 0; background: white; padding: 8px 16px; border-radius: 6px; border: 1px dashed #059669; display: inline-block;">
+              {{ adminResetResult.temporary_password }}
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+            <button
+              type="button"
+              @click="shareAdminResetWhatsApp"
+              class="pos-btn-whatsapp"
+              style="padding: 12px; font-size: 0.95rem; font-weight: 800; justify-content: center;"
+            >
+              📲 {{ currentLang === 'en' ? 'Send Temporary Password via WhatsApp' : (currentLang === 'mr' ? 'WhatsApp वर तात्पुरता पासवर्ड पाठवा' : 'WhatsApp पर अस्थायी पासवर्ड भेजें') }}
+            </button>
+            <button
+              type="button"
+              class="pos-btn-discard"
+              @click="closeAdminCustomerReset"
+              style="width: 100%;"
+            >
+              {{ currentLang === 'en' ? 'Done / Close' : (currentLang === 'mr' ? 'झाले / बंद करा' : 'पूर्ण / बंद करें') }}
+            </button>
           </div>
         </div>
       </div>
@@ -4482,12 +4595,7 @@
             {{ authSubmitting ? t('auth_btn_submitting') : (authMode === 'admin' ? t('auth_btn_admin_login') : t('auth_btn_login')) }}
           </button>
 
-          <p v-if="authMode === 'login'" style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
-            <a href="javascript:void(0)" @click="openAuthModal('admin')" style="color: #d97706; font-weight: 700; text-decoration: none;">
-              🔐 {{ currentLang === 'mr' ? 'दुकानदार / ॲडमिन पोर्टल लॉगिन' : (currentLang === 'hi' ? 'दुकानदार / एडमिन पोर्टल लॉगिन' : 'Store Owner / Admin Portal Access') }}
-            </a>
-          </p>
-          <p v-else-if="authMode === 'admin'" style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
+          <p v-if="authMode === 'admin'" style="margin-top: 14px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
             <a href="javascript:void(0)" @click="openAuthModal('login')" style="color: #047857; font-weight: 700; text-decoration: none;">
               👤 {{ currentLang === 'mr' ? 'ग्राहक लॉगिनकडे परत जा' : (currentLang === 'hi' ? 'ग्राहक लॉगिन पर वापस जाएं' : 'Back to Customer Login') }}
             </a>
@@ -4522,11 +4630,11 @@
 
           <div class="form-group">
             <label class="form-label">
-              {{ t('auth_register_email') }} <span style="font-size: 0.76rem; color: #64748b; font-weight: 600;">({{ currentLang === 'en' ? 'Optional' : (currentLang === 'mr' ? 'ऐच्छिक' : 'ऐच्छिक') }})</span>
+              {{ t('auth_register_email') }} <span style="color: #dc2626;">*</span>
             </label>
-            <input type="email" v-model="registerForm.email" class="form-input" placeholder="naam@gmail.com" />
+            <input type="email" v-model="registerForm.email" required class="form-input" placeholder="naam@gmail.com" />
             <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
-              {{ currentLang === 'en' ? '💡 Tip: Adding an email enables instant 24/7 automated password reset (Email OTP) & digital receipts.' : (currentLang === 'mr' ? '💡 टीप: २४/७ त्वरित पासवर्ड रीसेट (ईमेल OTP) आणि बिलासाठी ईमेल जोडणे फायद्याचे ठरेल.' : '💡 सुझाव: 24/7 तत्काल पासवर्ड रीसेट (ईमेल OTP) और बिल के लिए ईमेल जोड़ना सुविधाजनक रहेगा।') }}
+              {{ currentLang === 'en' ? '🔒 Required for instant automated OTP verification, password reset & digital receipts.' : (currentLang === 'mr' ? '🔒 त्वरित OTP पडताळणी, पासवर्ड रीसेट व बिलासाठी ईमेल अनिवार्य आहे.' : '🔒 तत्काल OTP सत्यापन, पासवर्ड रीसेट व बिल के लिए ईमेल अनिवार्य है।') }}
             </span>
           </div>
 
@@ -8787,6 +8895,10 @@ const zReport = ref({
 const adminCustomers = ref([]);
 const customerSearch = ref('');
 const activeAuditedCustomer = ref(null);
+const adminResetCustomerTarget = ref(null);
+const adminResetCustomPassword = ref('');
+const adminResetSubmitting = ref(false);
+const adminResetResult = ref(null);
 const isPosSubmitting = ref(false);
 const selectedPosCustomer = ref(null);
 const posUseStoreCredit = ref(false);
@@ -10040,6 +10152,16 @@ async function handleRegister() {
     authError.value = t('auth_err_dummy_phone');
     return;
   }
+  const email = (registerForm.value.email || '').trim().toLowerCase();
+  const emailRegex = /^[\w\.-]+@[\w\.-]+\.\w+$/;
+  if (!email || !emailRegex.test(email)) {
+    authError.value = currentLang.value === 'en'
+      ? 'Please enter a valid email address (e.g. name@gmail.com).'
+      : (currentLang.value === 'mr'
+        ? 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com).'
+        : 'कृपया एक वैध ईमेल पता दर्ज करें (उदा. naam@gmail.com)।');
+    return;
+  }
   authSubmitting.value = true;
   authError.value = '';
   try {
@@ -10047,7 +10169,7 @@ async function handleRegister() {
       name: registerForm.value.name.trim(),
       username: registerForm.value.username ? registerForm.value.username.trim() : null,
       phone: phone,
-      email: registerForm.value.email ? registerForm.value.email.trim() : null,
+      email: email,
       password: registerForm.value.password,
       address: registerForm.value.address.trim()
     };
@@ -13149,6 +13271,97 @@ const khataCustomersCount = computed(() => {
 
 function openCustomerAudit(customer) {
   activeAuditedCustomer.value = customer;
+}
+
+function openAdminCustomerPasswordReset(customer) {
+  adminResetCustomerTarget.value = customer;
+  adminResetCustomPassword.value = '';
+  adminResetResult.value = null;
+}
+
+function closeAdminCustomerReset() {
+  adminResetCustomerTarget.value = null;
+  adminResetCustomPassword.value = '';
+  adminResetResult.value = null;
+}
+
+async function executeAdminCustomerPasswordReset() {
+  if (!adminResetCustomerTarget.value) return;
+  adminResetSubmitting.value = true;
+  try {
+    const payload = {};
+    if (adminResetCustomPassword.value.trim()) {
+      payload.new_password = adminResetCustomPassword.value.trim();
+    } else {
+      payload.generate_temp = true;
+    }
+    const res = await fetch(`${API_BASE}/admin/customers/${adminResetCustomerTarget.value.id}/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken.value}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      adminResetResult.value = data;
+      showToast(data.message || 'Password reset successfully!');
+    } else {
+      showToast(data.error || 'Failed to reset password', 'error');
+    }
+  } catch (err) {
+    showToast('Network error while resetting password', 'error');
+  } finally {
+    adminResetSubmitting.value = false;
+  }
+}
+
+function shareAdminResetWhatsApp() {
+  if (!adminResetCustomerTarget.value || !adminResetResult.value) return;
+  const cust = adminResetCustomerTarget.value;
+  const tempPass = adminResetResult.value.temporary_password;
+  const rawPhone = (cust.phone || '').replace(/\D/g, '');
+  const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+
+  let msg = '';
+  if (currentLang.value === 'en') {
+    msg =
+`🌾 *Komal Mart (कोमल मार्ट) — Password Reset*
+━━━━━━━━━━━━━━━━━━━━
+👤 *Customer:* ${cust.name}
+🔑 *Your Temporary Password:* *${tempPass}*
+
+You can now log in using your phone (*${cust.phone}*) and this temporary password:
+👉 https://komalmart.onrender.com
+
+After logging in, you can update your password under your Profile. Thank you! 🙏`;
+  } else if (currentLang.value === 'hi') {
+    msg =
+`🌾 *कोमल मार्ट (Komal Mart) — पासवर्ड रीसेट*
+━━━━━━━━━━━━━━━━━━━━
+👤 *ग्राहक:* ${cust.name}
+🔑 *आपका नया अस्थायी पासवर्ड:* *${tempPass}*
+
+कृपया अपने मोबाइल नंबर (*${cust.phone}*) और इस पासवर्ड से लॉगिन करें:
+👉 https://komalmart.onrender.com
+
+लॉगिन करने के बाद आप अपनी प्रोफाइल में जाकर नया पासवर्ड सेट कर सकते हैं। धन्यवाद! 🙏`;
+  } else {
+    msg =
+`🌾 *कोमल मार्ट (Komal Mart) — पासवर्ड रीसेट*
+━━━━━━━━━━━━━━━━━━━━
+👤 *ग्राहक:* ${cust.name}
+🔑 *तुमचा नवीन तात्पुरता पासवर्ड:* *${tempPass}*
+
+कृपया तुमच्या मोबाईल नंबर (*${cust.phone}*) आणि या तात्पुरत्या पासवर्डने लॉगिन करा:
+👉 https://komalmart.onrender.com
+
+लॉगिन झाल्यावर प्रोफाइलमध्ये जाऊन तुम्ही स्वतःचा कायमस्वरूपी पासवर्ड सेट करू शकता. धन्यवाद! 🙏`;
+  }
+
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`, '_blank');
 }
 
 function sendKhataReminderWhatsApp(customer) {

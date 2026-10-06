@@ -364,7 +364,7 @@ export const translations = {
     auth_reset_btn: "🔒 नवीन पासवर्ड सेव्ह करा (Set Password)",
     auth_reset_resend_btn: "🔄 नवीन OTP कोड पुन्हा पाठवा",
     auth_reset_no_email_error: "या खात्याशी ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया दुकानदाराशी WhatsApp वर संपर्क साधा.",
-    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान ॲक्सेस केवळ अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) साठी २-स्टेप पडताळणीसह सुरक्षित आहे.",
+    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान ॲक्सेस केवळ अधिकृत व्यवस्थापकांसाठी २-स्टेप पडताळणीसह (2FA) सुरक्षित आहे.",
 
     // Komal AI Smart Draft Bill
     ai_btn_floating: "🤖 कोमल AI (🎙️ बोलून ऑर्डर करा)",
@@ -764,7 +764,7 @@ export const translations = {
     auth_reset_btn: "🔒 नया पासवर्ड सेव करें (Set Password)",
     auth_reset_resend_btn: "🔄 नया OTP कोड पुनः भेजें",
     auth_reset_no_email_error: "इस खाते से कोई ईमेल नहीं जुड़ा है। सुरक्षा हेतु कृपया दुकानदार से WhatsApp पर संपर्क करें।",
-    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान एक्सेस केवल अधिकृत ईमेल (thisisroushan01@gmail.com / novaaether01@gmail.com) के लिए 2-स्टेप सत्यापन के साथ सुरक्षित है।",
+    auth_admin_security_info: "🛡️ सुरक्षा सूचना: दुकान एक्सेस केवल अधिकृत प्रबंधकों के लिए 2-स्टेप सत्यापन (2FA) के साथ सुरक्षित है।",
 
     // Komal AI Smart Draft Bill
     ai_btn_floating: "🤖 कोमल AI (🎙️ बोलकर ऑर्डर करें)",
@@ -1164,7 +1164,7 @@ export const translations = {
     auth_reset_btn: "🔒 Set New Password",
     auth_reset_resend_btn: "🔄 Resend OTP Code",
     auth_reset_no_email_error: "No email address is linked to this account. Please contact store owner on WhatsApp for security verification.",
-    auth_admin_security_info: "🛡️ Security Notice: Admin access is strictly protected with 2-Step Verification for authorized emails (thisisroushan01@gmail.com / novaaether01@gmail.com).",
+    auth_admin_security_info: "🛡️ Security Notice: Admin access is strictly protected with Two-Factor Authentication (2FA) for authorized managers.",
 
     // Komal AI Smart Draft Bill
     ai_btn_floating: "🤖 Komal AI (🎙️ Voice Order)",

@@ -846,6 +846,15 @@ def get_tiered_unit_price(product_id, qty):
         print(f"[TIER PRICE ERROR] {e}")
     return None
 
+def safe_str(val, default=''):
+    """
+    Safely converts arbitrary JSON input (int, float, bool, None, dict, list) to a stripped string.
+    Returns default if input is None or a complex container (dict, list) to eliminate 500 AttributeError crashes.
+    """
+    if val is None or isinstance(val, (dict, list)):
+        return default
+    return str(val).strip()
+
 def parse_unit_weight_in_kg(unit_size):
     """
     Parses unit strings (e.g. '500g', '1kg', '2kg', '5kg', '30kg Bori', '250g', '100g', '1L', '5L', '500ml')
@@ -1868,15 +1877,15 @@ def create_app():
     @app.route('/api/auth/register', methods=['POST'])
     def register():
         data = request.get_json() or {}
-        name = (data.get('name') or '').strip()
-        username = (data.get('username') or '').strip()
-        email = (data.get('email') or '').strip().lower()
-        phone = re.sub(r'\D', '', str(data.get('phone') or '').strip())
-        password = (data.get('password') or '').strip()
-        address = (data.get('address') or '').strip()
+        name = safe_str(data.get('name'))
+        username = safe_str(data.get('username'))
+        email = safe_str(data.get('email')).lower()
+        phone = re.sub(r'\D', '', safe_str(data.get('phone')))
+        password = safe_str(data.get('password'))
+        address = safe_str(data.get('address'))
 
-        if not name or not password or not phone:
-            return jsonify({'error': 'नाव, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
+        if not name or not password or not phone or not email:
+            return jsonify({'error': 'नाव, ईमेल, मोबाईल नंबर आणि पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         # Field length bounds to prevent DoS / database bloat
         if len(name) > 100:
@@ -1885,7 +1894,7 @@ def create_app():
         if address and len(address) > 500:
             return jsonify({'error': 'पत्ता जास्तीत जास्त ५०० अक्षरांचा असावा.', 'code': 'ADDRESS_TOO_LONG'}), 400
 
-        if email and len(email) > 120:
+        if len(email) > 120:
             return jsonify({'error': 'ईमेल पत्ता जास्तीत जास्त १२० अक्षरांचा असावा.', 'code': 'EMAIL_TOO_LONG'}), 400
 
         if len(password) > 100:
@@ -1903,14 +1912,11 @@ def create_app():
         if User.query.filter_by(phone=phone).first():
             return jsonify({'error': 'हा मोबाईल नंबर आधीच नोंदणीकृत आहे. कृपया लॉगिन करा किंवा पासवर्ड रीसेट करा.', 'code': 'PHONE_EXISTS'}), 400
 
-        # Optional Email (prompted for 24/7 automated password reset and digital receipts)
-        if email:
-            if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-                return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com) किंवा रिकामे ठेवा.', 'code': 'INVALID_EMAIL'}), 400
-            if User.query.filter_by(email=email).first():
-                return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा दुसरा ईमेल वापरा.', 'code': 'EMAIL_EXISTS'}), 400
-        else:
-            email = None
+        # Mandatory & Strict Email Validation (enables zero-cost Brevo/Resend OTP verification & self-service reset)
+        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            return jsonify({'error': 'कृपया वैध ईमेल पत्ता टाका (उदा. naam@gmail.com).', 'code': 'INVALID_EMAIL'}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'या ईमेलवर आधीच खाते अस्तित्वात आहे. कृपया लॉगिन करा किंवा दुसरा ईमेल वापरा.', 'code': 'EMAIL_EXISTS'}), 400
 
         # Unique username validation (if provided)
         if username:
@@ -1943,8 +1949,8 @@ def create_app():
     @app.route('/api/auth/login', methods=['POST'])
     def login():
         data = request.get_json() or {}
-        identifier = (data.get('identifier') or data.get('email') or data.get('phone') or data.get('username') or '').strip()
-        password = data.get('password', '').strip()
+        identifier = safe_str(data.get('identifier') or data.get('email') or data.get('phone') or data.get('username'))
+        password = safe_str(data.get('password'))
 
         if not identifier or not password:
             return jsonify({'error': 'मोबाईल नंबर/ईमेल/युझरनेम आणि पासवर्ड आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
@@ -2138,9 +2144,9 @@ def create_app():
         - Protected by 60s cooldown and hourly rate limiting to safeguard Resend quota.
         """
         data = request.get_json() or {}
-        identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
-        prefer_channel = (data.get('channel') or '').strip().lower()
-        lang = (data.get('lang') or 'mr').strip().lower()
+        identifier = safe_str(data.get('identifier') or data.get('phone') or data.get('email'))
+        prefer_channel = safe_str(data.get('channel')).lower()
+        lang = safe_str(data.get('lang'), default='mr').lower()
 
         if not identifier:
             return jsonify({'error': 'मोबाईल नंबर किंवा ईमेल आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
@@ -2499,11 +2505,13 @@ def create_app():
             msg = msgs.get(lang_code, msgs.get('mr', 'Error'))
             return jsonify({'error': msg, 'code': code}), 400
 
-        if 'name' in data and data['name'].strip():
-            user.name = data['name'].strip()
-        if 'phone' in data and data['phone'].strip():
-            new_phone = data['phone'].strip()
-            if new_phone != user.phone:
+        if 'name' in data:
+            new_name = safe_str(data.get('name'))
+            if new_name:
+                user.name = new_name
+        if 'phone' in data:
+            new_phone = safe_str(data.get('phone'))
+            if new_phone and new_phone != user.phone:
                 if not re.match(r'^[6-9]\d{9}$', new_phone):
                     return make_profile_error('INVALID_PHONE')
                 if is_dummy_phone(new_phone):
@@ -2513,7 +2521,7 @@ def create_app():
                     return make_profile_error('PHONE_EXISTS')
                 user.phone = new_phone
         if 'email' in data:
-            new_email = (data.get('email') or '').strip().lower()
+            new_email = safe_str(data.get('email')).lower()
             if new_email:
                 if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', new_email):
                     return make_profile_error('INVALID_EMAIL')
@@ -2524,7 +2532,7 @@ def create_app():
             else:
                 user.email = None
         if 'address' in data:
-            user.address = data['address'].strip()
+            user.address = safe_str(data.get('address'))
 
         db.session.commit()
         return jsonify({
@@ -3091,6 +3099,10 @@ def create_app():
             if qty <= 0:
                 qty = 1.0
 
+            is_custom_weight = False
+            custom_weight_val = None
+            rate_per_kg = 0.0
+
             db_prod = db.session.get(Product, p_id) if p_id else None
             db_var = db.session.get(ProductVariant, v_id) if v_id else None
 
@@ -3251,12 +3263,13 @@ def create_app():
                     unit_size = f"{custom_weight_val} kg"
                 line_total = unit_price
             else:
-                unit_price = float(item.get('price') or 0.0)
                 if db_var:
                     unit_price = db_var.clearance_price if db_var.is_clearance and db_var.clearance_price else db_var.selling_price
                     unit_size = db_var.unit_size
                 else:
-                    unit_size = item.get('unit_size') or ''
+                    # Invariant: Never trust client/AI reported price if no DB variant matched
+                    unit_price = 0.0
+                    unit_size = safe_str(item.get('unit_size'))
                 line_total = round(unit_price * qty, 2)
 
             if status == 'matched' and unit_price > 0:
@@ -3690,17 +3703,17 @@ def create_app():
     @app.route('/api/orders', methods=['POST'])
     def place_order():
         data = request.get_json() or {}
-        if not data or not data.get('items'):
-            return jsonify({'error': 'Cart is empty'}), 400
+        if not data or not data.get('items') or not isinstance(data.get('items'), list):
+            return jsonify({'error': 'Cart is empty or invalid format', 'code': 'INVALID_CART'}), 400
 
         user = get_current_user()
-        customer_name = data.get('customer_name') or (user.name if user else 'Walk-in Customer')
-        customer_phone = data.get('customer_phone') or (user.phone if user else '9876543210')
-        customer_address = data.get('customer_address') or data.get('delivery_address') or (user.address if user else 'Local Delivery')
-        delivery_type = data.get('delivery_type', 'home_delivery')
-        pincode = str(data.get('pincode', '')).strip()
-        payment_method = data.get('payment_method', 'Cash on Delivery (COD)')
-        order_lang = (data.get('lang') or 'mr').strip().lower()
+        customer_name = safe_str(data.get('customer_name')) or (user.name if user else 'Walk-in Customer')
+        customer_phone = safe_str(data.get('customer_phone')) or (user.phone if user else '9876543210')
+        customer_address = safe_str(data.get('customer_address') or data.get('delivery_address')) or (user.address if user else 'Local Delivery')
+        delivery_type = safe_str(data.get('delivery_type'), default='home_delivery')
+        pincode = safe_str(data.get('pincode'))
+        payment_method = safe_str(data.get('payment_method'), default='Cash on Delivery (COD)')
+        order_lang = safe_str(data.get('lang'), default='mr').lower()
 
         # Wadala Local Delivery Zone Guard (Express Home Delivery strictly within Wadala & neighboring zones)
         ALLOWED_WADALA_PINCODES = {'400031', '400037', '400015', '400014', '400019', '400022'}
@@ -3751,13 +3764,22 @@ def create_app():
         else:
             payment_status = 'Unpaid'
 
-        order_number = f"KRN-{get_ist_time().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+        for _ in range(20):
+            candidate_num = f"KRN-{get_ist_time().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+            if not db.session.query(Order.id).filter_by(order_number=candidate_num).first():
+                order_number = candidate_num
+                break
+        else:
+            order_number = f"KRN-{get_ist_time().strftime('%Y%m%d')}-{int(time.time() * 1000) % 1000000}"
 
         total_mrp = 0.0
         final_amount = 0.0
         order_items = []
 
         for item in data['items']:
+            if not isinstance(item, dict):
+                return jsonify({'error': 'Invalid item format in cart', 'code': 'INVALID_ITEM'}), 400
+
             # Support both standard variant and custom loose weight items
             if item.get('is_custom_weight'):
                 prod_id = item.get('product_id')
@@ -3852,17 +3874,26 @@ def create_app():
                         'variant_label': variant.unit_size
                     }), 400
 
-                if variant.stock_quantity is not None and variant.stock_quantity < qty:
-                    avail = max(0, variant.stock_quantity)
-                    return jsonify({
-                        'error': f'क्षमस्व! "{item_name} ({variant.unit_size})" चा पुरेसा साठा उपलब्ध नाही (फक्त {avail} शिल्लक, मागणी: {qty}).',
-                        'code': 'INSUFFICIENT_STOCK',
-                        'variant_id': variant.id,
-                        'requested_quantity': qty,
-                        'available_quantity': avail
-                    }), 400
-
                 if variant.stock_quantity is not None:
+                    # Atomic conditional stock deduction with rowcount check to eliminate overselling race conditions
+                    updated_rows = db.session.query(ProductVariant).filter(
+                        ProductVariant.id == variant.id,
+                        ProductVariant.stock_quantity >= qty
+                    ).update(
+                        {ProductVariant.stock_quantity: ProductVariant.stock_quantity - qty},
+                        synchronize_session=False
+                    )
+                    if updated_rows == 0:
+                        db.session.rollback()
+                        fresh_v = db.session.get(ProductVariant, variant.id)
+                        avail = max(0, fresh_v.stock_quantity) if (fresh_v and fresh_v.stock_quantity is not None) else 0
+                        return jsonify({
+                            'error': f'क्षमस्व! "{item_name} ({variant.unit_size})" चा पुरेसा साठा उपलब्ध नाही (फक्त {avail} शिल्लक, मागणी: {qty}).',
+                            'code': 'INSUFFICIENT_STOCK',
+                            'variant_id': variant.id,
+                            'requested_quantity': qty,
+                            'available_quantity': avail
+                        }), 400
                     variant.stock_quantity -= qty
 
                 if variant.is_clearance and variant.clearance_price is not None and variant.clearance_price > 0:
@@ -4166,8 +4197,18 @@ def create_app():
         items_payload = [{'variant_id': it.variant_id, 'quantity': it.quantity} for it in order.items if it.variant_id]
         order.credit_earned = calculate_order_credit(items_payload)
 
-        # Deduct inventory stock
+        # Deduct inventory stock atomically
         if variant.stock_quantity is not None:
+            updated_rows = db.session.query(ProductVariant).filter(
+                ProductVariant.id == variant.id,
+                ProductVariant.stock_quantity >= qty
+            ).update(
+                {ProductVariant.stock_quantity: ProductVariant.stock_quantity - qty},
+                synchronize_session=False
+            )
+            if updated_rows == 0:
+                db.session.rollback()
+                return jsonify({'error': 'क्षमस्व, साठा संपला आहे.', 'code': 'INSUFFICIENT_STOCK'}), 400
             variant.stock_quantity = max(0, int(variant.stock_quantity - qty))
 
         db.session.commit()
@@ -4301,7 +4342,22 @@ def create_app():
         data = request.get_json() or {}
 
         if 'status' in data:
-            order.status = data['status']
+            prev_status = order.status
+            new_status = data['status']
+            order.status = new_status
+
+            # Cancellation Lifecycle Integrity: Restore stock and refund used store credit to customer
+            if prev_status != 'Cancelled' and new_status == 'Cancelled':
+                for it in order.items:
+                    if it.variant_id:
+                        v = db.session.get(ProductVariant, it.variant_id)
+                        if v and v.stock_quantity is not None:
+                            v.stock_quantity += int(it.quantity)
+
+                if order.credit_used and order.credit_used > 0 and order.user_id:
+                    cust_user = db.session.get(User, order.user_id)
+                    if cust_user:
+                        cust_user.wallet_balance = round((cust_user.wallet_balance or 0.0) + order.credit_used, 2)
         if 'delivery_availability' in data:
             order.delivery_availability = data['delivery_availability']
             order.delivery_availability_time = get_ist_time()
