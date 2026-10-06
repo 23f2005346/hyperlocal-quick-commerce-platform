@@ -1,4 +1,4 @@
-from app import create_app, ADMIN_2FA_STORE, CUSTOMER_RESET_STORE, RESET_COOLDOWN_STORE, RESET_RATE_LIMIT_STORE
+from app import create_app, prune_in_memory_stores, ADMIN_2FA_STORE, CUSTOMER_RESET_STORE, RESET_COOLDOWN_STORE, RESET_RATE_LIMIT_STORE, LOGIN_ATTEMPTS_STORE, AI_SCAN_RATE_LIMIT_STORE
 import json
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -930,6 +930,98 @@ with app.app_context():
         assert 'wa_link' in data and 'wa.me/919142052967' in data['wa_link']
         assert 'Email delivery is currently unavailable' in data['message']
         print("Truthful Email Guard: Failed email delivery gracefully failed over to 1-tap WhatsApp support (channel='whatsapp', sent_ok=False)")
+
+# 30. Strict Packaged Item Quantity Validation & Decimal Truncation Guard (Audit Issue #10)
+with app.app_context():
+    # 30a. Decimal float quantity (2.9) rejected with 400 INVALID_QUANTITY
+    res_dec = client.post('/api/orders', json={
+        'items': [{'variant_id': 1, 'quantity': 2.9}],
+        'delivery_type': 'store_pickup',
+        'customer_name': 'Quantity Tester',
+        'customer_phone': '9876543210',
+        'lang': 'en'
+    })
+    assert res_dec.status_code == 400
+    assert res_dec.get_json()['code'] == 'INVALID_QUANTITY'
+    assert 'whole integer' in res_dec.get_json()['error']
+    print("Quantity Defense: Decimal float quantity 2.9 rejected with 400 INVALID_QUANTITY (no silent truncation)")
+
+    # 30b. Decimal string quantity ("2.5") rejected with 400 INVALID_QUANTITY
+    res_dec_str = client.post('/api/orders', json={
+        'items': [{'variant_id': 1, 'quantity': '2.5'}],
+        'delivery_type': 'store_pickup',
+        'customer_name': 'Quantity Tester',
+        'customer_phone': '9876543210',
+        'lang': 'hi'
+    })
+    assert res_dec_str.status_code == 400
+    assert res_dec_str.get_json()['code'] == 'INVALID_QUANTITY'
+    print("Quantity Defense: Decimal string quantity '2.5' rejected with localized Hindi 400")
+
+    # 30c. Negative and zero quantities rejected
+    res_zero = client.post('/api/orders', json={
+        'items': [{'variant_id': 1, 'quantity': 0}],
+        'delivery_type': 'store_pickup',
+        'customer_name': 'Quantity Tester',
+        'customer_phone': '9876543210'
+    })
+    assert res_zero.status_code == 400
+    assert res_zero.get_json()['code'] == 'INVALID_QUANTITY'
+    print("Quantity Defense: Zero quantity rejected with 400 INVALID_QUANTITY")
+
+    # 30d. Boolean quantity rejected
+    res_bool = client.post('/api/orders', json={
+        'items': [{'variant_id': 1, 'quantity': True}],
+        'delivery_type': 'store_pickup',
+        'customer_name': 'Quantity Tester',
+        'customer_phone': '9876543210'
+    })
+    assert res_bool.status_code == 400
+    assert res_bool.get_json()['code'] == 'INVALID_QUANTITY'
+    print("Quantity Defense: Boolean quantity True rejected with 400 INVALID_QUANTITY")
+
+# 31. In-Memory Store Periodic Pruning & Memory Leak Defense (Audit Issue #12)
+with app.app_context():
+    import time
+    now_ts = time.time()
+
+    # Populate dummy expired and active records across all 6 stores
+    ADMIN_2FA_STORE['audit_expired@admin.com'] = {'otp': '111111', 'expires_at': now_ts - 500, 'locked_until': now_ts - 100}
+    ADMIN_2FA_STORE['audit_active@admin.com'] = {'otp': '222222', 'expires_at': now_ts + 500, 'locked_until': now_ts + 100}
+
+    CUSTOMER_RESET_STORE['audit_expired_reset'] = {'otp': '333333', 'expires_at': now_ts - 200}
+    CUSTOMER_RESET_STORE['audit_active_reset'] = {'otp': '444444', 'expires_at': now_ts + 200}
+
+    RESET_RATE_LIMIT_STORE['audit_expired_ip'] = [now_ts - 4000]
+    RESET_RATE_LIMIT_STORE['audit_active_ip'] = [now_ts - 100]
+
+    RESET_COOLDOWN_STORE['audit_expired_cooldown'] = now_ts - 70
+    RESET_COOLDOWN_STORE['audit_active_cooldown'] = now_ts - 10
+
+    LOGIN_ATTEMPTS_STORE['audit_expired_login'] = {'first_attempt': now_ts - 1000, 'locked_until': now_ts - 10}
+    LOGIN_ATTEMPTS_STORE['audit_active_login'] = {'first_attempt': now_ts - 100, 'locked_until': now_ts + 500}
+
+    AI_SCAN_RATE_LIMIT_STORE['audit_expired_ai'] = [now_ts - 4000]
+    AI_SCAN_RATE_LIMIT_STORE['audit_active_ai'] = [now_ts - 100]
+
+    # Force sweep
+    sweep_res = prune_in_memory_stores(force=True)
+    assert 'audit_expired@admin.com' not in ADMIN_2FA_STORE and 'audit_active@admin.com' in ADMIN_2FA_STORE
+    assert 'audit_expired_reset' not in CUSTOMER_RESET_STORE and 'audit_active_reset' in CUSTOMER_RESET_STORE
+    assert 'audit_expired_ip' not in RESET_RATE_LIMIT_STORE and 'audit_active_ip' in RESET_RATE_LIMIT_STORE
+    assert 'audit_expired_cooldown' not in RESET_COOLDOWN_STORE and 'audit_active_cooldown' in RESET_COOLDOWN_STORE
+    assert 'audit_expired_login' not in LOGIN_ATTEMPTS_STORE and 'audit_active_login' in LOGIN_ATTEMPTS_STORE
+    assert 'audit_expired_ai' not in AI_SCAN_RATE_LIMIT_STORE and 'audit_active_ai' in AI_SCAN_RATE_LIMIT_STORE
+
+    # Clean up active test records
+    ADMIN_2FA_STORE.pop('audit_active@admin.com', None)
+    CUSTOMER_RESET_STORE.pop('audit_active_reset', None)
+    RESET_RATE_LIMIT_STORE.pop('audit_active_ip', None)
+    RESET_COOLDOWN_STORE.pop('audit_active_cooldown', None)
+    LOGIN_ATTEMPTS_STORE.pop('audit_active_login', None)
+    AI_SCAN_RATE_LIMIT_STORE.pop('audit_active_ai', None)
+
+    print("Memory Leak Defense: All expired entries across all 6 rate-limiter, lockout & OTP stores purged cleanly")
 
 print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 

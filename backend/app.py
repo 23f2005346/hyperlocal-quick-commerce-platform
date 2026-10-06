@@ -62,12 +62,87 @@ RESET_COOLDOWN_STORE = {}   # { key: last_request_timestamp }
 LOGIN_ATTEMPTS_STORE = {}   # { key: { 'attempts': int, 'locked_until': ts, 'first_attempt': ts } }
 AI_SCAN_RATE_LIMIT_STORE = {} # { key: [timestamps] }
 
+_LAST_STORE_PRUNE_TS = 0
+
+def prune_in_memory_stores(force: bool = False) -> dict:
+    """
+    Security & Memory Defense (Audit Issue #12):
+    Periodically sweeps and purges expired entries across all in-memory rate-limiter,
+    lockout, OTP, and session stores to eliminate memory leaks in long-running processes.
+    - Throttled to run at most once every 5 minutes (300s) under normal traffic.
+    - Can be forced with force=True for test verification or manual maintenance sweeps.
+    Returns summary dict of pruned entry counts.
+    """
+    global _LAST_STORE_PRUNE_TS
+    now = time.time()
+    if not force and (now - _LAST_STORE_PRUNE_TS < 300):
+        return {}
+    _LAST_STORE_PRUNE_TS = now
+
+    pruned = {
+        'admin_2fa': 0,
+        'customer_reset': 0,
+        'reset_rate_limit': 0,
+        'reset_cooldown': 0,
+        'login_attempts': 0,
+        'ai_scan': 0
+    }
+
+    # 1. Prune ADMIN_2FA_STORE: expired if past both expires_at and locked_until
+    for email, rec in list(ADMIN_2FA_STORE.items()):
+        exp = rec.get('expires_at', 0)
+        lock = rec.get('locked_until', 0)
+        if now > max(exp, lock):
+            ADMIN_2FA_STORE.pop(email, None)
+            pruned['admin_2fa'] += 1
+
+    # 2. Prune CUSTOMER_RESET_STORE: expired if past expires_at (10 min TTL)
+    for key, rec in list(CUSTOMER_RESET_STORE.items()):
+        if now > rec.get('expires_at', 0):
+            CUSTOMER_RESET_STORE.pop(key, None)
+            pruned['customer_reset'] += 1
+
+    # 3. Prune RESET_RATE_LIMIT_STORE: 1-hour window (3600s)
+    for key, timestamps in list(RESET_RATE_LIMIT_STORE.items()):
+        active_ts = [t for t in timestamps if now - t < 3600]
+        if active_ts:
+            RESET_RATE_LIMIT_STORE[key] = active_ts
+        else:
+            RESET_RATE_LIMIT_STORE.pop(key, None)
+            pruned['reset_rate_limit'] += 1
+
+    # 4. Prune RESET_COOLDOWN_STORE: 60s cooldown TTL
+    for key, last_ts in list(RESET_COOLDOWN_STORE.items()):
+        if now - last_ts >= 60:
+            RESET_COOLDOWN_STORE.pop(key, None)
+            pruned['reset_cooldown'] += 1
+
+    # 5. Prune LOGIN_ATTEMPTS_STORE: 15-min window (900s) and past lockout
+    for key, rec in list(LOGIN_ATTEMPTS_STORE.items()):
+        first_att = rec.get('first_attempt', 0)
+        lock_until = rec.get('locked_until', 0)
+        if (now - first_att > 900) and (now > lock_until):
+            LOGIN_ATTEMPTS_STORE.pop(key, None)
+            pruned['login_attempts'] += 1
+
+    # 6. Prune AI_SCAN_RATE_LIMIT_STORE: 1-hour window (3600s)
+    for key, timestamps in list(AI_SCAN_RATE_LIMIT_STORE.items()):
+        active_ts = [t for t in timestamps if now - t < 3600]
+        if active_ts:
+            AI_SCAN_RATE_LIMIT_STORE[key] = active_ts
+        else:
+            AI_SCAN_RATE_LIMIT_STORE.pop(key, None)
+            pruned['ai_scan'] += 1
+
+    return pruned
+
 def check_ai_scan_rate_limit(client_ip: str, max_scans: int = 10, window_sec: int = 3600):
     """
     Sliding window rate limit for AI handwritten list image scanning:
     Allows max 10 image scan operations per IP/account per hour.
     Guards Gemini Vision API quota and prevents abusive spam.
     """
+    prune_in_memory_stores(force=False)
     now = time.time()
     history = [t for t in AI_SCAN_RATE_LIMIT_STORE.get(client_ip, []) if now - t < window_sec]
     if len(history) >= max_scans:
@@ -107,6 +182,7 @@ def check_login_rate_limit(key):
     Blocks more than 5 failed login attempts within 15 minutes per IP/identifier.
     Returns (is_allowed, wait_seconds).
     """
+    prune_in_memory_stores(force=False)
     now = time.time()
     record = LOGIN_ATTEMPTS_STORE.get(key)
     if not record:
@@ -474,6 +550,7 @@ def check_reset_rate_limit(account_key: str, client_ip: str):
     - Hourly IP Cap: Maximum 8 OTP requests per IP per hour.
     Returns (allowed: bool, wait_seconds: int, error_code: str)
     """
+    prune_in_memory_stores(force=False)
     now = time.time()
     account_key = str(account_key)
     # 1. Cooldown check (60s)
@@ -1779,6 +1856,12 @@ def create_app():
                 return jsonify({'error': 'Unauthorized: Please login to continue.'}), 401
             return f(user, *args, **kwargs)
         return decorated
+
+    # --- PERIODIC MAINTENANCE HOOK (Audit Issue #12) ---
+    @app.before_request
+    def run_periodic_maintenance():
+        # Opportunistic 5-minute memory sweep across in-memory rate-limiter, lockout, and OTP stores
+        prune_in_memory_stores(force=False)
 
     # --- AUTH ROUTES ---
 
@@ -3560,6 +3643,48 @@ def create_app():
         except Exception as e:
             print(f"[AUDIT VAULT WARNING] Failed to append order {getattr(order_obj, 'order_number', 'UNKNOWN')}: {e}")
 
+    def validate_item_quantity(raw_qty, lang='mr'):
+        """
+        Strict Quantity Type & Bounds Guard (Audit Issue #10):
+        Validates that a packaged item quantity is a strictly positive whole integer.
+        Prevents silent truncation of decimal values (e.g., 2.9 -> 2) or invalid types.
+        Returns (qty: int, None) on success, or (None, error_dict) on validation failure.
+        """
+        if isinstance(raw_qty, bool):
+            err = 'अवैध सामान प्रमाण (Invalid quantity).' if lang == 'mr' else ('अमान्य सामान मात्रा (Invalid quantity).' if lang == 'hi' else 'Invalid item quantity.')
+            return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+
+        if isinstance(raw_qty, float):
+            if not raw_qty.is_integer():
+                err = 'पॅकेट सामानाचे प्रमाण पूर्ण संख्या असावे (उदा. 1, 2, 3) दशांश नाही.' if lang == 'mr' else ('पैकेट सामान की मात्रा पूर्ण संख्या होनी चाहिए (उदा. 1, 2, 3), दशमलव नहीं।' if lang == 'hi' else 'Item quantity for packaged items must be a whole integer.')
+                return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+            qty = int(raw_qty)
+        elif isinstance(raw_qty, int):
+            qty = raw_qty
+        elif isinstance(raw_qty, str):
+            raw_str = raw_qty.strip()
+            try:
+                val = float(raw_str)
+                if not val.is_integer():
+                    err = 'पॅकेट सामानाचे प्रमाण पूर्ण संख्या असावे (उदा. 1, 2, 3) दशांश नाही.' if lang == 'mr' else ('पैकेट सामान की मात्रा पूर्ण संख्या होनी चाहिए (उदा. 1, 2, 3), दशमलव नहीं।' if lang == 'hi' else 'Item quantity for packaged items must be a whole integer.')
+                    return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+                qty = int(val)
+            except (ValueError, TypeError):
+                err = 'अवैध सामान प्रमाण (Invalid quantity).' if lang == 'mr' else ('अमान्य सामान मात्रा (Invalid quantity).' if lang == 'hi' else 'Invalid item quantity.')
+                return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+        else:
+            try:
+                qty = int(raw_qty)
+            except (ValueError, TypeError):
+                err = 'अवैध सामान प्रमाण (Invalid quantity).' if lang == 'mr' else ('अमान्य सामान मात्रा (Invalid quantity).' if lang == 'hi' else 'Invalid item quantity.')
+                return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+
+        if qty <= 0:
+            err = 'सामानाचे प्रमाण शून्यापेक्षा जास्त असणे आवश्यक आहे.' if lang == 'mr' else ('सामान की मात्रा शून्य से अधिक होनी चाहिए।' if lang == 'hi' else 'Item quantity must be greater than zero.')
+            return None, {'error': err, 'code': 'INVALID_QUANTITY'}
+
+        return qty, None
+
     # --- ORDER PLACEMENT (CUSTOMER & GUEST) ---
 
     @app.route('/api/orders', methods=['POST'])
@@ -3575,6 +3700,7 @@ def create_app():
         delivery_type = data.get('delivery_type', 'home_delivery')
         pincode = str(data.get('pincode', '')).strip()
         payment_method = data.get('payment_method', 'Cash on Delivery (COD)')
+        order_lang = (data.get('lang') or 'mr').strip().lower()
 
         # Wadala Local Delivery Zone Guard (Express Home Delivery strictly within Wadala & neighboring zones)
         ALLOWED_WADALA_PINCODES = {'400031', '400037', '400015', '400014', '400019', '400022'}
@@ -3708,13 +3834,9 @@ def create_app():
                 order_items.append(order_item)
             else:
                 variant_id = item.get('variant_id')
-                try:
-                    qty = int(item.get('quantity', 1))
-                except (ValueError, TypeError):
-                    return jsonify({'error': 'Invalid item quantity'}), 400
-
-                if qty <= 0:
-                    return jsonify({'error': 'Item quantity must be greater than zero'}), 400
+                qty, qty_err = validate_item_quantity(item.get('quantity', 1), lang=order_lang)
+                if qty_err:
+                    return jsonify(qty_err), 400
 
                 variant = db.session.get(ProductVariant, variant_id) if variant_id else None
                 if not variant:
@@ -3966,9 +4088,13 @@ def create_app():
             }), 400
 
         variant_id = data.get('variant_id')
-        qty = float(data.get('quantity') or 1.0)
-        if not variant_id or qty <= 0:
+        if not variant_id:
             return jsonify({'error': 'अवैध व्हॅरिएंट किंवा प्रमाण.', 'code': 'INVALID_ITEM'}), 400
+
+        item_lang = (data.get('lang') or 'mr').strip().lower()
+        qty, qty_err = validate_item_quantity(data.get('quantity', 1), lang=item_lang)
+        if qty_err:
+            return jsonify(qty_err), 400
 
         variant = ProductVariant.query.options(db.joinedload(ProductVariant.product)).filter_by(id=variant_id).first()
         if not variant or not variant.product:
@@ -4786,7 +4912,9 @@ def create_app():
                 order_items.append(order_item)
             else:
                 variant_id = item.get('variant_id')
-                qty = int(item.get('quantity', 1))
+                qty, qty_err = validate_item_quantity(item.get('quantity', 1), lang='mr')
+                if qty_err:
+                    return jsonify(qty_err), 400
 
                 variant = db.session.get(ProductVariant, variant_id) if variant_id else None
                 if variant:
