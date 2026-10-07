@@ -506,6 +506,22 @@ def send_customer_otp_email(to_email, otp, customer_name="Customer"):
         print("[CUSTOMER OTP CONSOLE ONLY] Neither RESEND_API_KEY nor SMTP configured.")
         return False, "Email credentials not configured"
 
+def normalize_phone_number(raw_phone: str) -> str:
+    """
+    Normalizes Indian mobile numbers from formats like:
+    '+91 98111 22233', '+919811122233', '09811122233', '98111-22233'
+    into clean 10-digit format '9811122233'.
+    Returns stripped string if non-digit characters, or normalized 10-digit string if valid.
+    """
+    if not raw_phone:
+        return ''
+    digits = re.sub(r'\D', '', str(raw_phone))
+    if len(digits) == 12 and digits.startswith('91'):
+        return digits[2:]
+    if len(digits) == 11 and digits.startswith('0'):
+        return digits[1:]
+    return digits
+
 def is_dummy_phone(phone: str) -> bool:
     if not phone or len(phone) != 10:
         return True
@@ -1880,7 +1896,7 @@ def create_app():
         name = safe_str(data.get('name'))
         username = safe_str(data.get('username'))
         email = safe_str(data.get('email')).lower()
-        phone = re.sub(r'\D', '', safe_str(data.get('phone')))
+        phone = normalize_phone_number(safe_str(data.get('phone')))
         password = safe_str(data.get('password'))
         address = safe_str(data.get('address'))
 
@@ -1968,10 +1984,12 @@ def create_app():
                 'wait_minutes': wait_min
             }), 429
 
-        # Find user by email, phone, or username
+        # Find user by email, phone, or username (with phone normalization)
+        norm_phone = normalize_phone_number(identifier)
         user = User.query.filter(
             (User.email == identifier.lower()) |
             (User.phone == identifier) |
+            ((User.phone == norm_phone) if norm_phone else False) |
             (User.username == identifier)
         ).first()
 
@@ -2151,9 +2169,11 @@ def create_app():
         if not identifier:
             return jsonify({'error': 'मोबाईल नंबर किंवा ईमेल आवश्यक आहे.', 'code': 'MISSING_FIELDS'}), 400
 
+        norm_phone = normalize_phone_number(identifier)
         user = User.query.filter(
             (User.email == identifier.lower()) |
             (User.phone == identifier) |
+            ((User.phone == norm_phone) if norm_phone else False) |
             (User.username == identifier)
         ).first()
 
@@ -2510,7 +2530,7 @@ def create_app():
             if new_name:
                 user.name = new_name
         if 'phone' in data:
-            new_phone = safe_str(data.get('phone'))
+            new_phone = normalize_phone_number(safe_str(data.get('phone')))
             if new_phone and new_phone != user.phone:
                 if not re.match(r'^[6-9]\d{9}$', new_phone):
                     return make_profile_error('INVALID_PHONE')
@@ -2522,15 +2542,13 @@ def create_app():
                 user.phone = new_phone
         if 'email' in data:
             new_email = safe_str(data.get('email')).lower()
-            if new_email:
-                if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', new_email):
-                    return make_profile_error('INVALID_EMAIL')
+            if not new_email or not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', new_email):
+                return make_profile_error('INVALID_EMAIL')
+            if new_email != user.email:
                 existing_email = User.query.filter_by(email=new_email).first()
                 if existing_email and existing_email.id != user.id:
                     return make_profile_error('EMAIL_EXISTS')
                 user.email = new_email
-            else:
-                user.email = None
         if 'address' in data:
             user.address = safe_str(data.get('address'))
 
@@ -4344,9 +4362,17 @@ def create_app():
         if 'status' in data:
             prev_status = order.status
             new_status = data['status']
+
+            # Terminal lifecycle guard: Cancelled orders cannot be resurrected
+            if prev_status == 'Cancelled' and new_status != 'Cancelled':
+                return jsonify({
+                    'error': 'रद्द केलेली ऑर्डर पुन्हा सक्रिय करता येत नाही (Cancelled is a terminal state).',
+                    'code': 'ORDER_ALREADY_CANCELLED'
+                }), 400
+
             order.status = new_status
 
-            # Cancellation Lifecycle Integrity: Restore stock and refund used store credit to customer
+            # Cancellation Lifecycle Integrity: Restore stock, refund credit_used, and revoke credit_earned if Paid
             if prev_status != 'Cancelled' and new_status == 'Cancelled':
                 for it in order.items:
                     if it.variant_id:
@@ -4354,10 +4380,13 @@ def create_app():
                         if v and v.stock_quantity is not None:
                             v.stock_quantity += int(it.quantity)
 
-                if order.credit_used and order.credit_used > 0 and order.user_id:
+                if order.user_id:
                     cust_user = db.session.get(User, order.user_id)
                     if cust_user:
-                        cust_user.wallet_balance = round((cust_user.wallet_balance or 0.0) + order.credit_used, 2)
+                        if order.credit_used and order.credit_used > 0:
+                            cust_user.wallet_balance = round((cust_user.wallet_balance or 0.0) + order.credit_used, 2)
+                        if order.payment_status == 'Paid' and ('payment_status' not in data or data['payment_status'] == 'Paid') and order.credit_earned and order.credit_earned > 0:
+                            cust_user.wallet_balance = max(0.0, round((cust_user.wallet_balance or 0.0) - order.credit_earned, 2))
         if 'delivery_availability' in data:
             order.delivery_availability = data['delivery_availability']
             order.delivery_availability_time = get_ist_time()
