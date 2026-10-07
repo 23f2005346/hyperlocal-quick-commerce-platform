@@ -3936,6 +3936,9 @@
             <div class="form-group">
               <label class="form-label">{{ currentLang === 'en' ? 'Email ID (For OTP & Digital Receipts)' : (currentLang === 'mr' ? 'ईमेल (OTP व डिजिटल बिलांसाठी)' : 'ईमेल (OTP व डिजिटल बिल के लिए)') }}</label>
               <input type="email" v-model="profileForm.email" class="form-input" :placeholder="currentLang === 'en' ? 'e.g. name@gmail.com' : 'उदा. name@gmail.com'" />
+              <span style="font-size: 0.72rem; color: #047857; font-weight: 600; display: block; margin-top: 3px;">
+                {{ currentLang === 'en' ? '🔒 Required for instant automated OTP verification & self-service password reset.' : (currentLang === 'mr' ? '🔒 जलद OTP पडताळणी व स्वतः पासवर्ड रीसेट करण्यासाठी आवश्यक.' : '🔒 त्वरित OTP सत्यापन व पासवर्ड रीसेट के लिए आवश्यक।') }}
+              </span>
             </div>
             <div class="form-group">
               <label class="form-label">{{ currentLang === 'en' ? 'Mobile / WhatsApp Number *' : (currentLang === 'mr' ? 'मोबाईल नंबर (Phone Number) *' : 'मोबाइल नंबर (Phone Number) *') }}</label>
@@ -4530,6 +4533,17 @@
                   ← {{ currentLang === 'en' ? 'Change Phone / Email' : (currentLang === 'mr' ? 'नंबर / ईमेल बदला' : 'नंबर / ईमेल बदलें') }}
                 </button>
               </div>
+
+              <!-- Emergency WhatsApp Lifeline: In case customer cannot access their email inbox -->
+              <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #cbd5e1; text-align: center;">
+                <a
+                  :href="'https://wa.me/919142052967?text=' + encodeURIComponent(currentLang === 'mr' ? 'नमस्ते कोमल मार्ट! मला माझ्या खात्याचा (' + (resetIdentifier || '') + ') ईमेल ॲक्सेस नाही, कृपया पासवर्ड रीसेट करण्यास मदत करा.' : (currentLang === 'hi' ? 'नमस्ते कोमल मार्ट! मुझे अपने खाते (' + (resetIdentifier || '') + ') के ईमेल का एक्सेस नहीं है, कृपया पासवर्ड रीसेट करने में सहायता करें।' : 'Hello Komal Mart! I cannot access the email for my account (' + (resetIdentifier || '') + '), please assist me with password reset.'))"
+                  target="_blank"
+                  style="font-size: 0.8rem; color: #16a34a; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
+                >
+                  📲 {{ currentLang === 'en' ? 'Cannot access this email? Get help on WhatsApp' : (currentLang === 'mr' ? 'ईमेल ॲक्सेस नाही का? WhatsApp वर मदत मिळवा' : 'ईमेल एक्सेस नहीं है? WhatsApp पर सहायता लें') }}
+                </a>
+              </div>
             </form>
 
             <div v-else style="text-align: center; margin-top: 12px;">
@@ -4620,8 +4634,7 @@
               type="tel"
               v-model="registerForm.phone"
               required
-              maxlength="10"
-              pattern="[6-9][0-9]{9}"
+              maxlength="16"
               class="form-input"
               :placeholder="t('auth_register_phone_ph')"
             />
@@ -4848,7 +4861,7 @@
 
           <div class="form-group">
             <label class="form-label">{{ t('cust_phone_label') }}</label>
-            <input type="tel" v-model="customerForm.phone" required pattern="[0-9]{10}" class="form-input" />
+            <input type="tel" v-model="customerForm.phone" required maxlength="16" class="form-input" />
           </div>
 
           <!-- Delivery Mode: Express Home Delivery vs Store Pickup -->
@@ -10142,7 +10155,11 @@ async function sendRegistrationOtp() {
 }
 
 async function handleRegister() {
-  const phone = (registerForm.value.phone || '').trim();
+  let rawPhone = (registerForm.value.phone || '').replace(/\D/g, '');
+  if (rawPhone.length === 12 && rawPhone.startsWith('91')) rawPhone = rawPhone.slice(2);
+  else if (rawPhone.length === 11 && rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
+  const phone = rawPhone;
+
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
     authError.value = t('auth_err_invalid_phone');
@@ -10559,19 +10576,22 @@ async function openDeliveryCheckForOrder(orderNumber, token) {
 
 async function updateCustomerProfile() {
   try {
+    const payload = {
+      name: (profileForm.value.name || '').trim(),
+      phone: (profileForm.value.phone || '').trim(),
+      address: (profileForm.value.address || '').trim(),
+      lang: currentLang.value
+    };
+    if (profileForm.value.email && profileForm.value.email.trim()) {
+      payload.email = profileForm.value.email.trim().toLowerCase();
+    }
     const res = await fetch(`${API_BASE}/auth/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken.value}`
       },
-      body: JSON.stringify({
-        name: profileForm.value.name,
-        email: profileForm.value.email ? profileForm.value.email.trim() : '',
-        phone: profileForm.value.phone,
-        address: profileForm.value.address,
-        lang: currentLang.value
-      })
+      body: JSON.stringify(payload)
     });
     if (res.ok) {
       const data = await res.json();
@@ -12012,7 +12032,12 @@ function openCheckoutModal() {
 async function submitOrder() {
   if (cart.value.length === 0) return;
 
-  const phone = customerForm.value.phone.trim();
+  let rawCustPhone = (customerForm.value.phone || '').replace(/\D/g, '');
+  if (rawCustPhone.length === 12 && rawCustPhone.startsWith('91')) rawCustPhone = rawCustPhone.slice(2);
+  else if (rawCustPhone.length === 11 && rawCustPhone.startsWith('0')) rawCustPhone = rawCustPhone.slice(1);
+  const phone = rawCustPhone;
+  customerForm.value.phone = phone;
+
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
     const invalidPhoneMsg = currentLang.value === 'en'
