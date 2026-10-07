@@ -3723,6 +3723,13 @@ def create_app():
                     if tok in SEARCH_ALIASES:
                         for alias in SEARCH_ALIASES[tok]:
                             all_terms.add(alias)
+                    else:
+                        # Bidirectional alias expansion for Devanagari and phonetic synonyms
+                        for k, alias_list in SEARCH_ALIASES.items():
+                            if tok in alias_list:
+                                all_terms.add(k)
+                                for a in alias_list:
+                                    all_terms.add(a)
 
                 filter_clauses = []
                 for t in all_terms:
@@ -3775,23 +3782,23 @@ def create_app():
         base_rupees = int(base_final_amount)
         active_pending = Order.query.filter(
             Order.payment_status.in_(['Pending Verification', 'Unpaid', 'Partially Paid']),
-            Order.payment_method.in_(['UPI / QR Code', 'Paid via UPI QR', 'UPI / QR', 'UPI Instant'])
+            db.or_(Order.payment_method.ilike('%upi%'), Order.payment_method.ilike('%qr%'))
         ).all()
         occupied_paise = set()
         for o in active_pending:
             if int(o.final_amount) == base_rupees:
                 p = int(round((o.final_amount - int(o.final_amount)) * 100))
-                if p > 0:
+                if 10 < p < 100:
                     occupied_paise.add(p)
 
         seq_match = re.search(r'\d+', order_number.split('-')[-1])
         seq_val = int(seq_match.group()) if seq_match else random.randint(11, 99)
         candidate_paise = (seq_val % 89) + 11
 
-        attempts = 0
-        while candidate_paise in occupied_paise and attempts < 89:
-            candidate_paise = ((candidate_paise - 10) % 89) + 11
-            attempts += 1
+        if candidate_paise in occupied_paise:
+            available_paise = [p for p in range(11, 100) if p not in occupied_paise]
+            if available_paise:
+                candidate_paise = min(available_paise, key=lambda x: abs(x - candidate_paise))
 
         return round(base_rupees + (candidate_paise / 100.0), 2)
 
@@ -4944,7 +4951,7 @@ def create_app():
     @app.route('/api/admin/backup/create', methods=['POST'])
     @admin_required
     def trigger_db_backup():
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         compress = bool(data.get('compress', True))
         try:
             meta = create_hot_backup(compress=compress)
