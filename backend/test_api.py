@@ -24,10 +24,12 @@ if reg_res.status_code == 201:
     print("Customer Registration:", reg_res.status_code, reg_res.get_json().get('user', {}).get('role'))
     cust_token = reg_res.get_json()['token']
 else:
-    # User exists, login instead (try password123 or newpassword456)
-    login_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'password123'})
-    if login_res.status_code != 200:
-        login_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': 'newpassword456'})
+    # User exists, login instead (try known test passwords)
+    login_res = None
+    for p in ['password123', 'newpassword456', 'customerNewPass2026', 'brandnewpassword123']:
+        login_res = client.post('/api/auth/login', json={'identifier': '9876543299', 'password': p})
+        if login_res.status_code == 200:
+            break
     print("Customer Re-Login with Phone:", login_res.status_code, login_res.get_json().get('user', {}).get('role'))
     cust_token = login_res.get_json()['token']
 
@@ -1032,6 +1034,71 @@ with app.app_context():
     AI_SCAN_RATE_LIMIT_STORE.pop('audit_active_ai', None)
 
     print("Memory Leak Defense: All expired entries across all 6 rate-limiter, lockout & OTP stores purged cleanly")
+
+    # --- 27. STOREKEEPER 1-TAP QUICK RESET & CUSTOMER MAGIC RESET LINK FALLBACK ---
+    LOGIN_ATTEMPTS_STORE.pop('quick_pin:127.0.0.1', None)
+    # Step A: Storekeeper enters master PIN for customer 9876543299
+    quick_res = client.post('/api/auth/admin-quick-reset-link', json={
+        'phone': '9876543299',
+        'master_pin': '202699'
+    })
+    assert quick_res.status_code == 200
+    quick_data = quick_res.get_json()
+    assert quick_data['success'] is True
+    magic_token = quick_data['magic_token']
+    assert '#magic-reset?token=' in quick_data['magic_link']
+
+    # Step B: Wrong PIN is rejected
+    wrong_pin_res = client.post('/api/auth/admin-quick-reset-link', json={
+        'phone': '9876543299',
+        'master_pin': '000000'
+    })
+    assert wrong_pin_res.status_code == 403
+
+    # Step C: Pre-flight verify of customer magic reset token
+    verify_res = client.post('/api/auth/verify-magic-reset-link', json={
+        'token': magic_token
+    })
+    assert verify_res.status_code == 200
+    assert verify_res.get_json()['valid'] is True
+
+    # Step D: Customer sets new password using magic link
+    redeem_res = client.post('/api/auth/reset-password', json={
+        'reset_token': magic_token,
+        'new_password': 'customerNewPass2026'
+    })
+    assert redeem_res.status_code == 200
+    assert 'token' in redeem_res.get_json()
+    assert redeem_res.get_json()['user']['phone'] == '9876543299'
+
+    # Step E: Single-use anti-replay protection (cannot use token again)
+    replay_res = client.post('/api/auth/reset-password', json={
+        'reset_token': magic_token,
+        'new_password': 'attackerPass2026'
+    })
+    assert replay_res.status_code == 401
+    assert replay_res.get_json()['code'] == 'LINK_ALREADY_USED'
+
+    # Step F: Pre-flight check after token is consumed reports already used
+    verify_used = client.post('/api/auth/verify-magic-reset-link', json={
+        'token': magic_token
+    })
+    assert verify_used.status_code == 400
+    assert verify_used.get_json()['code'] == 'LINK_ALREADY_USED'
+
+    # Step G: Restore customer password to password123 via a fresh magic link
+    fresh_quick = client.post('/api/auth/admin-quick-reset-link', json={
+        'phone': '9876543299',
+        'master_pin': '202699'
+    })
+    assert fresh_quick.status_code == 200
+    restore_res = client.post('/api/auth/reset-password', json={
+        'reset_token': fresh_quick.get_json()['magic_token'],
+        'new_password': 'password123'
+    })
+    assert restore_res.status_code == 200
+
+    print("Storekeeper 1-Tap & Customer Magic Reset Link: 100% verified with anti-replay protection and instant auto-login")
 
 print("\nALL KOMAL MART 2FA, REGISTRATION, POS, WAL, RESTOCK ALERTS, WADALA GUARD, HOT BACKUP, ANTI-FRAUD UPI, CLEARANCE SALE, WEEKLY REPORT, BATCH INGEST, ADD-TO-DELIVERY & SECURITY AUDIT DEFENSE TESTS PASSED 100%!")
 

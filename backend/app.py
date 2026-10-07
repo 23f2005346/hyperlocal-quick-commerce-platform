@@ -2238,6 +2238,7 @@ def create_app():
                     'message': msg,
                     'reset_token': reset_token,
                     'channel': 'email',
+                    'customer_phone': user.phone,
                     'masked_target': masked_dest,
                     'has_email': True,
                     'has_phone': has_real_phone,
@@ -2248,14 +2249,15 @@ def create_app():
                 # Seamlessly fallback to 1-tap WhatsApp verification so customer is NEVER stuck!
                 print(f"[RESET FAILOVER] Email dispatch to {user.email} failed ({send_err}). Falling back to WhatsApp verification.")
                 ROUSHAN_WHATSAPP = '919142052967'
+                quick_link = f"https://komalmart.onrender.com/#quick-reset?phone={user.phone}"
                 if lang == 'hi':
-                    wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}, ईमेल: {user.email}) का पासवर्ड रीसेट करना चाहता हूँ। कृपया सहायता करें।"
+                    wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}, ईमेल: {user.email}) का पासवर्ड रीसेट करना चाहता हूँ। कृपया सहायता करें।\n\n👉 Storekeeper Action: {quick_link}"
                     wa_user_msg = 'ईमेल सेवा फ़िलहाल अनुपलब्ध है। खाते की सुरक्षा के लिए, कृपया पासवर्ड रीसेट करने हेतु नीचे दिए गए बटन से सीधे WhatsApp पर संपर्क करें।'
                 elif lang == 'en':
-                    wa_text = f"Hello Komal Mart! I need to reset the password for my account (Phone: {user.phone}, Email: {user.email}). Please assist me."
+                    wa_text = f"Hello Komal Mart! I need to reset the password for my account (Phone: {user.phone}, Email: {user.email}). Please assist me.\n\n👉 Storekeeper Action: {quick_link}"
                     wa_user_msg = 'Email delivery is currently unavailable. For your account security, please tap below to verify via WhatsApp with the store owner.'
                 else:
-                    wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}, ईमेल: {user.email}) पासवर्ड रीसेट करू इच्छितो. कृपया मदत करा."
+                    wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}, ईमेल: {user.email}) पासवर्ड रीसेट करू इच्छितो. कृपया मदत करा.\n\n👉 Storekeeper Action: {quick_link}"
                     wa_user_msg = 'ईमेल डिलिव्हरी सध्या उपलब्ध नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.'
 
                 wa_link = f"https://wa.me/{ROUSHAN_WHATSAPP}?text={urllib.parse.quote(wa_text)}"
@@ -2273,14 +2275,15 @@ def create_app():
         else:
             # Phone-only account: direct them to Roushan's WhatsApp for manual security reset (zero code exposure)
             ROUSHAN_WHATSAPP = '919142052967'
+            quick_link = f"https://komalmart.onrender.com/#quick-reset?phone={user.phone}"
             if lang == 'hi':
-                wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}) का पासवर्ड भूल गया हूँ। कृपया मुझे पासवर्ड रीसेट करने में सहायता करें।"
+                wa_text = f"नमस्ते कोमल मार्ट! मैं अपने खाते (फ़ोन: {user.phone}) का पासवर्ड भूल गया हूँ। कृपया मुझे पासवर्ड रीसेट करने में सहायता करें।\n\n👉 Storekeeper Action: {quick_link}"
                 wa_user_msg = 'आपके खाते पर ईमेल दर्ज नहीं है। खाते की सुरक्षा के लिए कृपया नीचे दिए गए बटन से सीधे WhatsApp पर संपर्क करें।'
             elif lang == 'en':
-                wa_text = f"Hello Komal Mart! I forgot my password for my account (Phone: {user.phone}). Please assist me with resetting my account password."
+                wa_text = f"Hello Komal Mart! I forgot my password for my account (Phone: {user.phone}). Please assist me with resetting my account password.\n\n👉 Storekeeper Action: {quick_link}"
                 wa_user_msg = 'Your account does not have a registered email address. For account safety, please tap below to message store support on WhatsApp.'
             else:
-                wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}) पासवर्ड विसरलो आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा."
+                wa_text = f"नमस्ते कोमल मार्ट! मी माझ्या खात्याचा (फोन: {user.phone}) पासवर्ड विसरलो आहे. कृपया मला पासवर्ड रीसेट करण्यास मदत करा.\n\n👉 Storekeeper Action: {quick_link}"
                 wa_user_msg = 'आपल्या खात्यावर ईमेल जोडलेला नाही. सुरक्षेसाठी कृपया खालील बटनावर क्लिक करून दुकानदाराशी WhatsApp वर संपर्क साधा.'
 
             wa_link = f"https://wa.me/{ROUSHAN_WHATSAPP}?text={urllib.parse.quote(wa_text)}"
@@ -2366,22 +2369,157 @@ def create_app():
                     'sent_ok': False
                 }), 502
 
+    @app.route('/api/auth/admin-quick-reset-link', methods=['POST'])
+    def admin_quick_reset_link():
+        """
+        1-Tap Quick Action for Storekeeper (Roushan).
+        Generates a 15-minute single-use cryptographic Magic Reset Link for a customer.
+        Authorized if caller is an authenticated admin OR supplies MASTER_ADMIN_PIN ('202699').
+        Guarded with IP rate limiting to prevent brute forcing the master PIN.
+        """
+        data = request.get_json() or {}
+        phone_input = safe_str(data.get('phone', ''))
+        master_pin = safe_str(data.get('master_pin', ''))
+
+        if not phone_input:
+            return jsonify({'error': 'Customer phone number is required.', 'code': 'MISSING_PHONE'}), 400
+
+        clean_ph = normalize_phone_number(phone_input)
+        customer = User.query.filter_by(phone=clean_ph).first()
+        if not customer:
+            return jsonify({'error': f'No customer account found with phone {clean_ph}.', 'code': 'CUSTOMER_NOT_FOUND'}), 404
+
+        # Check authorization:
+        # 1. Active Admin session via Bearer token
+        current_u = get_current_user()
+        is_admin_session = bool(current_u and current_u.role == 'admin')
+
+        # 2. Master Admin PIN fallback
+        client_ip = (request.remote_addr or '127.0.0.1').split(',')[0].strip()
+        rate_key = f"quick_pin:{client_ip}"
+        allowed, wait_sec = check_login_rate_limit(rate_key)
+        if not allowed:
+            return jsonify({'error': f'अनेक चुकीचे प्रयत्न. कृपया {wait_sec} सेकंद प्रतीक्षा करा.', 'code': 'TOO_MANY_ATTEMPTS', 'wait_seconds': wait_sec}), 429
+
+        MASTER_PIN = os.environ.get('MASTER_ADMIN_PIN', '202699')
+        is_pin_valid = bool(master_pin and master_pin == MASTER_PIN)
+
+        if not is_admin_session and not is_pin_valid:
+            record_login_failure(rate_key)
+            return jsonify({'error': 'अवैध मास्टर ॲडमिन पिन (Invalid Master Admin PIN).', 'code': 'INVALID_PIN'}), 403
+
+        record_login_success(rate_key)
+
+        # Generate cryptographic magic link token (valid for 15 min = 900 seconds)
+        magic_token = serializer.dumps({
+            'user_id': customer.id,
+            'token_version': customer.token_version or 1,
+            'is_magic_link': True
+        }, salt='cust-magic-reset-salt')
+
+        # Host resolution
+        host = request.host_url.rstrip('/')
+        if '127.0.0.1' not in host and 'localhost' not in host:
+            host = 'https://komalmart.onrender.com'
+        magic_link = f"{host}/#magic-reset?token={magic_token}"
+
+        print(f"\n[STOREKEEPER QUICK RESET] Generated 15-min Magic Reset Link for customer {customer.name} ({customer.phone}).")
+
+        return jsonify({
+            'success': True,
+            'customer_id': customer.id,
+            'customer_name': customer.name,
+            'customer_phone': customer.phone,
+            'magic_token': magic_token,
+            'magic_link': magic_link,
+            'expires_in_minutes': 15
+        }), 200
+
+    @app.route('/api/auth/verify-magic-reset-link', methods=['POST'])
+    def verify_magic_reset_link():
+        """
+        Pre-flight validation for Customer Magic Reset Link.
+        Verifies that the token signature is valid, unexpired, and hasn't already been used.
+        """
+        data = request.get_json() or {}
+        token = safe_str(data.get('token', ''))
+        if not token:
+            return jsonify({'valid': False, 'error': 'टोकन आवश्यक आहे.', 'code': 'MISSING_TOKEN'}), 400
+        try:
+            payload = serializer.loads(token, salt='cust-magic-reset-salt', max_age=900)
+        except SignatureExpired:
+            return jsonify({'valid': False, 'error': 'हा पासवर्ड रीसेट लिंक कालबाह्य (expired) झाला आहे. कृपया दुकानदाराकडून नवीन लिंक मागवा.', 'code': 'LINK_EXPIRED'}), 400
+        except (BadSignature, Exception):
+            return jsonify({'valid': False, 'error': 'अवैध पासवर्ड रीसेट लिंक.', 'code': 'INVALID_LINK'}), 400
+
+        user_id = payload.get('user_id')
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({'valid': False, 'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+        if payload.get('token_version') != (user.token_version or 1):
+            return jsonify({'valid': False, 'error': 'हा पासवर्ड रीसेट लिंक आधीच वापरला गेला आहे. नवीन लिंकसाठी दुकानदाराशी संपर्क साधा.', 'code': 'LINK_ALREADY_USED'}), 400
+
+        return jsonify({
+            'valid': True,
+            'customer_name': user.name,
+            'customer_phone': user.phone
+        }), 200
+
     @app.route('/api/auth/reset-password', methods=['POST'])
     def reset_password():
         """
-        Step 2: Customer submits reset_token, 6-digit OTP, and new_password.
-        Validates OTP, attempts count, password length, and updates password.
+        Step 2: Customer submits reset_token, optional OTP, and new_password.
+        Supports both Magic Reset Link (salt='cust-magic-reset-salt') and OTP flow (salt='cust-reset-salt').
         """
         data = request.get_json() or {}
         reset_token = (data.get('reset_token') or '').strip()
         otp = (data.get('otp') or '').strip()
         new_password = (data.get('new_password') or '').strip()
 
-        if not reset_token or not otp or not new_password:
-            return jsonify({'error': 'रीसेट टोकन, ६-अंकी OTP आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
+        if not reset_token or not new_password:
+            return jsonify({'error': 'रीसेट टोकन आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         if len(new_password) < 4:
             return jsonify({'error': 'नवीन पासवर्ड किमान ४ अक्षरांचा असावा.', 'code': 'PASSWORD_TOO_SHORT'}), 400
+
+        # 1. Check if token is a Magic Reset Link token
+        is_magic = False
+        magic_payload = None
+        try:
+            magic_payload = serializer.loads(reset_token, salt='cust-magic-reset-salt', max_age=900)
+            if magic_payload and magic_payload.get('is_magic_link'):
+                is_magic = True
+        except (SignatureExpired, BadSignature, Exception):
+            pass
+
+        if is_magic and magic_payload:
+            user_id = magic_payload.get('user_id')
+            user = db.session.get(User, user_id)
+            if not user:
+                return jsonify({'error': 'वापरकर्ता सापडला नाही.', 'code': 'USER_NOT_FOUND'}), 404
+
+            if magic_payload.get('token_version') != (user.token_version or 1):
+                return jsonify({'error': 'हा पासवर्ड रीसेट लिंक आधीच वापरला गेला आहे किंवा कालबाह्य झाला आहे.', 'code': 'LINK_ALREADY_USED'}), 401
+
+            user.set_password(new_password) # Automatically increments token_version
+            db.session.commit()
+
+            CUSTOMER_RESET_STORE.pop(str(user.id), None)
+            if user.email:
+                CUSTOMER_RESET_STORE.pop(user.email, None)
+
+            # Generate auto-login session token
+            token = serializer.dumps({'user_id': user.id, 'role': user.role, 'token_version': user.token_version or 1})
+            return jsonify({
+                'message': 'पासवर्ड यशस्वीरीत्या बदलला आहे! आपण आपोआप लॉग इन झाला आहात.',
+                'token': token,
+                'user': user.to_dict()
+            }), 200
+
+        # 2. Standard OTP reset flow
+        if not otp:
+            return jsonify({'error': 'रीसेट टोकन, ६-अंकी OTP आणि नवीन पासवर्ड आवश्यक आहेत.', 'code': 'MISSING_FIELDS'}), 400
 
         try:
             payload = serializer.loads(reset_token, salt='cust-reset-salt', max_age=600)

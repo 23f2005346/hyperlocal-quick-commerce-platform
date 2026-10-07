@@ -4537,7 +4537,7 @@
               <!-- Emergency WhatsApp Lifeline: In case customer cannot access their email inbox -->
               <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #cbd5e1; text-align: center;">
                 <a
-                  :href="'https://wa.me/919142052967?text=' + encodeURIComponent(currentLang === 'mr' ? 'नमस्ते कोमल मार्ट! मला माझ्या खात्याचा (' + (resetIdentifier || '') + ') ईमेल ॲक्सेस नाही, कृपया पासवर्ड रीसेट करण्यास मदत करा.' : (currentLang === 'hi' ? 'नमस्ते कोमल मार्ट! मुझे अपने खाते (' + (resetIdentifier || '') + ') के ईमेल का एक्सेस नहीं है, कृपया पासवर्ड रीसेट करने में सहायता करें।' : 'Hello Komal Mart! I cannot access the email for my account (' + (resetIdentifier || '') + '), please assist me with password reset.'))"
+                  :href="'https://wa.me/919142052967?text=' + encodeURIComponent((currentLang === 'mr' ? 'नमस्ते कोमल मार्ट! मला माझ्या खात्याचा (' + (resetCustomerPhone || resetIdentifier || '') + ') ईमेल ॲक्सेस नाही, कृपया पासवर्ड रीसेट करण्यास मदत करा.' : (currentLang === 'hi' ? 'नमस्ते कोमल मार्ट! मुझे अपने खाते (' + (resetCustomerPhone || resetIdentifier || '') + ') के ईमेल का एक्सेस नहीं है, कृपया पासवर्ड रीसेट करने में सहायता करें।' : 'Hello Komal Mart! I cannot access the email for my account (' + (resetCustomerPhone || resetIdentifier || '') + '), please assist me with password reset.')) + '\n\n👉 1-Tap Action: https://komalmart.onrender.com/#quick-reset?phone=' + encodeURIComponent(resetCustomerPhone || resetIdentifier || ''))"
                   target="_blank"
                   style="font-size: 0.8rem; color: #16a34a; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
                 >
@@ -4665,6 +4665,196 @@
             {{ authSubmitting ? t('auth_btn_submitting') : t('auth_btn_register') }}
           </button>
         </form>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- STOREKEEPER 1-TAP QUICK RESET MODAL                      -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showQuickResetModal" @click.self="closeQuickResetModal">
+      <div class="modal-card" style="max-width: 440px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 1.18rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+            ⚡ {{ currentLang === 'en' ? 'Storekeeper Quick Reset' : (currentLang === 'mr' ? 'दुकानदार क्विक पासवर्ड रीसेट' : 'दुकानदार क्विक पासवर्ड रीसेट') }}
+          </h3>
+          <button class="close-btn" @click="closeQuickResetModal">✕</button>
+        </div>
+
+        <div v-if="quickResetError" class="auth-error-banner" style="margin-bottom: 12px;">
+          ⚠️ {{ quickResetError }}
+        </div>
+
+        <!-- Step 1: Enter Customer Phone and Master PIN if not generated yet -->
+        <div v-if="!quickResetMagicLink">
+          <p style="font-size: 0.85rem; color: #475569; margin: 0 0 14px 0; line-height: 1.4;">
+            {{ currentLang === 'en' ? 'Generate a 15-minute single-use secure Magic Reset Link for customer verification.' : (currentLang === 'mr' ? 'ग्राहकासाठी १५ मिनिटांचा सुरक्षित एकवेळचा मॅजिक रीसेट लिंक तयार करा.' : 'ग्राहक के लिए १५ मिनट का सुरक्षित एक-बारीय मैजिक रीसेट लिंक बनाएं।') }}
+          </p>
+
+          <form @submit.prevent="handleGenerateMagicLink">
+            <div class="form-group">
+              <label class="form-label">
+                📞 {{ currentLang === 'en' ? 'Customer Phone Number' : (currentLang === 'mr' ? 'ग्राहकाचा मोबाईल नंबर' : 'ग्राहक का मोबाइल नंबर') }}
+              </label>
+              <input
+                type="tel"
+                v-model="quickResetPhone"
+                required
+                maxlength="16"
+                class="form-input"
+                placeholder="98XXXXXXXX"
+                style="font-size: 1.1rem; font-weight: 700; color: #064e3b;"
+              />
+            </div>
+
+            <div class="form-group" v-if="!isAdminLoggedIn">
+              <label class="form-label">
+                🔑 {{ currentLang === 'en' ? 'Master Admin PIN' : (currentLang === 'mr' ? 'मास्टर ॲडमिन पिन (Master PIN)' : 'मास्टर एडमिन पिन (Master PIN)') }}
+              </label>
+              <input
+                type="password"
+                v-model="quickResetPin"
+                required
+                maxlength="8"
+                class="form-input"
+                placeholder="******"
+                style="letter-spacing: 4px; font-weight: 800; font-size: 1.1rem;"
+              />
+              <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">
+                🛡️ {{ currentLang === 'en' ? 'Store owner authorization key (202699)' : (currentLang === 'mr' ? 'दुकान मालक प्रमाणीकरण पिन' : 'दुकान मालिक प्रमाणीकरण पिन') }}
+              </span>
+            </div>
+
+            <button type="submit" class="checkout-btn" :disabled="quickResetSubmitting" style="margin-top: 8px;">
+              {{ quickResetSubmitting ? '⏳...' : (currentLang === 'en' ? '⚡ Generate Magic Reset Link' : (currentLang === 'mr' ? '⚡ मॅजिक रीसेट लिंक तयार करा' : '⚡ मैजिक रीसेट लिंक बनाएं')) }}
+            </button>
+          </form>
+        </div>
+
+        <!-- Step 2: Link Generated Successfully -->
+        <div v-else style="text-align: center;">
+          <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="font-size: 2rem; margin-bottom: 4px;">🎉</div>
+            <h4 style="font-size: 1rem; font-weight: 800; color: #065f46; margin: 0 0 4px 0;">
+              {{ currentLang === 'en' ? 'Magic Link Generated!' : (currentLang === 'mr' ? 'मॅजिक लिंक तयार झाली!' : 'मैजिक लिंक तैयार है!') }}
+            </h4>
+            <p style="font-size: 0.82rem; color: #047857; margin: 0;">
+              👤 {{ quickResetCustomerName ? quickResetCustomerName + ' (' + quickResetPhone + ')' : quickResetPhone }}
+              <br>
+              ⏱️ {{ currentLang === 'en' ? 'Valid for 15 minutes (Single Use)' : (currentLang === 'mr' ? '१५ मिनिटांसाठी वैध (एकवेळ वापर)' : '१५ मिनट के लिए वैध (एकल उपयोग)') }}
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; font-size: 0.75rem; word-break: break-all; color: #334155; margin-bottom: 14px; text-align: left; max-height: 80px; overflow-y: auto;">
+            {{ quickResetMagicLink }}
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button
+              type="button"
+              class="checkout-btn"
+              @click="sendMagicLinkToCustomerWhatsApp"
+              style="background: #25d366; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;"
+            >
+              📲 {{ currentLang === 'en' ? 'Send to Customer on WhatsApp' : (currentLang === 'mr' ? 'ग्राहकाला WhatsApp वर पाठवा' : 'ग्राहक को WhatsApp पर भेजें') }}
+            </button>
+
+            <button
+              type="button"
+              class="category-btn"
+              @click="copyQuickResetMagicLink"
+              style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-weight: 700;"
+            >
+              {{ quickResetCopied ? '✅ ' + (currentLang === 'en' ? 'Copied to Clipboard!' : 'कॉपी झाले!') : '📋 ' + (currentLang === 'en' ? 'Copy Magic Link' : 'लिंक कॉपी करा') }}
+            </button>
+
+            <button
+              type="button"
+              @click="closeQuickResetModal"
+              style="background: none; border: none; color: #64748b; font-size: 0.82rem; font-weight: 700; cursor: pointer; margin-top: 6px;"
+            >
+              ✕ {{ currentLang === 'en' ? 'Close' : (currentLang === 'mr' ? 'बंद करा' : 'बंद करें') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- CUSTOMER MAGIC RESET LINK MODAL                          -->
+    <!-- ======================================================== -->
+    <div class="modal-overlay" v-if="showMagicResetModal" @click.self="closeMagicResetModal">
+      <div class="modal-card" style="max-width: 420px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 1.18rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
+            🔐 {{ currentLang === 'en' ? 'Set New Password' : (currentLang === 'mr' ? 'नवीन पासवर्ड सेट करा' : 'नया पासवर्ड सेट करें') }}
+          </h3>
+          <button class="close-btn" @click="closeMagicResetModal">✕</button>
+        </div>
+
+        <div v-if="magicResetChecking" style="text-align: center; padding: 24px 0;">
+          <div style="font-size: 1.8rem; margin-bottom: 8px;">⏳</div>
+          <p style="font-size: 0.88rem; color: #047857; font-weight: 700; margin: 0;">
+            {{ currentLang === 'en' ? 'Verifying secure magic link...' : (currentLang === 'mr' ? 'सुरक्षित लिंक पडताळणी सुरू आहे...' : 'सुरक्षित लिंक का सत्यापन हो रहा है...') }}
+          </p>
+        </div>
+
+        <div v-else-if="magicResetError" style="text-align: center; padding: 10px 0;">
+          <div class="auth-error-banner" style="margin-bottom: 14px;">
+            ⚠️ {{ magicResetError }}
+          </div>
+          <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 14px;">
+            {{ currentLang === 'en' ? 'This link may have expired (15 min limit) or already been used. Please contact the storekeeper on WhatsApp for a fresh link.' : (currentLang === 'mr' ? 'हा लिंक कालबाह्य झाला असावा किंवा आधीच वापरला गेला असावा. नवीन लिंकसाठी कृपया WhatsApp वर संपर्क साधा.' : 'यह लिंक समाप्त हो गया हो सकता है या पहले ही उपयोग किया जा चुका है। कृपया नए लिंक के लिए WhatsApp पर संपर्क करें।') }}
+          </p>
+          <a
+            href="https://wa.me/919142052967?text=Hello%20Komal%20Mart!%20My%20password%20reset%20link%20has%20expired,%20please%20send%20a%20new%20one."
+            target="_blank"
+            style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: #25d366; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 0.88rem;"
+          >
+            📲 {{ currentLang === 'en' ? 'Message Support on WhatsApp' : (currentLang === 'mr' ? 'WhatsApp वर संपर्क साधा' : 'WhatsApp पर संपर्क करें') }}
+          </a>
+        </div>
+
+        <div v-else>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+            <p style="font-size: 0.84rem; color: #166534; font-weight: 700; margin: 0;">
+              👋 {{ currentLang === 'en' ? 'Welcome' : (currentLang === 'mr' ? 'स्वागत आहे' : 'स्वागत है') }} {{ magicResetCustomerName || '' }}!
+            </p>
+            <p style="font-size: 0.78rem; color: #15803d; margin: 2px 0 0 0;">
+              📱 {{ magicResetCustomerPhone }}
+            </p>
+          </div>
+
+          <form @submit.prevent="handleExecuteMagicReset">
+            <div class="form-group">
+              <label class="form-label">{{ t('auth_reset_new_pwd_label') }}</label>
+              <input
+                type="password"
+                v-model="magicResetNewPassword"
+                required
+                minlength="4"
+                class="form-input"
+                :placeholder="t('auth_register_password_ph')"
+                autofocus
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">{{ t('auth_reset_confirm_pwd_label') }}</label>
+              <input
+                type="password"
+                v-model="magicResetConfirmPassword"
+                required
+                minlength="4"
+                class="form-input"
+                :placeholder="t('auth_register_password_ph')"
+              />
+            </div>
+
+            <button type="submit" class="checkout-btn" :disabled="magicResetSubmitting" style="margin-top: 6px;">
+              {{ magicResetSubmitting ? t('auth_btn_submitting') : (currentLang === 'en' ? '💾 Set Password & Login' : (currentLang === 'mr' ? '💾 पासवर्ड जतन करा आणि लॉगिन करा' : '💾 पासवर्ड सहेजें और लॉगिन करें')) }}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -8657,11 +8847,33 @@ const resetToken = ref('');
 const resetMaskedTarget = ref('');
 const resetMaskedEmail = ref('');
 const resetNoEmailPhone = ref('');
+const resetCustomerPhone = ref('');
 const resetChannel = ref('sms'); // 'whatsapp' | 'email'
 const resetWaLink = ref('');
 const resetWaCode = ref('');
 const resetHasEmail = ref(false);
 const resetHasPhone = ref(false);
+
+// Storekeeper 1-Tap Quick Reset Link Modal state
+const showQuickResetModal = ref(false);
+const quickResetPhone = ref('');
+const quickResetCustomerName = ref('');
+const quickResetPin = ref('');
+const quickResetMagicLink = ref('');
+const quickResetSubmitting = ref(false);
+const quickResetError = ref('');
+const quickResetCopied = ref(false);
+
+// Customer Magic Reset Link Modal state
+const showMagicResetModal = ref(false);
+const magicResetToken = ref('');
+const magicResetCustomerName = ref('');
+const magicResetCustomerPhone = ref('');
+const magicResetNewPassword = ref('');
+const magicResetConfirmPassword = ref('');
+const magicResetSubmitting = ref(false);
+const magicResetChecking = ref(false);
+const magicResetError = ref('');
 const smsBalanceInfo = ref({ configured: true, wallet: '145.00', sms_count: 580 });
 const admin2faState = ref({
   active: false,
@@ -9998,6 +10210,7 @@ async function handleRequestResetOtp(preferredChannel = null) {
     const data = await res.json();
     if (res.ok) {
       resetToken.value = data.reset_token;
+      resetCustomerPhone.value = data.customer_phone || '';
       resetChannel.value = data.channel || 'email';
       resetMaskedTarget.value = data.masked_target || data.masked_email || '';
       resetWaLink.value = data.wa_link || '';
@@ -10091,6 +10304,178 @@ async function handleVerifyAndResetPassword() {
     authError.value = t('auth_err_network');
   } finally {
     authSubmitting.value = false;
+  }
+}
+
+// --- STOREKEEPER 1-TAP QUICK RESET ACTIONS ---
+async function handleGenerateMagicLink() {
+  if (!quickResetPhone.value.trim()) {
+    quickResetError.value = currentLang.value === 'mr' ? 'मोबाईल नंबर आवश्यक आहे.' : (currentLang.value === 'hi' ? 'मोबाइल नंबर आवश्यक है।' : 'Mobile number is required.');
+    return;
+  }
+  quickResetSubmitting.value = true;
+  quickResetError.value = '';
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken.value) {
+      headers['Authorization'] = `Bearer ${authToken.value}`;
+    }
+    const res = await fetch(`${API_BASE}/auth/admin-quick-reset-link`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        phone: quickResetPhone.value.trim(),
+        master_pin: quickResetPin.value.trim()
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      quickResetMagicLink.value = data.magic_link;
+      quickResetCustomerName.value = data.customer_name || '';
+      showToast(currentLang.value === 'mr' ? '✅ सुरक्षित मॅजिक रीसेट लिंक तयार झाली!' : (currentLang.value === 'hi' ? '✅ सुरक्षित मैजिक रीसेट लिंक बन गया!' : '✅ Magic Reset Link Generated!'));
+    } else {
+      quickResetError.value = formatAuthError(data, currentLang.value === 'mr' ? 'मॅजिक लिंक तयार करण्यात अडचण आली.' : (currentLang.value === 'hi' ? 'मैजिक लिंक बनाने में समस्या आई।' : 'Failed to generate reset link.'));
+    }
+  } catch (err) {
+    quickResetError.value = t('auth_err_network');
+  } finally {
+    quickResetSubmitting.value = false;
+  }
+}
+
+function copyQuickResetMagicLink() {
+  if (!quickResetMagicLink.value) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(quickResetMagicLink.value).then(() => {
+      quickResetCopied.value = true;
+      setTimeout(() => { quickResetCopied.value = false; }, 2500);
+      showToast(currentLang.value === 'mr' ? '📋 लिंक कॉपी झाली!' : (currentLang.value === 'hi' ? '📋 लिंक कॉपी हो गया!' : '📋 Link copied!'));
+    });
+  }
+}
+
+function sendMagicLinkToCustomerWhatsApp() {
+  if (!quickResetMagicLink.value || !quickResetPhone.value) return;
+  const cleanPhone = quickResetPhone.value.replace(/\D/g, '');
+  const custName = quickResetCustomerName.value ? ` ${quickResetCustomerName.value}` : '';
+  let msg = '';
+  if (currentLang.value === 'hi') {
+    msg = `नमस्ते${custName}! कोमल मार्ट (Komal Mart) से आपका सुरक्षित पासवर्ड रीसेट लिंक तैयार है। कृपया नीचे दिए गए लिंक पर क्लिक करके अपना नया पासवर्ड सेट करें (यह लिंक १५ मिनट के लिए वैध है):\n\n${quickResetMagicLink.value}`;
+  } else if (currentLang.value === 'en') {
+    msg = `Hello${custName}! Here is your secure password reset link for Komal Mart. Tap the link below to set your new password (valid for 15 minutes):\n\n${quickResetMagicLink.value}`;
+  } else {
+    msg = `नमस्ते${custName}! कोमल मार्ट (Komal Mart) वरून आपला सुरक्षित पासवर्ड रीसेट लिंक तयार झाला आहे. खालील लिंकवर क्लिक करून आपला नवीन पासवर्ड सेट करा (१५ मिनिटांसाठी वैध):\n\n${quickResetMagicLink.value}`;
+  }
+  const waUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
+}
+
+function closeQuickResetModal() {
+  showQuickResetModal.value = false;
+  quickResetPhone.value = '';
+  quickResetCustomerName.value = '';
+  quickResetPin.value = '';
+  quickResetMagicLink.value = '';
+  quickResetError.value = '';
+  quickResetCopied.value = false;
+  if (window.location.hash.includes('quick-reset')) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+// --- CUSTOMER MAGIC RESET LINK ACTIONS ---
+async function checkMagicResetToken(tkn) {
+  if (!tkn) return;
+  magicResetChecking.value = true;
+  magicResetError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/verify-magic-reset-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: tkn })
+    });
+    const data = await res.json();
+    if (res.ok && data.valid) {
+      magicResetCustomerName.value = data.customer_name || '';
+      magicResetCustomerPhone.value = data.customer_phone || '';
+    } else {
+      magicResetError.value = formatAuthError(data, currentLang.value === 'mr' ? 'हा रीसेट लिंक कालबाह्य झाला आहे किंवा आधीच वापरला गेला आहे.' : (currentLang.value === 'hi' ? 'यह रीसेट लिंक समाप्त हो चुका है या पहले ही उपयोग किया जा चुका है।' : 'This reset link has expired or has already been used.'));
+    }
+  } catch (err) {
+    magicResetError.value = t('auth_err_network');
+  } finally {
+    magicResetChecking.value = false;
+  }
+}
+
+async function handleExecuteMagicReset() {
+  if (!magicResetNewPassword.value || magicResetNewPassword.value.length < 4) {
+    magicResetError.value = t('auth_err_password_too_short');
+    return;
+  }
+  if (magicResetNewPassword.value !== magicResetConfirmPassword.value) {
+    magicResetError.value = currentLang.value === 'mr' ? 'दोन्ही पासवर्ड जुळत नाहीत. कृपया पुन्हा तपासा.' : (currentLang.value === 'hi' ? 'दोनों पासवर्ड मेल नहीं खाते। कृपया पुनः जांचें।' : 'Passwords do not match. Please verify.');
+    return;
+  }
+  magicResetSubmitting.value = true;
+  magicResetError.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reset_token: magicResetToken.value,
+        new_password: magicResetNewPassword.value.trim()
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      // Instant auto-login
+      if (data.token && data.user) {
+        authToken.value = data.token;
+        localStorage.setItem('kirana_token', data.token);
+        localStorage.setItem('kirana_user', JSON.stringify(data.user));
+        currentUser.value = data.user;
+        profileForm.value = { ...data.user };
+        customerForm.value.name = data.user.name;
+        customerForm.value.phone = data.user.phone;
+        customerForm.value.address = data.user.address;
+        if (data.user.role === 'admin') {
+          adminActiveTab.value = 'storefront';
+          loadAdminOrders();
+          loadAdminCustomers();
+          loadAdminKhata();
+        } else {
+          loadCustomerOrders();
+        }
+      }
+      showMagicResetModal.value = false;
+      magicResetToken.value = '';
+      magicResetNewPassword.value = '';
+      magicResetConfirmPassword.value = '';
+      showToast(currentLang.value === 'mr' ? '🎉 पासवर्ड बदलला आहे! आपले स्वागत आहे.' : (currentLang.value === 'hi' ? '🎉 पासवर्ड बदल दिया गया है! आपका स्वागत है।' : '🎉 Password reset successfully! Welcome back.'));
+      // Clean URL hash
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      magicResetError.value = formatAuthError(data, currentLang.value === 'mr' ? 'पासवर्ड बदल अयशस्वी.' : (currentLang.value === 'hi' ? 'पासवर्ड बदलना असफल।' : 'Password reset failed.'));
+    }
+  } catch (err) {
+    magicResetError.value = t('auth_err_network');
+  } finally {
+    magicResetSubmitting.value = false;
+  }
+}
+
+function closeMagicResetModal() {
+  showMagicResetModal.value = false;
+  magicResetToken.value = '';
+  magicResetCustomerName.value = '';
+  magicResetCustomerPhone.value = '';
+  magicResetNewPassword.value = '';
+  magicResetConfirmPassword.value = '';
+  magicResetError.value = '';
+  if (window.location.hash.includes('magic-reset')) {
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
@@ -14710,17 +15095,52 @@ onMounted(() => {
     window.history.replaceState({}, document.title, cleanUrl);
   }
 
-  // Handle #admin route direct access
-  if (window.location.hash === '#admin') {
-    if (!isAdminLoggedIn.value) {
+  function checkUrlNavigationRoutes() {
+    const hash = window.location.hash || '';
+    const searchParams = new URLSearchParams(window.location.search);
+
+    // 1. Storekeeper 1-Tap Quick Reset Link (#quick-reset?phone=... or ?quick_reset=...)
+    if (hash.includes('quick-reset') || searchParams.has('quick_reset') || searchParams.has('quick-reset')) {
+      let phoneParam = searchParams.get('quick_reset') || searchParams.get('quick-reset') || searchParams.get('phone') || '';
+      if (!phoneParam && hash.includes('phone=')) {
+        const match = hash.match(/phone=([^&]+)/);
+        if (match) phoneParam = decodeURIComponent(match[1]);
+      }
+      quickResetPhone.value = phoneParam;
+      quickResetPin.value = '';
+      quickResetMagicLink.value = '';
+      quickResetError.value = '';
+      quickResetCopied.value = false;
+      showQuickResetModal.value = true;
+    }
+
+    // 2. Customer 1-Tap Magic Reset Link (#magic-reset?token=... or ?magic_reset=...)
+    if (hash.includes('magic-reset') || searchParams.has('magic_reset') || searchParams.has('magic-reset')) {
+      let tokenParam = searchParams.get('magic_reset') || searchParams.get('magic-reset') || searchParams.get('token') || '';
+      if (!tokenParam && hash.includes('token=')) {
+        const match = hash.match(/token=([^&]+)/);
+        if (match) tokenParam = decodeURIComponent(match[1]);
+      }
+      if (tokenParam) {
+        magicResetToken.value = tokenParam;
+        magicResetNewPassword.value = '';
+        magicResetConfirmPassword.value = '';
+        magicResetError.value = '';
+        showMagicResetModal.value = true;
+        checkMagicResetToken(tokenParam);
+      }
+    }
+
+    // 3. Handle #admin route direct access
+    if (hash === '#admin' && !isAdminLoggedIn.value) {
       openAuthModal('admin');
     }
   }
 
+  checkUrlNavigationRoutes();
+
   window.addEventListener('hashchange', () => {
-    if (window.location.hash === '#admin' && !isAdminLoggedIn.value) {
-      openAuthModal('admin');
-    }
+    checkUrlNavigationRoutes();
   });
 
   // PWA standalone detection
