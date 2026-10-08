@@ -81,6 +81,17 @@
             </button>
           </div>
         </div>
+        <!-- Top Bar Theme Switcher -->
+        <button
+          type="button"
+          class="top-theme-toggle-btn"
+          @click="toggleTheme"
+          :title="currentTheme === 'dark' ? (currentLang === 'mr' ? 'लाईट मोड सुरू करा (Switch to Light Mode)' : 'Switch to Light Mode') : (currentLang === 'mr' ? 'डार्क मोड सुरू करा (Switch to Dark Mode)' : 'Switch to Dark Mode')"
+          :aria-label="currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          <span>{{ currentTheme === 'dark' ? '☀️' : '🌙' }}</span>
+          <span>{{ currentTheme === 'dark' ? (currentLang === 'mr' ? 'लाईट' : (currentLang === 'hi' ? 'लाइट' : 'Light')) : (currentLang === 'mr' ? 'डार्क' : (currentLang === 'hi' ? 'डार्क' : 'Dark')) }}</span>
+        </button>
       </div>
     </div>
 
@@ -159,6 +170,18 @@
 
         <!-- Header Actions: User Profile / Login & Cart -->
         <div class="header-actions">
+          <!-- Universal Theme Switcher (☀️ / 🌙) -->
+          <button
+            type="button"
+            class="theme-toggle-btn"
+            @click="toggleTheme"
+            :title="currentTheme === 'dark' ? (currentLang === 'mr' ? 'लाईट मोड सुरू करा (Switch to Light Mode)' : 'Switch to Light Mode') : (currentLang === 'mr' ? 'डार्क मोड सुरू करा (Switch to Dark Mode)' : 'Switch to Dark Mode')"
+            :aria-label="currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          >
+            <span class="theme-toggle-icon">{{ currentTheme === 'dark' ? '☀️' : '🌙' }}</span>
+            <span class="theme-toggle-label desktop-only">{{ currentTheme === 'dark' ? (currentLang === 'mr' ? 'लाईट' : (currentLang === 'hi' ? 'लाइट' : 'Light')) : (currentLang === 'mr' ? 'डार्क' : (currentLang === 'hi' ? 'डार्क' : 'Dark')) }}</span>
+          </button>
+
           <!-- ADMIN CONTROLS (IF LOGGED IN AS ADMIN) -->
           <template v-if="isAdminLoggedIn">
             <button
@@ -871,38 +894,38 @@
       </div>
 
       <!-- Footer with Authentic Store Details, GST, FSSAI & Contact Details -->
-      <footer style="margin-top: 60px; padding: 32px 20px 24px 20px; border-top: 1.5px solid var(--border); background: #fdfbf7; color: var(--text-subtle); font-size: 0.88rem;">
-        <div style="max-width: 900px; margin: 0 auto; text-align: center;">
-          <h4 style="font-size: 1.15rem; font-weight: 900; color: #064e3b; margin: 0 0 6px 0;">
+      <footer class="storefront-footer">
+        <div class="storefront-footer-container">
+          <h4 class="storefront-footer-title">
             🌾 Komal Enterprises / Komal Mart
           </h4>
-          <p style="margin: 0 0 8px 0; color: #334155; font-size: 0.84rem; line-height: 1.5;">
+          <p class="storefront-footer-address">
             📍 <strong>Address:</strong> 1st Floor, GRD 6, Vitthal Rukhmai CHS, B.B. Khandekar Marg, Nr. Ram Mandir, Wadala (W), Mumbai - 400031
           </p>
 
-          <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 0.82rem; color: #1e293b;">
-            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+          <div class="storefront-footer-badges">
+            <span class="storefront-footer-badge">
               🏛️ <strong>GSTIN:</strong> 27ACOPU3896J1ZK
             </span>
-            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+            <span class="storefront-footer-badge">
               🛡️ <strong>FSSAI NO:</strong> 11521003000327
             </span>
-            <span style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+            <span class="storefront-footer-badge">
               ✉️ <strong>Email:</strong> binkteshsingh0820@gmail.com
             </span>
           </div>
 
-          <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; font-size: 0.84rem;">
-            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:9987602693" style="color: #059669; font-weight: 700; text-decoration: none;">9987602693</a></span>
+          <div class="storefront-footer-contacts">
+            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:9987602693" class="footer-phone-link">9987602693</a></span>
             <span>•</span>
-            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:8369795519" style="color: #059669; font-weight: 700; text-decoration: none;">8369795519</a></span>
+            <span>📞 <strong>Binktesh Kumar (Shop Owner):</strong> <a href="tel:8369795519" class="footer-phone-link">8369795519</a></span>
             <span>•</span>
-            <span>📞 <strong>Hareram Kumar:</strong> <a href="tel:7045311406" style="color: #059669; font-weight: 700; text-decoration: none;">7045311406</a></span>
+            <span>📞 <strong>Hareram Kumar:</strong> <a href="tel:7045311406" class="footer-phone-link">7045311406</a></span>
             <span>•</span>
-            <span>📲 <strong>WhatsApp Helpline:</strong> <a href="https://wa.me/919142052967" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none;">91420-52967</a></span>
+            <span>📲 <strong>WhatsApp Helpline:</strong> <a href="https://wa.me/919142052967" target="_blank" class="footer-wa-link">91420-52967</a></span>
           </div>
 
-          <p style="margin-top: 14px; font-size: 0.8rem; color: #94a3b8;">
+          <p class="storefront-footer-disclaimer">
             Komal Mart • Pure Kirana, Fresh Chakki Atta, Dals, Spices & Grains • Hyperlocal doorstep delivery across Wadala, Dadar, Matunga, Sewri & Sion.
           </p>
         </div>
@@ -1542,7 +1565,7 @@
               </div>
 
               <!-- Quick Walk-in Summary Banner when collapsed -->
-              <div v-if="!posCustomerDetailsOpen" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.84rem;">
+              <div v-if="!posCustomerDetailsOpen" class="pos-customer-summary-pill">
                 <div>
                   <strong>👤 {{ counterOrder.customer_name || (currentLang === 'en' ? 'Walk-in Customer' : 'काउंटर रोख ग्राहक') }}</strong>
                   <span style="color: var(--text-muted); margin-left: 6px;">(📞 {{ counterOrder.customer_phone || '9876543210' }} • 💵 {{ counterOrder.payment_method }})</span>
@@ -1911,14 +1934,15 @@
         <!-- TAB 3: ORDERS & KHATA LEDGER -->
         <div v-if="adminActiveTab === 'orders'" style="margin-top: 14px;">
           <!-- Instant Search & Soundbox Paise Reconciler Bar -->
-          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div style="background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 260px; display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 1.1rem;">🔍</span>
               <input
                 type="text"
                 v-model="adminOrderSearch"
                 :placeholder="currentLang === 'en' ? 'Search Order #, phone, customer, or Soundbox paise (e.g. .37 or 37)...' : (currentLang === 'mr' ? 'ऑर्डर नं, फोन, ग्राहक किंवा साऊंडबॉक्स पैसे शोधा (उदा. .३७ किंवा ३७)...' : 'ऑर्डर नं, फोन, ग्राहक या साउंडबॉक्स पैसे खोजें (उदा. .37 या 37)...')"
-                style="flex: 1; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem;"
+                class="form-input"
+                style="flex: 1; padding: 8px 12px; font-size: 0.88rem;"
               />
               <button
                 v-if="adminOrderSearch"
@@ -2057,7 +2081,7 @@
             <div style="font-size: 1.8rem; margin-bottom: 8px;">🔄</div>
             <div>{{ currentLang === 'en' ? 'Loading orders from cloud database...' : (currentLang === 'mr' ? 'क्लाउड डेटाबेसमधून ऑर्डर्स लोड होत आहेत...' : 'क्लाउड डेटाबेस से ऑर्डर लोड हो रहे हैं...') }}</div>
           </div>
-          <div v-else-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+          <div v-else-if="displayedAdminOrders.length === 0" style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
             {{ currentLang === 'en' ? 'No orders found matching this filter.' : (currentLang === 'mr' ? 'या फिल्टरमध्ये कोणतीही ऑर्डर सापडली नाही.' : 'इस फ़िल्टर में कोई ऑर्डर नहीं मिला।') }}
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 16px;">
@@ -2371,7 +2395,7 @@
 
           <!-- Mobile Customer Directory Cards (Phone Screens <= 768px) -->
           <div class="admin-mobile-customer-list">
-            <div v-if="filteredAdminCustomers.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+            <div v-if="filteredAdminCustomers.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
               {{ currentLang === 'en' ? 'No customers found.' : (currentLang === 'mr' ? 'कोणताही ग्राहक सापडला नाही.' : 'कोई ग्राहक नहीं मिला।') }}
             </div>
             <div
@@ -2571,7 +2595,7 @@
 
           <!-- Mobile Khata Cards (Phone Screens <= 768px) -->
           <div class="admin-mobile-khata-list">
-            <div v-if="filteredKhataList.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+            <div v-if="filteredKhataList.length === 0" style="text-align: center; padding: 30px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
               {{ khataLoading ? 'Loading ledger...' : 'Zero dues outstanding! All bills are settled. 🎉' }}
             </div>
             <div
@@ -2639,16 +2663,17 @@
         <!-- TAB 6: DUKANDAR DAILY Z-REPORT & CASH RECONCILER -->
         <div v-if="adminActiveTab === 'zreport'" style="margin-top: 14px;">
           <!-- Top Control Header: Date Selector & Actions -->
-          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span style="font-weight: 800; color: #064e3b; font-size: 0.95rem;">
+              <span style="font-weight: 800; color: var(--primary); font-size: 0.95rem;">
                 {{ currentLang === 'en' ? '📅 Select Date:' : (currentLang === 'mr' ? '📅 तारीख निवडा:' : '📅 तारीख चुनें:') }}
               </span>
               <input
                 type="date"
                 v-model="zReportDate"
                 @change="loadDailyZReport"
-                style="padding: 6px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.9rem;"
+                class="form-input"
+                style="padding: 6px 12px; font-weight: 700; font-size: 0.9rem;"
               />
               <button
                 type="button"
@@ -2933,7 +2958,7 @@
 
         <!-- TAB 7: RESTOCK ALERTS & CUSTOMER DEMAND INTELLIGENCE -->
         <div v-if="adminActiveTab === 'restock'" style="margin-top: 14px;">
-          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+          <div style="background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
               <div>
                 <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
@@ -3021,7 +3046,7 @@
 
         <!-- TAB 8: CUSTOMER COMPLAINTS & FEEDBACK TICKETS -->
         <div v-if="adminActiveTab === 'support'" style="margin-top: 14px;">
-          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+          <div style="background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
               <div>
                 <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
@@ -3188,7 +3213,7 @@
 
         <!-- TAB 9: HYPERLOCAL DELIVERY ZONES & EMERGENCY HOLD CONTROLLER -->
         <div v-if="adminActiveTab === 'zones'" style="margin-top: 14px;">
-          <div style="background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
+          <div style="background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
               <div>
                 <h3 style="font-size: 1.25rem; font-weight: 900; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 8px;">
@@ -5264,7 +5289,7 @@
             </div>
           </div>
 
-          <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
+          <div class="checkout-summary-box">
             <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 6px;">
               <span>{{ t('cart_bag') }}:</span>
               <span>₹{{ cartTotalAmount }}</span>
@@ -8788,6 +8813,61 @@ function selectCategoryFromSheet(slug) {
   showMobileCategorySheet.value = false;
   currentBottomTab.value = slug === '' ? 'home' : 'categories';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Theme State (Default: 'light', Optional: 'dark' with localStorage persistence)
+const currentTheme = ref('light');
+
+function initTheme() {
+  try {
+    const saved = localStorage.getItem('komal_theme');
+    if (saved === 'dark' || saved === 'light') {
+      currentTheme.value = saved;
+    } else {
+      currentTheme.value = 'light';
+    }
+  } catch (e) {
+    currentTheme.value = 'light';
+  }
+  applyTheme(currentTheme.value);
+}
+
+function toggleTheme() {
+  const next = currentTheme.value === 'dark' ? 'light' : 'dark';
+  currentTheme.value = next;
+  try {
+    localStorage.setItem('komal_theme', next);
+  } catch (e) {}
+  applyTheme(next);
+  const msg = next === 'dark'
+    ? (currentLang.value === 'mr' ? '🌙 डार्क मोड सुरू केला' : (currentLang.value === 'hi' ? '🌙 डार्क मोड चालू किया' : '🌙 Dark mode enabled'))
+    : (currentLang.value === 'mr' ? '☀️ लाईट मोड सुरू केला' : (currentLang.value === 'hi' ? '☀️ लाइट मोड चालू किया' : '☀️ Light mode enabled'));
+  showToast(msg);
+}
+
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.content = 'dark';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.content = 'light';
+  }
+}
+
+// Initialize theme immediately
+initTheme();
+
+// Sync across multiple open browser tabs
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'komal_theme') {
+      currentTheme.value = event.newValue === 'dark' ? 'dark' : 'light';
+      applyTheme(currentTheme.value);
+    }
+  });
 }
 
 // Language State (Marathi default for Maharashtra / Mumbai, user-customizable)
